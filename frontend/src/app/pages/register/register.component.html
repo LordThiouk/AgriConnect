@@ -1,0 +1,27 @@
+<h2>Inscription</h2>
+<form>
+  <label>
+    <input type="radio" name="userType" value="producteur" [(ngModel)]="userType"> Producteur
+  </label>
+  <label>
+    <input type="radio" name="userType" value="agent" [(ngModel)]="userType"> Agent coopératif
+  </label>
+
+  <div *ngIf="userType === 'producteur'">
+    <input placeholder="Nom" name="nom" required>
+    <input placeholder="Prénom" name="prenom" required>
+    <input placeholder="Email" type="email" name="email" required>
+    <input placeholder="Mot de passe" type="password" name="password" required>
+    <!-- Autres champs spécifiques producteur -->
+  </div>
+  <div *ngIf="userType === 'agent'">
+    <input placeholder="Nom" name="nom" required>
+    <input placeholder="Prénom" name="prenom" required>
+    <input placeholder="Email professionnel" type="email" name="email" required>
+    <input placeholder="Mot de passe" type="password" name="password" required>
+    <input placeholder="Coopérative" name="cooperative" required>
+    <!-- Autres champs spécifiques agent -->
+  </div>
+  <button type="submit">S'inscrire</button>
+</form>
+<a routerLink="/login">Déjà un compte ? Se connecter</a> 

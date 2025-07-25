@@ -1,0 +1,6 @@
+/* Styles de base pour la page d'inscription */
+h2 { margin-bottom: 1rem; }
+form { display: flex; flex-direction: column; gap: 0.5rem; max-width: 400px; }
+input[type="radio"] { margin-right: 0.5rem; }
+button { margin-top: 1rem; }
+a { margin-top: 1rem; color: #27ae60; text-decoration: underline; cursor: pointer; } 
