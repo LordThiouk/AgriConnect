@@ -118,4 +118,3 @@ AgriConnect/
 Projet sous licence MIT / à adapter selon le contexte de déploiement.
 
 
-
