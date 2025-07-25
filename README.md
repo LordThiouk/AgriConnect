@@ -1,20 +1,20 @@
-# 🌾 Plateforme de Suivi Agricole Digital
+#  Plateforme de Suivi Agricole Digital
 
 Cette plateforme permet de digitaliser la collecte de données terrain pour les coopératives agricoles, d’assurer un suivi individualisé des producteurs, et de générer des conseils techniques personnalisés via un moteur de règles (et à terme de l’IA).
 
 ---
 
-## 🚀 Objectifs du projet
+##  Objectifs du projet
 
-- 📱 Digitaliser la collecte des données agricoles (offline/online)
-- 🧑‍🌾 Suivre les producteurs et leurs parcelles à l’échelle nationale
-- 🧠 Générer des conseils techniques personnalisés
-- 📊 Fournir des dashboards aux coopératives et décideurs
-- 🔗 Offrir une API REST sécurisée pour l’interopérabilité (Odoo, Power BI…)
+-  Digitaliser la collecte des données agricoles (offline/online)
+-  Suivre les producteurs et leurs parcelles à l’échelle nationale
+-  Générer des conseils techniques personnalisés
+-  Fournir des dashboards aux coopératives et décideurs
+-  Offrir une API REST sécurisée pour l’interopérabilité (Odoo, Power BI…)
 
 ---
 
-## 🧱 Architecture technique
+##  Architecture technique
 
 | Composant       | Technologie proposée |
 |-----------------|----------------------|
@@ -28,7 +28,7 @@ Cette plateforme permet de digitaliser la collecte de données terrain pour les 
 
 ---
 
-## 🧑‍💻 Stack de développement
+##  Stack de développement
 
 - GitHub pour gestion de code source
 - Notion pour documentation produit/technique
@@ -37,7 +37,7 @@ Cette plateforme permet de digitaliser la collecte de données terrain pour les 
 
 ---
 
-## 📦 Installation locale (exemple Node.js)
+##  Installation locale (exemple Node.js)
 
 ```bash
 # Cloner le dépôt
@@ -55,18 +55,18 @@ npm install
 npm run dev
 ````
 
-> ⚠️ Assurez-vous d’avoir un fichier `.env` avec les bonnes variables d’environnement.
+> ⚠ Assurez-vous d’avoir un fichier `.env` avec les bonnes variables d’environnement.
 
 ---
 
-## 🔑 Authentification
+##  Authentification
 
 * Utilise un système par jeton JWT
 * Gestion des rôles : producteur, agent, superviseur, admin
 
 ---
 
-## 📍 Fonctionnalités MVP
+##  Fonctionnalités MVP
 
 * Saisie de fiches producteurs et parcelles (offline)
 * Géolocalisation des champs
@@ -77,20 +77,20 @@ npm run dev
 
 ---
 
-## 🧠 Fonctionnalité IA
+##  Fonctionnalité IA
 
 * **Phase 1 (MVP)** : règles métiers (ex: si levée tardive → recommander urée)
 * **Phase 2** : IA prédictive pour rendement, alerte maladies, etc.
 
 ---
 
-## 📘 Documentation API
+##  Documentation API
 
 Disponible à `/api/docs` via Swagger une fois le backend lancé.
 
 ---
 
-## 📂 Structure du dépôt
+##  Structure du dépôt
 
 ```
 AgriConnect/
@@ -104,7 +104,7 @@ AgriConnect/
 
 ---
 
-## ✅ KPIs à suivre (phase MVP)
+##  KPIs à suivre (phase MVP)
 
 * > 80% de fiches producteurs complétées
 * > 70% de parcelles géolocalisées
@@ -113,7 +113,7 @@ AgriConnect/
 
 ---
 
-## 📜 Licence
+##  Licence
 
 Projet sous licence MIT / à adapter selon le contexte de déploiement.
 
