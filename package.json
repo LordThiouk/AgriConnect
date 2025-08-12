@@ -1,14 +1,26 @@
 {
-  "name": "vite_react_shadcn_ts",
+  "name": "agriconnect-frontend",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
+    "build:prod": "vite build --mode production",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "lint:fix": "eslint . --fix",
+    "type-check": "tsc --noEmit",
+    "preview": "vite preview",
+    "test": "echo \"Tests not configured yet\"",
+    "test:watch": "echo \"Tests not configured yet\"",
+    "docker:build": "docker build -t agriconnect-frontend .",
+    "docker:run": "docker run -p 8080:80 agriconnect-frontend",
+    "docker:compose": "docker-compose up",
+    "docker:compose:build": "docker-compose up --build",
+    "deploy:staging": "./scripts/deploy.sh staging",
+    "deploy:production": "./scripts/deploy.sh production",
+    "ci:test": "npm run type-check && npm run build"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
