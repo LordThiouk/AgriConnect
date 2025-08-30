@@ -103,6 +103,7 @@ temp/
 .supabase/
 supabase/.env.local
 supabase/.env.*.local
+tests/.env
 
 # Database
 *.db

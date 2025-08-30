@@ -1,0 +1,38 @@
+{
+  "name": "agriconnect-tests",
+  "version": "1.0.0",
+  "description": "Test suite for AgriConnect project",
+  "main": "index.js",
+  "scripts": {
+    "test:api": "node tests/api/auth.test.js && node tests/api/entities.test.js",
+    "test:database": "node tests/database/schema.test.js",
+    "test:mobile": "node tests/mobile/app.test.js",
+    "test:web": "node tests/web/app.test.js",
+    "test:all": "npm run test:api && npm run test:database && npm run test:mobile && npm run test:web",
+    "test:auth": "node tests/api/auth.test.js",
+    "test:entities": "node tests/api/entities.test.js",
+    "test:production": "node tests/api/auth.test.js --production",
+    "test:local": "node tests/api/auth.test.js --local"
+  },
+  "keywords": [
+    "agriconnect",
+    "testing",
+    "api",
+    "database",
+    "mobile",
+    "web"
+  ],
+  "author": "AgriConnect Team",
+  "license": "MIT",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.52.1",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

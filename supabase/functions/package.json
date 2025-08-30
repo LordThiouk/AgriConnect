@@ -1,0 +1,20 @@
+{
+  "name": "agriconnect-edge-functions",
+  "version": "1.0.0",
+  "description": "Edge Functions for AgriConnect API",
+  "main": "index.ts",
+  "scripts": {
+    "deploy": "supabase functions deploy",
+    "deploy:all": "supabase functions deploy --project-ref $SUPABASE_PROJECT_REF"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.52.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

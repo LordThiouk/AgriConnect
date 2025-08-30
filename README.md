@@ -1,4 +1,4 @@
-# AgriConnect - Plateforme Numérique Agricole
+qui est sur ce local # AgriConnect - Plateforme Numérique Agricole
 
 Une application mobile et web complète pour digitaliser le suivi agricole au Sénégal, connectant les producteurs, agents de terrain et superviseurs.
 
@@ -185,9 +185,7 @@ Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
 ## 📞 **Support**
 
 Pour toute question ou support :
-- 📧 Email: support@agriconnect.sn
-- 📱 Téléphone: +221 XX XXX XX XX
-- 🌐 Site web: https://agriconnect.sn
+- 📧 Email: pirlothiouk@gmail.com
 
 ---
 

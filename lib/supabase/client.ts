@@ -42,7 +42,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 
 // Export types for convenience
 export type { User, Session, AuthError } from '@supabase/supabase-js';
-export type { Database } from './types';
+export type { Database } from './types/database';
 
 // Helper functions
 export const getCurrentUser = async () => {

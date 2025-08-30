@@ -8,6 +8,8 @@
     "mobile"
   ],
   "scripts": {
+    "prepare": "husky install",
+    "setup:env": "node scripts/setup-env.js",
     "dev:web": "cd web && npm run dev",
     "dev:mobile": "cd mobile && npm run start",
     "dev:all": "concurrently \"npm run dev:web\" \"npm run dev:mobile\"",
@@ -25,10 +27,13 @@
     "db:migrate": "npx supabase db push",
     "db:reset": "npx supabase db reset",
     "db:seed": "npx supabase db reset --seed-file seed.sql",
-    "setup": "npm run install:all && npm run supabase:start"
-  },
-  "devDependencies": {
-    "concurrently": "^8.2.2"
+    "setup": "npm run install:all && npm run supabase:start",
+    "test:api": "cd tests && npm run test:api",
+    "test:database": "cd tests && npm run test:database",
+    "test:mobile": "cd tests && npm run test:mobile",
+    "test:web": "cd tests && npm run test:web",
+    "test:all": "cd tests && npm run test:all",
+    "deploy:functions": "cd supabase/functions && npm run deploy:all"
   },
   "keywords": [
     "agriculture",
@@ -40,5 +45,12 @@
     "web-app"
   ],
   "author": "AgriConnect Team",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "husky": "^8.0.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
 }

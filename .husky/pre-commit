@@ -1,0 +1,51 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔒 Running pre-commit security checks..."
+
+# Check for hardcoded Supabase URLs
+if git diff --cached --name-only | xargs grep -l "swggnqbymblnyjcocqxi\.supabase\.co" 2>/dev/null; then
+    echo "❌ ERROR: Hardcoded Supabase URL found in staged files!"
+    echo "   Please use environment variables instead."
+    echo "   Files with hardcoded URLs:"
+    git diff --cached --name-only | xargs grep -l "swggnqbymblnyjcocqxi\.supabase\.co"
+    exit 1
+fi
+
+# Check for hardcoded API keys
+if git diff --cached --name-only | xargs grep -l "eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*" 2>/dev/null; then
+    echo "❌ ERROR: Hardcoded JWT tokens found in staged files!"
+    echo "   Please use environment variables instead."
+    exit 1
+fi
+
+# Check for hardcoded service role keys
+if git diff --cached --name-only | xargs grep -l "sk-[A-Za-z0-9_-]*" 2>/dev/null; then
+    echo "❌ ERROR: Hardcoded service role keys found in staged files!"
+    echo "   Please use environment variables instead."
+    exit 1
+fi
+
+# Check for hardcoded anon keys
+if git diff --cached --name-only | xargs grep -l "eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*" 2>/dev/null; then
+    echo "❌ ERROR: Hardcoded anon keys found in staged files!"
+    echo "   Please use environment variables instead."
+    exit 1
+fi
+
+# Check for .env files being committed
+if git diff --cached --name-only | grep -E "\.env$|\.env\."; then
+    echo "❌ ERROR: .env files should not be committed!"
+    echo "   Please remove .env files from staging and add them to .gitignore"
+    exit 1
+fi
+
+# Check for test files with sensitive data
+if git diff --cached --name-only | xargs grep -l "test@agriconnect\.sn\|test123\|+221701234567" 2>/dev/null; then
+    echo "❌ ERROR: Test credentials found in staged files!"
+    echo "   Please use environment variables for test data."
+    exit 1
+fi
+
+echo "✅ Pre-commit security checks passed!"
+echo "🚀 Proceeding with commit..."
