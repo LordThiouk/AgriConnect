@@ -17,6 +17,8 @@ build/
 .env.development.local
 .env.test.local
 .env.production.local
+web/.env
+mobile/.env
 
 # IDE and editor files
 .vscode/
@@ -99,6 +101,8 @@ temp/
 
 # Supabase
 .supabase/
+supabase/.env.local
+supabase/.env.*.local
 
 # Database
 *.db
@@ -129,6 +133,12 @@ coverage/
 *.tgz
 *.tar.gz
 .cursor/
+
+# Test files
+test-*.js
+test-*.ts
+*-test.js
+*-test.ts
 
 # History files
 .history/
