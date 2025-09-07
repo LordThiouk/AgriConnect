@@ -1,32 +1,94 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/hooks/useAuth";
-import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import NotFound from "./pages/NotFound";
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import { ToastProvider } from './context/ToastContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import LoginPage from './pages/Login';
+import DashboardPage from './pages/Dashboard';
+import ProducersPage from './pages/Producers';
+import TermsPage from './pages/Terms';
+import PrivacyPage from './pages/Privacy';
+import ResetPasswordPage from './pages/ResetPassword';
+import UserRoleDebug from './components/UserRoleDebug';
+import PaginationTest from './components/test/PaginationTest';
+import SupabaseTest from './components/test/SupabaseTest';
+import DataSeeder from './components/test/DataSeeder';
+import './App.css';
 
-const queryClient = new QueryClient();
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
+function App() {
+  return (
     <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
+      <ToastProvider>
+        <Router>
+          <div className="App">
           <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
+            {/* Routes publiques */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            
+            {/* Routes protégées */}
+            <Route 
+              path="/dashboard" 
+              element={
+                <ProtectedRoute>
+                  <DashboardPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/producers" 
+              element={
+                <ProtectedRoute>
+                  <ProducersPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/test-pagination" 
+              element={
+                <ProtectedRoute>
+                  <PaginationTest />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/test-supabase" 
+              element={
+                <ProtectedRoute>
+                  <SupabaseTest />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/seed-data" 
+              element={
+                <ProtectedRoute>
+                  <DataSeeder />
+                </ProtectedRoute>
+              } 
+            />
+            
+            {/* Route de debug (accessible même sans permissions web) */}
+            <Route 
+              path="/debug" 
+              element={
+                <ProtectedRoute allowDebugAccess={true}>
+                  <UserRoleDebug />
+                </ProtectedRoute>
+              } 
+            />
+            
+            {/* Redirection par défaut */}
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+        </div>
+        </Router>
+      </ToastProvider>
     </AuthProvider>
-  </QueryClientProvider>
-);
+  );
+}
 
 export default App;

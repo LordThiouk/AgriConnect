@@ -4,429 +4,462 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
-import type { Producer, ProducerInsert, ProducerUpdate } from '../../../../lib/services';
+import { producersService, cooperativesService } from '../../../../lib/services/api';
+import { Database } from '../../../../lib/supabase/types/database';
+
+type Producer = Database['public']['Tables']['producers']['Row'];
+type Cooperative = Database['public']['Tables']['cooperatives']['Row'];
 
 interface ProducerFormProps {
   producer?: Producer;
-  cooperatives: Array<{ id: string; name: string }>;
-  onSubmit: (data: ProducerInsert | ProducerUpdate) => Promise<void>;
+  onSubmit: (data: Partial<Producer>) => void;
   onCancel: () => void;
   isLoading?: boolean;
 }
 
-export function ProducerForm({
+const ProducerForm: React.FC<ProducerFormProps> = ({
   producer,
-  cooperatives,
   onSubmit,
   onCancel,
   isLoading = false
-}: ProducerFormProps) {
-  const { toast } = useToast();
-  const [formData, setFormData] = useState<ProducerInsert>({
-    profile_id: '',
-    cooperative_id: '',
+}) => {
+  const [formData, setFormData] = useState<Partial<Producer>>({
     first_name: '',
     last_name: '',
     phone: '',
-    email: '',
+    cooperative_id: '',
+    region: '',
+    department: '',
+    commune: '',
+    village: '',
     gender: 'M',
     birth_date: '',
-    address: '',
-    village: '',
-    commune: '',
-    department: '',
-    region: '',
-    household_size: 1,
     education_level: '',
+    household_size: 1,
     farming_experience_years: 0,
     primary_language: 'fr',
+    address: '',
+    email: '',
     is_active: true
   });
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [cooperatives, setCooperatives] = useState<Cooperative[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Initialize form with existing producer data
+  // Load cooperatives on component mount
+  useEffect(() => {
+    const loadCooperatives = async () => {
+      try {
+        setLoading(true);
+        const response = await cooperativesService.getAll({ limit: 100 });
+        setCooperatives(response.data);
+      } catch (err) {
+        setError('Failed to load cooperatives');
+        console.error('Error loading cooperatives:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadCooperatives();
+  }, []);
+
+  // Load producer data if editing
   useEffect(() => {
     if (producer) {
       setFormData({
-        profile_id: producer.profile_id || '',
-        cooperative_id: producer.cooperative_id || '',
         first_name: producer.first_name || '',
         last_name: producer.last_name || '',
         phone: producer.phone || '',
-        email: producer.email || '',
+        cooperative_id: producer.cooperative_id || '',
+        region: producer.region || '',
+        department: producer.department || '',
+        commune: producer.commune || '',
+        village: producer.village || '',
         gender: producer.gender || 'M',
         birth_date: producer.birth_date || '',
-        address: producer.address || '',
-        village: producer.village || '',
-        commune: producer.commune || '',
-        department: producer.department || '',
-        region: producer.region || '',
-        household_size: producer.household_size || 1,
         education_level: producer.education_level || '',
+        household_size: producer.household_size || 1,
         farming_experience_years: producer.farming_experience_years || 0,
         primary_language: producer.primary_language || 'fr',
+        address: producer.address || '',
+        email: producer.email || '',
         is_active: producer.is_active ?? true
       });
     }
   }, [producer]);
 
-  const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
-
-    // Required fields validation
-    if (!formData.first_name.trim()) {
-      newErrors.first_name = 'Le prénom est requis';
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    
+    if (type === 'checkbox') {
+      const checked = (e.target as HTMLInputElement).checked;
+      setFormData(prev => ({
+        ...prev,
+        [name]: checked
+      }));
+    } else if (type === 'number') {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value === '' ? 0 : Number(value)
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
     }
-
-    if (!formData.last_name.trim()) {
-      newErrors.last_name = 'Le nom de famille est requis';
-    }
-
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'Le numéro de téléphone est requis';
-    } else if (!/^\+?[0-9]{8,15}$/.test(formData.phone)) {
-      newErrors.phone = 'Format de téléphone invalide';
-    }
-
-    if (!formData.cooperative_id) {
-      newErrors.cooperative_id = 'La coopérative est requise';
-    }
-
-    if (!formData.village?.trim()) {
-      newErrors.village = 'Le village est requis';
-    }
-
-    if (!formData.commune?.trim()) {
-      newErrors.commune = 'La commune est requise';
-    }
-
-    if (!formData.department?.trim()) {
-      newErrors.department = 'Le département est requis';
-    }
-
-    if (!formData.region?.trim()) {
-      newErrors.region = 'La région est requise';
-    }
-
-    if ((formData.household_size || 0) <= 0) {
-      newErrors.household_size = 'La taille du ménage doit être supérieure à 0';
-    }
-
-    if ((formData.farming_experience_years || 0) < 0) {
-      newErrors.farming_experience_years = "L'expérience agricole ne peut pas être négative";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!validateForm()) {
-      toast({
-        title: "Erreur de validation",
-        description: "Veuillez corriger les erreurs dans le formulaire",
-        variant: "destructive"
-      });
-      return;
-    }
+    setError(null);
 
     try {
-      await onSubmit(formData);
-      toast({
-        title: "Succès",
-        description: producer ? "Producteur mis à jour avec succès" : "Producteur créé avec succès"
-      });
-    } catch (error) {
-      toast({
-        title: "Erreur",
-        description: error instanceof Error ? error.message : "Une erreur est survenue",
-        variant: "destructive"
-      });
+      // Validate required fields
+      if (!formData.first_name || !formData.last_name || !formData.phone || !formData.cooperative_id || 
+          !formData.region || !formData.department || !formData.commune || !formData.village) {
+        setError('Please fill in all required fields');
+        return;
+      }
+
+      // Validate phone number format (+221XXXXXXXXX)
+      const phoneRegex = /^\+221[0-9]{9}$/;
+      if (!phoneRegex.test(formData.phone)) {
+        setError('Phone number must be in format +221XXXXXXXXX');
+        return;
+      }
+
+      onSubmit(formData);
+    } catch (err) {
+      setError('Failed to submit form');
+      console.error('Form submission error:', err);
     }
   };
 
-  const updateField = (field: string, value: string | number | boolean) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
+  if (loading) {
+    return <div className="text-center py-4">Loading cooperatives...</div>;
+  }
 
   return (
-    <Card className="w-full max-w-4xl mx-auto">
-      <CardHeader>
-        <CardTitle>{producer ? 'Modifier le Producteur' : 'Ajouter un Producteur'}</CardTitle>
-        <CardDescription>
-          {producer ? 'Modifiez les informations du producteur' : 'Ajoutez un nouveau producteur à la base de données'}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Identity Information */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Informations d'Identité</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="first_name">Prénom *</Label>
-                <Input
-                  id="first_name"
-                  value={formData.first_name}
-                  onChange={(e) => updateField('first_name', e.target.value)}
-                  placeholder="Prénom"
-                  className={errors.first_name ? 'border-red-500' : ''}
-                />
-                {errors.first_name && <p className="text-sm text-red-500">{errors.first_name}</p>}
-              </div>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          {error}
+        </div>
+      )}
 
-              <div className="space-y-2">
-                <Label htmlFor="last_name">Nom de Famille *</Label>
-                <Input
-                  id="last_name"
-                  value={formData.last_name}
-                  onChange={(e) => updateField('last_name', e.target.value)}
-                  placeholder="Nom de famille"
-                  className={errors.last_name ? 'border-red-500' : ''}
-                />
-                {errors.last_name && <p className="text-sm text-red-500">{errors.last_name}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="phone">Téléphone *</Label>
-                <Input
-                  id="phone"
-                  value={formData.phone}
-                  onChange={(e) => updateField('phone', e.target.value)}
-                  placeholder="+221 77 123 45 67"
-                  className={errors.phone ? 'border-red-500' : ''}
-                />
-                {errors.phone && <p className="text-sm text-red-500">{errors.phone}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email || ''}
-                  onChange={(e) => updateField('email', e.target.value)}
-                  placeholder="email@example.com"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="gender">Genre</Label>
-                <Select
-                  value={formData.gender || 'M'}
-                  onValueChange={(value) => updateField('gender', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner le genre" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="M">Masculin</SelectItem>
-                    <SelectItem value="F">Féminin</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="birth_date">Date de Naissance</Label>
-                <Input
-                  id="birth_date"
-                  type="date"
-                  value={formData.birth_date || ''}
-                  onChange={(e) => updateField('birth_date', e.target.value)}
-                />
-              </div>
-            </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Basic Information */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium text-gray-900">Basic Information</h3>
+          
+          <div>
+            <label htmlFor="first_name" className="block text-sm font-medium text-gray-700">
+              First Name *
+            </label>
+            <input
+              type="text"
+              id="first_name"
+              name="first_name"
+              value={formData.first_name}
+              onChange={handleInputChange}
+              required
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+            />
           </div>
 
-          {/* Cooperative Selection */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Coopérative</h3>
-            <div className="space-y-2">
-              <Label htmlFor="cooperative_id">Coopérative *</Label>
-              <Select
-                value={formData.cooperative_id}
-                onValueChange={(value) => updateField('cooperative_id', value)}
-              >
-                <SelectTrigger className={errors.cooperative_id ? 'border-red-500' : ''}>
-                  <SelectValue placeholder="Sélectionner une coopérative" />
-                </SelectTrigger>
-                <SelectContent>
-                  {cooperatives.map((coop) => (
-                    <SelectItem key={coop.id} value={coop.id}>
-                      {coop.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.cooperative_id && <p className="text-sm text-red-500">{errors.cooperative_id}</p>}
-            </div>
+          <div>
+            <label htmlFor="last_name" className="block text-sm font-medium text-gray-700">
+              Last Name *
+            </label>
+            <input
+              type="text"
+              id="last_name"
+              name="last_name"
+              value={formData.last_name}
+              onChange={handleInputChange}
+              required
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+            />
           </div>
 
-          {/* Contact Information */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Informations de Contact</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="village">Village *</Label>
-                <Input
-                  id="village"
-                  value={formData.village || ''}
-                  onChange={(e) => updateField('village', e.target.value)}
-                  placeholder="Nom du village"
-                  className={errors.village ? 'border-red-500' : ''}
-                />
-                {errors.village && <p className="text-sm text-red-500">{errors.village}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="commune">Commune *</Label>
-                <Input
-                  id="commune"
-                  value={formData.commune || ''}
-                  onChange={(e) => updateField('commune', e.target.value)}
-                  placeholder="Nom de la commune"
-                  className={errors.commune ? 'border-red-500' : ''}
-                />
-                {errors.commune && <p className="text-sm text-red-500">{errors.commune}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="department">Département *</Label>
-                <Input
-                  id="department"
-                  value={formData.department || ''}
-                  onChange={(e) => updateField('department', e.target.value)}
-                  placeholder="Nom du département"
-                  className={errors.department ? 'border-red-500' : ''}
-                />
-                {errors.department && <p className="text-sm text-red-500">{errors.department}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="region">Région *</Label>
-                <Input
-                  id="region"
-                  value={formData.region || ''}
-                  onChange={(e) => updateField('region', e.target.value)}
-                  placeholder="Nom de la région"
-                  className={errors.region ? 'border-red-500' : ''}
-                />
-                {errors.region && <p className="text-sm text-red-500">{errors.region}</p>}
-              </div>
-
-              <div className="md:col-span-2 space-y-2">
-                <Label htmlFor="address">Adresse Complète</Label>
-                <Textarea
-                  id="address"
-                  value={formData.address || ''}
-                  onChange={(e) => updateField('address', e.target.value)}
-                  placeholder="Adresse détaillée"
-                  rows={3}
-                />
-              </div>
-            </div>
+          <div>
+            <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+              Phone Number *
+            </label>
+            <input
+              type="tel"
+              id="phone"
+              name="phone"
+              value={formData.phone}
+              onChange={handleInputChange}
+              placeholder="+221XXXXXXXXX"
+              required
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+            />
           </div>
 
-          {/* Socio-Economic Data */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Données Socio-Économiques</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="household_size">Taille du Ménage *</Label>
-                <Input
-                  id="household_size"
-                  type="number"
-                  min="1"
-                  value={formData.household_size || 1}
-                  onChange={(e) => updateField('household_size', parseInt(e.target.value) || 1)}
-                  className={errors.household_size ? 'border-red-500' : ''}
-                />
-                {errors.household_size && <p className="text-sm text-red-500">{errors.household_size}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="education_level">Niveau d'Éducation</Label>
-                <Select
-                  value={formData.education_level || ''}
-                  onValueChange={(value) => updateField('education_level', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner le niveau" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="aucun">Aucun</SelectItem>
-                    <SelectItem value="primaire">Primaire</SelectItem>
-                    <SelectItem value="secondaire">Secondaire</SelectItem>
-                    <SelectItem value="superieur">Supérieur</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="farming_experience_years">Expérience Agricole (années) *</Label>
-                <Input
-                  id="farming_experience_years"
-                  type="number"
-                  min="0"
-                  value={formData.farming_experience_years || 0}
-                  onChange={(e) => updateField('farming_experience_years', parseInt(e.target.value) || 0)}
-                  className={errors.farming_experience_years ? 'border-red-500' : ''}
-                />
-                {errors.farming_experience_years && <p className="text-sm text-red-500">{errors.farming_experience_years}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="primary_language">Langue Principale</Label>
-                <Select
-                  value={formData.primary_language || 'fr'}
-                  onValueChange={(value) => updateField('primary_language', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner la langue" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="fr">Français</SelectItem>
-                    <SelectItem value="wo">Wolof</SelectItem>
-                    <SelectItem value="pe">Peul</SelectItem>
-                    <SelectItem value="se">Sérère</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              Email
+            </label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              value={formData.email || ''}
+              onChange={handleInputChange}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+            />
           </div>
 
-          {/* Form Actions */}
-          <div className="flex justify-end space-x-4 pt-6">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onCancel}
-              disabled={isLoading}
+          <div>
+            <label htmlFor="gender" className="block text-sm font-medium text-gray-700">
+              Gender
+            </label>
+            <select
+              id="gender"
+              name="gender"
+              value={formData.gender}
+              onChange={handleInputChange}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
             >
-              Annuler
-            </Button>
-            <Button
-              type="submit"
-              disabled={isLoading}
-            >
-              {isLoading ? 'Enregistrement...' : (producer ? 'Mettre à jour' : 'Créer')}
-            </Button>
+              <option value="M">Male</option>
+              <option value="F">Female</option>
+            </select>
           </div>
-        </form>
-      </CardContent>
-    </Card>
+
+          <div>
+            <label htmlFor="birth_date" className="block text-sm font-medium text-gray-700">
+              Birth Date
+            </label>
+            <input
+              type="date"
+              id="birth_date"
+              name="birth_date"
+              value={formData.birth_date || ''}
+              onChange={handleInputChange}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+            />
+          </div>
+        </div>
+
+        {/* Location Information */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium text-gray-900">Location</h3>
+          
+          <div>
+            <label htmlFor="cooperative_id" className="block text-sm font-medium text-gray-700">
+              Cooperative *
+            </label>
+            <select
+              id="cooperative_id"
+              name="cooperative_id"
+              value={formData.cooperative_id}
+              onChange={handleInputChange}
+              required
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+            >
+              <option value="">Select a cooperative</option>
+              {cooperatives.map((coop) => (
+                <option key={coop.id} value={coop.id}>
+                  {coop.name} - {coop.region}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="region" className="block text-sm font-medium text-gray-700">
+              Region *
+            </label>
+            <input
+              type="text"
+              id="region"
+              name="region"
+              value={formData.region || ''}
+              onChange={handleInputChange}
+              required
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="department" className="block text-sm font-medium text-gray-700">
+              Department *
+            </label>
+            <input
+              type="text"
+              id="department"
+              name="department"
+              value={formData.department || ''}
+              onChange={handleInputChange}
+              required
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="commune" className="block text-sm font-medium text-gray-700">
+              Commune *
+            </label>
+            <input
+              type="text"
+              id="commune"
+              name="commune"
+              value={formData.commune || ''}
+              onChange={handleInputChange}
+              required
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="village" className="block text-sm font-medium text-gray-700">
+              Village *
+            </label>
+            <input
+              type="text"
+              id="village"
+              name="village"
+              value={formData.village || ''}
+              onChange={handleInputChange}
+              required
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="address" className="block text-sm font-medium text-gray-700">
+              Address
+            </label>
+            <input
+              type="text"
+              id="address"
+              name="address"
+              value={formData.address || ''}
+              onChange={handleInputChange}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Additional Information */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-medium text-gray-900">Additional Information</h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label htmlFor="education_level" className="block text-sm font-medium text-gray-700">
+              Education Level
+            </label>
+            <select
+              id="education_level"
+              name="education_level"
+              value={formData.education_level || ''}
+              onChange={handleInputChange}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+            >
+              <option value="">Select education level</option>
+              <option value="none">None</option>
+              <option value="primary">Primary</option>
+              <option value="secondary">Secondary</option>
+              <option value="higher">Higher</option>
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="household_size" className="block text-sm font-medium text-gray-700">
+              Household Size
+            </label>
+            <input
+              type="number"
+              id="household_size"
+              name="household_size"
+              value={formData.household_size || 1}
+              onChange={handleInputChange}
+              min="1"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="farming_experience_years" className="block text-sm font-medium text-gray-700">
+              Farming Experience (years)
+            </label>
+            <input
+              type="number"
+              id="farming_experience_years"
+              name="farming_experience_years"
+              value={formData.farming_experience_years || 0}
+              onChange={handleInputChange}
+              min="0"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="primary_language" className="block text-sm font-medium text-gray-700">
+            Primary Language
+          </label>
+          <select
+            id="primary_language"
+            name="primary_language"
+            value={formData.primary_language || 'fr'}
+            onChange={handleInputChange}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+          >
+            <option value="fr">French</option>
+            <option value="wo">Wolof</option>
+            <option value="pe">Pulaar</option>
+            <option value="se">Serer</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Status */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-medium text-gray-900">Status</h3>
+        
+        <div className="flex items-center">
+          <input
+            type="checkbox"
+            id="is_active"
+            name="is_active"
+            checked={formData.is_active ?? true}
+            onChange={handleInputChange}
+            className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+          />
+          <label htmlFor="is_active" className="ml-2 block text-sm text-gray-900">
+            Active producer
+          </label>
+        </div>
+      </div>
+
+      {/* Form Actions */}
+      <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isLoading ? 'Saving...' : producer ? 'Update Producer' : 'Create Producer'}
+        </button>
+      </div>
+    </form>
   );
-}
+};
+
+export default ProducerForm;
