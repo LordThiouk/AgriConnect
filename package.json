@@ -52,5 +52,10 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.56.1",
+    "dotenv": "^17.2.2",
+    "uuid": "^12.0.0"
   }
 }

@@ -1,217 +1,276 @@
-// Zod validation schemas for AgriConnect Edge Functions API
+// Shared Validation Module for AgriConnect Edge Functions
+// Provides Zod schemas for all agricultural entities
 
-import { z } from 'zod';
+import { z } from "https://esm.sh/zod@3.23.8";
 
-// Base schemas
-export const phoneSchema = z.string()
-  .regex(/^(\+221|221)?[0-9]{9}$/, 'Invalid phone number format')
-  .transform(val => val.replace(/\s/g, ''));
-
-export const emailSchema = z.string()
-  .email('Invalid email format')
-  .optional();
-
-export const dateSchema = z.string()
-  .refine(val => !isNaN(new Date(val).getTime()), 'Invalid date format')
-  .optional();
-
-export const coordinateSchema = z.object({
-  lat: z.number().min(-90).max(90),
-  lng: z.number().min(-180).max(180)
-}).optional();
-
-// Producer schemas
-export const createProducerSchema = z.object({
-  first_name: z.string().min(1, 'First name is required').max(100),
-  last_name: z.string().min(1, 'Last name is required').max(100),
-  phone: phoneSchema,
-  email: emailSchema,
-  gender: z.enum(['M', 'F']).optional(),
-  birth_date: dateSchema,
-  address: z.string().max(500).optional(),
-  village: z.string().max(100).optional(),
-  commune: z.string().max(100).optional(),
-  department: z.string().max(100).optional(),
-  region: z.string().max(100).optional(),
-  household_size: z.number().int().min(1).max(50).optional(),
-  education_level: z.enum(['none', 'primary', 'secondary', 'higher']).optional(),
-  farming_experience_years: z.number().int().min(0).max(100).optional(),
-  primary_language: z.string().max(50).optional(),
-  cooperative_id: z.string().uuid().optional()
+// Base schemas for common fields
+const BaseEntitySchema = z.object({
+  id: z.string().uuid().optional(),
+  created_at: z.string().datetime().optional(),
+  updated_at: z.string().datetime().optional(),
 });
 
-export const updateProducerSchema = createProducerSchema.partial().extend({
-  is_active: z.boolean().optional()
+const LocationSchema = z.object({
+  region: z.string().min(1, "Région requise"),
+  department: z.string().min(1, "Département requis"),
+  commune: z.string().min(1, "Commune requise"),
+  village: z.string().min(1, "Village requis"),
+});
+
+// Producer schemas
+export const ProducerSchema = BaseEntitySchema.extend({
+  first_name: z.string().min(1, "Prénom requis").max(100, "Prénom trop long"),
+  last_name: z.string().min(1, "Nom requis").max(100, "Nom trop long"),
+  phone: z.string().regex(/^\+221[0-9]{9}$/, "Format téléphone invalide (+221XXXXXXXXX)"),
+  cooperative_id: z.string().uuid("ID coopérative invalide"),
+  ...LocationSchema.shape,
+  gender: z.enum(['M', 'F'], { errorMap: () => ({ message: "Genre doit être M ou F" }) }),
+  birth_date: z.string().datetime().optional().nullable(),
+  education_level: z.string().optional().nullable(),
+  household_size: z.number().int().min(1, "Taille du ménage doit être au moins 1").default(1),
+  farming_experience_years: z.number().int().min(0, "Expérience agricole ne peut pas être négative").default(0),
+  primary_language: z.string().optional().nullable(),
+  address: z.string().optional().nullable(),
+  email: z.string().email("Format email invalide").optional().nullable(),
+  is_active: z.boolean().default(true),
+  profile_id: z.string().uuid().optional().nullable(),
+});
+
+export const ProducerCreateSchema = ProducerSchema.omit({ 
+  id: true, 
+  created_at: true, 
+  updated_at: true 
+});
+
+export const ProducerUpdateSchema = ProducerSchema.partial().omit({ 
+  id: true, 
+  created_at: true, 
+  updated_at: true 
+});
+
+// Cooperative schemas
+export const CooperativeSchema = BaseEntitySchema.extend({
+  name: z.string().min(1, "Nom de la coopérative requis").max(200, "Nom trop long"),
+  legal_status: z.enum(['registered', 'pending', 'informal'], {
+    errorMap: () => ({ message: "Statut légal invalide" })
+  }),
+  registration_number: z.string().optional().nullable(),
+  ...LocationSchema.shape,
+  contact_person: z.string().min(1, "Personne de contact requise"),
+  contact_phone: z.string().regex(/^\+221[0-9]{9}$/, "Format téléphone invalide"),
+  contact_email: z.string().email("Format email invalide").optional().nullable(),
+  member_count: z.number().int().min(1, "Nombre de membres doit être au moins 1").default(1),
+  established_date: z.string().datetime().optional().nullable(),
+  description: z.string().optional().nullable(),
+  is_active: z.boolean().default(true),
+  created_by: z.string().uuid().optional(),
+});
+
+export const CooperativeCreateSchema = CooperativeSchema.omit({ 
+  id: true, 
+  created_at: true, 
+  updated_at: true 
+});
+
+export const CooperativeUpdateSchema = CooperativeSchema.partial().omit({ 
+  id: true, 
+  created_at: true, 
+  updated_at: true 
 });
 
 // Plot schemas
-export const createPlotSchema = z.object({
-  producer_id: z.string().uuid('Invalid producer ID'),
-  cooperative_id: z.string().uuid().optional(),
-  name: z.string().max(200).optional(),
-  area_ha: z.number().positive('Area must be positive').max(10000),
-  soil_type: z.enum(['sandy', 'clay', 'loam', 'silt', 'other']).optional(),
-  water_source: z.enum(['rainfed', 'irrigation', 'mixed']).optional(),
-  status: z.enum(['preparation', 'cultivated', 'fallow']),
+export const PlotSchema = BaseEntitySchema.extend({
+  producer_id: z.string().uuid("ID producteur invalide"),
+  cooperative_id: z.string().uuid("ID coopérative invalide"),
+  name: z.string().min(1, "Nom de la parcelle requis").max(100, "Nom trop long"),
+  area_ha: z.number().positive("Superficie doit être positive").max(1000, "Superficie trop importante"),
+  soil_type: z.enum(['sandy', 'clay', 'loamy', 'silty', 'other'], {
+    errorMap: () => ({ message: "Type de sol invalide" })
+  }),
+  water_source: z.enum(['rainfed', 'irrigated', 'mixed', 'other'], {
+    errorMap: () => ({ message: "Source d'eau invalide" })
+  }),
+  status: z.enum(['preparation', 'cultivated', 'fallow'], {
+    errorMap: () => ({ message: "Statut de parcelle invalide" })
+  }),
+  ...LocationSchema.shape,
   geom: z.object({
     type: z.literal('Point'),
     coordinates: z.tuple([z.number(), z.number()])
-  }).optional()
+  }).optional().nullable(),
+  photo_cover_media_id: z.string().uuid().optional().nullable(),
+  notes: z.string().optional().nullable(),
 });
 
-export const updatePlotSchema = createPlotSchema.partial();
+export const PlotCreateSchema = PlotSchema.omit({ 
+  id: true, 
+  created_at: true, 
+  updated_at: true 
+});
+
+export const PlotUpdateSchema = PlotSchema.partial().omit({ 
+  id: true, 
+  created_at: true, 
+  updated_at: true 
+});
 
 // Crop schemas
-export const createCropSchema = z.object({
-  plot_id: z.string().uuid('Invalid plot ID'),
-  season_id: z.string().uuid().optional(),
-  crop_type: z.string().min(1, 'Crop type is required').max(100),
-  variety: z.string().max(100).optional(),
-  sowing_date: dateSchema,
-  expected_harvest_date: dateSchema,
-  expected_yield_kg: z.number().positive().max(100000).optional(),
-  status: z.enum(['en_cours', 'récolté', 'abandonné']),
-  notes: z.string().max(1000).optional()
+export const CropSchema = BaseEntitySchema.extend({
+  plot_id: z.string().uuid("ID parcelle invalide"),
+  season_id: z.string().uuid("ID saison invalide"),
+  crop_type: z.string().min(1, "Type de culture requis"),
+  variety: z.string().optional().nullable(),
+  sowing_date: z.string().datetime("Date de semis invalide"),
+  expected_harvest_date: z.string().datetime("Date de récolte attendue invalide"),
+  actual_harvest_date: z.string().datetime().optional().nullable(),
+  expected_yield_kg: z.number().positive("Rendement attendu doit être positif").optional().nullable(),
+  actual_yield_kg: z.number().positive("Rendement réel doit être positif").optional().nullable(),
+  status: z.enum(['en_cours', 'récolté', 'abandonné'], {
+    errorMap: () => ({ message: "Statut de culture invalide" })
+  }),
+  notes: z.string().optional().nullable(),
 });
 
-export const updateCropSchema = createCropSchema.partial().extend({
-  actual_harvest_date: dateSchema,
-  actual_yield_kg: z.number().positive().max(100000).optional()
+export const CropCreateSchema = CropSchema.omit({ 
+  id: true, 
+  created_at: true, 
+  updated_at: true 
+});
+
+export const CropUpdateSchema = CropSchema.partial().omit({ 
+  id: true, 
+  created_at: true, 
+  updated_at: true 
 });
 
 // Operation schemas
-export const createOperationSchema = z.object({
-  crop_id: z.string().uuid('Invalid crop ID'),
-  plot_id: z.string().uuid('Invalid plot ID'),
-  op_type: z.enum(['semis', 'fertilisation', 'irrigation', 'désherbage', 'phytosanitaire', 'récolte', 'labour', 'reconnaissance']),
-  op_date: z.string().refine(val => !isNaN(new Date(val).getTime()), 'Invalid date format'),
-  product_used: z.string().max(200).optional(),
-  dose_per_ha: z.number().positive().max(1000).optional(),
-  cost_per_ha: z.number().positive().max(1000000).optional(),
-  notes: z.string().max(1000).optional()
+export const OperationSchema = BaseEntitySchema.extend({
+  crop_id: z.string().uuid("ID culture invalide"),
+  plot_id: z.string().uuid("ID parcelle invalide"),
+  op_type: z.enum(['semis', 'fertilisation', 'irrigation', 'désherbage', 'phytosanitaire', 'récolte', 'labour'], {
+    errorMap: () => ({ message: "Type d'opération invalide" })
+  }),
+  op_date: z.string().datetime("Date d'opération invalide"),
+  product_used: z.string().optional().nullable(),
+  dose: z.string().optional().nullable(),
+  cost: z.number().min(0, "Coût ne peut pas être négatif").optional().nullable(),
+  labor_hours: z.number().min(0, "Heures de main d'œuvre ne peuvent pas être négatives").optional().nullable(),
+  notes: z.string().optional().nullable(),
+  created_by: z.string().uuid().optional(),
 });
 
-export const updateOperationSchema = createOperationSchema.partial();
+export const OperationCreateSchema = OperationSchema.omit({ 
+  id: true, 
+  created_at: true, 
+  updated_at: true 
+});
+
+export const OperationUpdateSchema = OperationSchema.partial().omit({ 
+  id: true, 
+  created_at: true, 
+  updated_at: true 
+});
 
 // Observation schemas
-export const createObservationSchema = z.object({
-  crop_id: z.string().uuid('Invalid crop ID'),
-  plot_id: z.string().uuid('Invalid plot ID'),
-  obs_date: z.string().refine(val => !isNaN(new Date(val).getTime()), 'Invalid date format'),
-  emergence_percent: z.number().min(0).max(100).optional(),
-  pest_disease: z.string().max(200).optional(),
-  severity: z.number().int().min(1).max(5).optional(),
-  notes: z.string().max(1000).optional()
+export const ObservationSchema = BaseEntitySchema.extend({
+  crop_id: z.string().uuid("ID culture invalide"),
+  plot_id: z.string().uuid("ID parcelle invalide"),
+  obs_date: z.string().datetime("Date d'observation invalide"),
+  emergence_percent: z.number().min(0, "Pourcentage de levée ne peut pas être négatif").max(100, "Pourcentage de levée ne peut pas dépasser 100").optional().nullable(),
+  pest_disease: z.string().optional().nullable(),
+  severity: z.number().int().min(1, "Gravité doit être entre 1 et 5").max(5, "Gravité doit être entre 1 et 5").optional().nullable(),
+  health_status: z.enum(['excellent', 'bon', 'moyen', 'mauvais', 'critique'], {
+    errorMap: () => ({ message: "Statut de santé invalide" })
+  }).optional().nullable(),
+  notes: z.string().optional().nullable(),
+  created_by: z.string().uuid().optional(),
 });
 
-export const updateObservationSchema = createObservationSchema.partial();
-
-// Cooperative schemas
-export const createCooperativeSchema = z.object({
-  name: z.string().min(1, 'Name is required').max(200),
-  description: z.string().max(1000).optional(),
-  region: z.string().max(100).optional(),
-  department: z.string().max(100).optional(),
-  commune: z.string().max(100).optional(),
-  geom: z.object({
-    type: z.literal('Point'),
-    coordinates: z.tuple([z.number(), z.number()])
-  }).optional()
+export const ObservationCreateSchema = ObservationSchema.omit({ 
+  id: true, 
+  created_at: true, 
+  updated_at: true 
 });
 
-export const updateCooperativeSchema = createCooperativeSchema.partial();
+export const ObservationUpdateSchema = ObservationSchema.partial().omit({ 
+  id: true, 
+  created_at: true, 
+  updated_at: true 
+});
 
 // Query parameter schemas
-export const queryParamsSchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(50),
+export const PaginationSchema = z.object({
+  page: z.coerce.number().int().min(1, "Page doit être au moins 1").default(1),
+  limit: z.coerce.number().int().min(1, "Limite doit être au moins 1").max(100, "Limite ne peut pas dépasser 100").default(20),
+});
+
+export const SearchSchema = z.object({
   search: z.string().optional(),
   cooperative_id: z.string().uuid().optional(),
   region: z.string().optional(),
-  department: z.string().optional(),
   status: z.string().optional(),
-  crop_type: z.string().optional(),
-  op_type: z.string().optional(),
-  date_from: z.string().optional(),
-  date_to: z.string().optional()
+  start_date: z.string().datetime().optional(),
+  end_date: z.string().datetime().optional(),
 });
 
-// Authentication schemas
-export const loginSchema = z.object({
-  phone: phoneSchema,
-  otp: z.string().length(6, 'OTP must be 6 digits')
-});
+// Validation helper functions
+export const validateProducer = (data: unknown) => ProducerSchema.safeParse(data);
+export const validateProducerCreate = (data: unknown) => ProducerCreateSchema.safeParse(data);
+export const validateProducerUpdate = (data: unknown) => ProducerUpdateSchema.safeParse(data);
 
-export const verifyOtpSchema = z.object({
-  phone: phoneSchema
-});
+export const validateCooperative = (data: unknown) => CooperativeSchema.safeParse(data);
+export const validateCooperativeCreate = (data: unknown) => CooperativeCreateSchema.safeParse(data);
+export const validateCooperativeUpdate = (data: unknown) => CooperativeUpdateSchema.safeParse(data);
 
-// Validation functions
-export function validateProducer(data: any) {
-  return createProducerSchema.safeParse(data);
-}
+export const validatePlot = (data: unknown) => PlotSchema.safeParse(data);
+export const validatePlotCreate = (data: unknown) => PlotCreateSchema.safeParse(data);
+export const validatePlotUpdate = (data: unknown) => PlotUpdateSchema.safeParse(data);
 
-export function validateProducerUpdate(data: any) {
-  return updateProducerSchema.safeParse(data);
-}
+export const validateCrop = (data: unknown) => CropSchema.safeParse(data);
+export const validateCropCreate = (data: unknown) => CropCreateSchema.safeParse(data);
+export const validateCropUpdate = (data: unknown) => CropUpdateSchema.safeParse(data);
 
-export function validatePlot(data: any) {
-  return createPlotSchema.safeParse(data);
-}
+export const validateOperation = (data: unknown) => OperationSchema.safeParse(data);
+export const validateOperationCreate = (data: unknown) => OperationCreateSchema.safeParse(data);
+export const validateOperationUpdate = (data: unknown) => OperationUpdateSchema.safeParse(data);
 
-export function validatePlotUpdate(data: any) {
-  return updatePlotSchema.safeParse(data);
-}
+export const validateObservation = (data: unknown) => ObservationSchema.safeParse(data);
+export const validateObservationCreate = (data: unknown) => ObservationCreateSchema.safeParse(data);
+export const validateObservationUpdate = (data: unknown) => ObservationUpdateSchema.safeParse(data);
 
-export function validateCrop(data: any) {
-  return createCropSchema.safeParse(data);
-}
+export const validatePagination = (data: unknown) => PaginationSchema.safeParse(data);
+export const validateSearch = (data: unknown) => SearchSchema.safeParse(data);
 
-export function validateCropUpdate(data: any) {
-  return updateCropSchema.safeParse(data);
-}
+// Error formatting
+export const formatValidationErrors = (errors: z.ZodError) => {
+  return errors.errors.map(error => ({
+    field: error.path.join('.'),
+    message: error.message,
+    code: error.code
+  }));
+};
 
-export function validateOperation(data: any) {
-  return createOperationSchema.safeParse(data);
-}
+// Type exports
+export type Producer = z.infer<typeof ProducerSchema>;
+export type ProducerCreate = z.infer<typeof ProducerCreateSchema>;
+export type ProducerUpdate = z.infer<typeof ProducerUpdateSchema>;
 
-export function validateOperationUpdate(data: any) {
-  return updateOperationSchema.safeParse(data);
-}
+export type Cooperative = z.infer<typeof CooperativeSchema>;
+export type CooperativeCreate = z.infer<typeof CooperativeCreateSchema>;
+export type CooperativeUpdate = z.infer<typeof CooperativeUpdateSchema>;
 
-export function validateObservation(data: any) {
-  return createObservationSchema.safeParse(data);
-}
+export type Plot = z.infer<typeof PlotSchema>;
+export type PlotCreate = z.infer<typeof PlotCreateSchema>;
+export type PlotUpdate = z.infer<typeof PlotUpdateSchema>;
 
-export function validateObservationUpdate(data: any) {
-  return updateObservationSchema.safeParse(data);
-}
+export type Crop = z.infer<typeof CropSchema>;
+export type CropCreate = z.infer<typeof CropCreateSchema>;
+export type CropUpdate = z.infer<typeof CropUpdateSchema>;
 
-export function validateCooperative(data: any) {
-  return createCooperativeSchema.safeParse(data);
-}
+export type Operation = z.infer<typeof OperationSchema>;
+export type OperationCreate = z.infer<typeof OperationCreateSchema>;
+export type OperationUpdate = z.infer<typeof OperationUpdateSchema>;
 
-export function validateCooperativeUpdate(data: any) {
-  return updateCooperativeSchema.safeParse(data);
-}
-
-export function validateQueryParams(data: any) {
-  return queryParamsSchema.safeParse(data);
-}
-
-export function validateLogin(data: any) {
-  return loginSchema.safeParse(data);
-}
-
-export function validateVerifyOtp(data: any) {
-  return verifyOtpSchema.safeParse(data);
-}
-
-// Helper function to extract validation errors
-export function getValidationErrors(result: z.SafeParseReturnType<any, any>): string[] {
-  if (result.success) return [];
-  
-  return result.error.errors.map(err => 
-    `${err.path.join('.')}: ${err.message}`
-  );
-}
+export type Observation = z.infer<typeof ObservationSchema>;
+export type ObservationCreate = z.infer<typeof ObservationCreateSchema>;
+export type ObservationUpdate = z.infer<typeof ObservationUpdateSchema>;
