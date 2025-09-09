@@ -4,15 +4,19 @@
  */
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { MobileAuthService, MobileAuthResponse } from '../lib/auth/mobileAuthService';
+import { MobileAuthService } from '../lib/auth/mobileAuthService';
 import { SessionManager } from '../lib/auth/sessionManager';
-import type { AuthSession, User } from '@supabase/supabase-js';
+import type { Session, User } from '@supabase/supabase-js';
+import type { UserRole } from '../../types/user';
 
 export interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   user: User | null;
-  session: AuthSession | null;
+  session: Session | null;
+  userRole: UserRole | null;
+  canAccessMobile: boolean;
+  phone: string | null;
   error: string | null;
 }
 
@@ -25,6 +29,7 @@ export interface AuthContextType extends AuthState {
   // Utilitaires
   clearError: () => void;
   refreshSession: () => Promise<void>;
+  refreshAuth: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -39,6 +44,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isLoading: true,
     user: null,
     session: null,
+    userRole: null,
+    canAccessMobile: false,
+    phone: null,
     error: null
   });
 
@@ -55,11 +63,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const session = await SessionManager.getCurrentSession();
       
       if (session) {
+        const userInfo = await MobileAuthService.getUserInfo(session.user, session);
+        
         setState({
-          isAuthenticated: true,
+          isAuthenticated: userInfo.isAuthenticated,
           isLoading: false,
-          user: session.user,
-          session: session,
+          user: userInfo.user,
+          session: userInfo.session,
+          userRole: userInfo.userRole,
+          canAccessMobile: userInfo.canAccessMobile,
+          phone: userInfo.phone,
           error: null
         });
 
@@ -71,6 +84,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           isLoading: false,
           user: null,
           session: null,
+          userRole: null,
+          canAccessMobile: false,
+          phone: null,
           error: null
         });
       }
@@ -81,6 +97,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         isLoading: false,
         user: null,
         session: null,
+        userRole: null,
+        canAccessMobile: false,
+        phone: null,
         error: 'Erreur lors de la vérification de l\'authentification'
       });
     }
@@ -110,36 +129,84 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Vérifier un OTP
   const verifyOTP = async (phone: string, token: string): Promise<{ success: boolean; error?: string }> => {
+    console.log('🎯 [CONTEXT] verifyOTP - Début avec téléphone:', phone, 'token:', token);
+    
     try {
       setState(prev => ({ ...prev, error: null, isLoading: true }));
       
+      console.log('🎯 [CONTEXT] verifyOTP - Appel à MobileAuthService.verifyOTP...');
       const response = await MobileAuthService.verifyOTP(phone, token);
       
+      console.log('🎯 [CONTEXT] verifyOTP - Réponse du service:', {
+        success: response.success,
+        hasUser: !!response.user,
+        hasSession: !!response.session,
+        error: response.error
+      });
+      
       if (response.success && response.user && response.session) {
+        console.log('🎯 [CONTEXT] verifyOTP - Authentification réussie, récupération des infos utilisateur...');
+        
+        const userInfo = await MobileAuthService.getUserInfo(response.user, response.session);
+        
+        console.log('🎯 [CONTEXT] verifyOTP - Infos utilisateur:', {
+          isAuthenticated: userInfo.isAuthenticated,
+          userRole: userInfo.userRole,
+          canAccessMobile: userInfo.canAccessMobile,
+          phone: userInfo.phone
+        });
+        
+        // Vérifier si l'utilisateur peut accéder au mobile
+        if (!userInfo.canAccessMobile) {
+          console.log('❌ [CONTEXT] verifyOTP - Accès refusé, rôle non autorisé:', userInfo.userRole);
+          setState({
+            isAuthenticated: false,
+            isLoading: false,
+            user: null,
+            session: null,
+            userRole: null,
+            canAccessMobile: false,
+            phone: null,
+            error: 'Accès refusé. Seuls les agents et producteurs peuvent utiliser l\'application mobile.'
+          });
+          return { success: false, error: 'Accès refusé. Seuls les agents et producteurs peuvent utiliser l\'application mobile.' };
+        }
+        
+        console.log('✅ [CONTEXT] verifyOTP - Utilisateur autorisé, mise à jour de l\'état...');
+        
         setState({
-          isAuthenticated: true,
+          isAuthenticated: userInfo.isAuthenticated,
           isLoading: false,
-          user: response.user,
-          session: response.session,
+          user: userInfo.user,
+          session: userInfo.session,
+          userRole: userInfo.userRole,
+          canAccessMobile: userInfo.canAccessMobile,
+          phone: userInfo.phone,
           error: null
         });
 
         // Démarrer la gestion automatique des sessions
+        console.log('🎯 [CONTEXT] verifyOTP - Démarrage du timer de session...');
         SessionManager.startAutoRefreshTimer(response.session);
         
+        console.log('✅ [CONTEXT] verifyOTP - Authentification complète réussie');
         return { success: true };
       } else {
+        console.log('❌ [CONTEXT] verifyOTP - Échec de l\'authentification:', response.error);
         setState({
           isAuthenticated: false,
           isLoading: false,
           user: null,
           session: null,
+          userRole: null,
+          canAccessMobile: false,
+          phone: null,
           error: response.error || 'Session invalide'
         });
         return { success: false, error: response.error };
       }
     } catch (error) {
-      console.error('Erreur lors de la vérification de l\'OTP:', error);
+      console.log('❌ [CONTEXT] verifyOTP - Exception:', error);
       const errorMessage = 'Erreur lors de la vérification de l\'OTP';
       setState(prev => ({ ...prev, error: errorMessage, isLoading: false }));
       return { success: false, error: errorMessage };
@@ -157,6 +224,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         isLoading: false,
         user: null,
         session: null,
+        userRole: null,
+        canAccessMobile: false,
+        phone: null,
         error: null
       });
     } catch (error) {
@@ -173,10 +243,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const session = await SessionManager.refreshSession();
       
       if (session) {
+        const userInfo = await MobileAuthService.getUserInfo(session.user, session);
+        
         setState(prev => ({
           ...prev,
-          user: session.user,
-          session: session,
+          user: userInfo.user,
+          session: userInfo.session,
+          userRole: userInfo.userRole,
+          canAccessMobile: userInfo.canAccessMobile,
+          phone: userInfo.phone,
           error: null
         }));
       } else {
@@ -187,6 +262,53 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.error('Erreur lors du rafraîchissement de la session:', error);
       // En cas d'erreur, déconnecter l'utilisateur
       await handleSignOut();
+    }
+  };
+
+  // Rafraîchir l'authentification complète
+  const refreshAuth = async () => {
+    try {
+      setState(prev => ({ ...prev, isLoading: true, error: null }));
+      
+      const session = await SessionManager.getCurrentSession();
+      
+      if (session) {
+        const userInfo = await MobileAuthService.getUserInfo(session.user, session);
+        
+        setState({
+          isAuthenticated: userInfo.isAuthenticated,
+          isLoading: false,
+          user: userInfo.user,
+          session: userInfo.session,
+          userRole: userInfo.userRole,
+          canAccessMobile: userInfo.canAccessMobile,
+          phone: userInfo.phone,
+          error: null
+        });
+      } else {
+        setState({
+          isAuthenticated: false,
+          isLoading: false,
+          user: null,
+          session: null,
+          userRole: null,
+          canAccessMobile: false,
+          phone: null,
+          error: null
+        });
+      }
+    } catch (error) {
+      console.error('Erreur lors du rafraîchissement de l\'authentification:', error);
+      setState({
+        isAuthenticated: false,
+        isLoading: false,
+        user: null,
+        session: null,
+        userRole: null,
+        canAccessMobile: false,
+        phone: null,
+        error: 'Erreur lors du rafraîchissement de l\'authentification'
+      });
     }
   };
 
@@ -201,7 +323,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     verifyOTP,
     signOut,
     clearError,
-    refreshSession
+    refreshSession,
+    refreshAuth
   };
 
   return (

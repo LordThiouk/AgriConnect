@@ -1,27 +1,35 @@
 /**
- * Composant de protection des routes - AgriConnect Mobile
- * Vérifie l'authentification et les permissions avant d'afficher le contenu
+ * Protected Route Component - AgriConnect Mobile
+ * Composant pour protéger les routes et valider les rôles utilisateur
  */
 
 import React, { ReactNode } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { Ionicons } from '@expo/vector-icons';
+import type { UserRole } from '../../types/user';
 
 interface ProtectedRouteProps {
   children: ReactNode;
-  requiredRole?: 'agent' | 'producer';
+  allowedRoles?: UserRole[];
   fallback?: ReactNode;
+  requireAuth?: boolean;
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
-  children, 
-  requiredRole,
-  fallback 
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
+  children,
+  allowedRoles = [],
+  fallback,
+  requireAuth = true
 }) => {
-  const { isAuthenticated, isLoading, user, getUserRole, isPlatformAllowed } = useAuth();
+  const { 
+    isAuthenticated, 
+    isLoading, 
+    userRole, 
+    canAccessMobile, 
+    error 
+  } = useAuth();
 
-  // Affichage du chargement
+  // Affichage du loading
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -31,57 +39,93 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  // Vérifier si l'utilisateur est authentifié
+  // Si l'authentification n'est pas requise, afficher le contenu
+  if (!requireAuth) {
+    return <>{children}</>;
+  }
+
+  // Si non authentifié, afficher le fallback ou rediriger
   if (!isAuthenticated) {
     return fallback || (
       <View style={styles.errorContainer}>
-        <Ionicons name="lock-closed" size={60} color="#EF4444" />
-        <Text style={styles.errorTitle}>Accès non autorisé</Text>
-        <Text style={styles.errorMessage}>
-          Vous devez être connecté pour accéder à cette page
+        <Text style={styles.errorTitle}>Authentification requise</Text>
+        <Text style={styles.errorText}>
+          Vous devez être connecté pour accéder à cette page.
         </Text>
       </View>
     );
   }
 
-  // Vérifier si la plateforme est autorisée
-  if (!isPlatformAllowed()) {
+  // Vérifier l'accès mobile
+  if (!canAccessMobile) {
     return (
       <View style={styles.errorContainer}>
-        <Ionicons name="phone-portrait" size={60} color="#EF4444" />
-        <Text style={styles.errorTitle}>Plateforme non autorisée</Text>
-        <Text style={styles.errorMessage}>
-          Votre rôle ne vous permet pas d'accéder à l'application mobile
-        </Text>
-        <Text style={styles.errorSubMessage}>
-          Veuillez utiliser l'interface web pour administrer le système
+        <Text style={styles.errorTitle}>Accès refusé</Text>
+        <Text style={styles.errorText}>
+          Seuls les agents et producteurs peuvent utiliser l'application mobile.
         </Text>
       </View>
     );
   }
 
-  // Vérifier le rôle requis si spécifié
-  if (requiredRole) {
-    const userRole = getUserRole();
-    if (userRole !== requiredRole) {
-      return (
-        <View style={styles.errorContainer}>
-          <Ionicons name="shield-checkmark" size={60} color="#EF4444" />
-          <Text style={styles.errorTitle}>Permissions insuffisantes</Text>
-          <Text style={styles.errorMessage}>
-            Cette page nécessite le rôle "{requiredRole}"
-          </Text>
-          <Text style={styles.errorSubMessage}>
-            Votre rôle actuel : {userRole}
-          </Text>
-        </View>
-      );
-    }
+  // Vérifier les rôles autorisés
+  if (allowedRoles.length > 0 && userRole && !allowedRoles.includes(userRole)) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorTitle}>Permissions insuffisantes</Text>
+        <Text style={styles.errorText}>
+          Vous n'avez pas les permissions nécessaires pour accéder à cette page.
+        </Text>
+        <Text style={styles.roleText}>
+          Rôle actuel: {userRole}
+        </Text>
+      </View>
+    );
   }
 
-  // Toutes les vérifications sont passées, afficher le contenu
+  // Afficher les erreurs d'authentification
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorTitle}>Erreur d'authentification</Text>
+        <Text style={styles.errorText}>{error}</Text>
+      </View>
+    );
+  }
+
+  // Tout est OK, afficher le contenu
   return <>{children}</>;
 };
+
+// Composant spécialisé pour les agents
+export const AgentRoute: React.FC<{ children: ReactNode; fallback?: ReactNode }> = ({
+  children,
+  fallback
+}) => (
+  <ProtectedRoute allowedRoles={['agent']} fallback={fallback}>
+    {children}
+  </ProtectedRoute>
+);
+
+// Composant spécialisé pour les producteurs
+export const ProducerRoute: React.FC<{ children: ReactNode; fallback?: ReactNode }> = ({
+  children,
+  fallback
+}) => (
+  <ProtectedRoute allowedRoles={['producer']} fallback={fallback}>
+    {children}
+  </ProtectedRoute>
+);
+
+// Composant pour les agents et producteurs
+export const MobileUserRoute: React.FC<{ children: ReactNode; fallback?: ReactNode }> = ({
+  children,
+  fallback
+}) => (
+  <ProtectedRoute allowedRoles={['agent', 'producer']} fallback={fallback}>
+    {children}
+  </ProtectedRoute>
+);
 
 const styles = StyleSheet.create({
   loadingContainer: {
@@ -89,11 +133,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#F6F6F6',
+    padding: 20,
   },
   loadingText: {
-    marginTop: 20,
+    marginTop: 16,
     fontSize: 16,
     color: '#666',
+    textAlign: 'center',
   },
   errorContainer: {
     flex: 1,
@@ -103,25 +149,24 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   errorTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#EF4444',
-    marginTop: 20,
+    color: '#D32F2F',
     marginBottom: 12,
     textAlign: 'center',
   },
-  errorMessage: {
+  errorText: {
     fontSize: 16,
     color: '#666',
     textAlign: 'center',
+    lineHeight: 24,
     marginBottom: 8,
-    lineHeight: 22,
   },
-  errorSubMessage: {
+  roleText: {
     fontSize: 14,
     color: '#999',
     textAlign: 'center',
-    lineHeight: 20,
+    fontStyle: 'italic',
   },
 });
 

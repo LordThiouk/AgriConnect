@@ -4,25 +4,26 @@
  * Gère la validation, le renouvellement et le cycle de vie des sessions JWT
  */
 
-import { MobileAuthService, MobileAuthResponse } from './mobileAuthService';
-import type { AuthSession } from '@supabase/supabase-js';
-import { getJWTExpiry } from '../../../lib/auth/config';
+import { MobileAuthService } from './mobileAuthService';
+import type { Session } from '@supabase/supabase-js';
+import type { UserRole } from '../../../types/user';
 
 export interface SessionStatus {
   isValid: boolean;
   needsRefresh: boolean;
   expiresIn: number; // Temps restant en millisecondes
   platform: 'mobile';
+  userRole?: UserRole | null;
 }
 
 export class SessionManager {
-  private static refreshTimer: NodeJS.Timeout | null = null;
+  private static refreshTimer: ReturnType<typeof setTimeout> | null = null;
   private static readonly REFRESH_THRESHOLD = 60 * 60 * 1000; // 1 heure
 
   /**
    * Obtient la session actuelle
    */
-  static async getCurrentSession(): Promise<AuthSession | null> {
+  static async getCurrentSession(): Promise<Session | null> {
     try {
       const response = await MobileAuthService.getCurrentSession();
       
@@ -41,7 +42,7 @@ export class SessionManager {
    * Vérification et validation de la session actuelle
    * Renouvelle automatiquement si nécessaire
    */
-  static async ensureValidSession(): Promise<AuthSession> {
+  static async ensureValidSession(): Promise<Session> {
     const response = await MobileAuthService.getCurrentSession();
     
     if (!response.success || !response.session) {
@@ -66,7 +67,7 @@ export class SessionManager {
   /**
    * Renouvellement de la session
    */
-  static async refreshSession(): Promise<AuthSession> {
+  static async refreshSession(): Promise<Session> {
     const response = await MobileAuthService.refreshSession();
     
     if (!response.success || !response.session) {
@@ -98,23 +99,25 @@ export class SessionManager {
   /**
    * Obtention du statut de la session
    */
-  static getSessionStatus(session: AuthSession): SessionStatus {
+  static getSessionStatus(session: Session): SessionStatus {
     const now = Date.now();
     const expiresAt = session.expires_at! * 1000; // Conversion en millisecondes
     const expiresIn = expiresAt - now;
+    const userRole = MobileAuthService.getUserRole(session.user);
     
     return {
       isValid: expiresIn > 0,
       needsRefresh: expiresIn < this.REFRESH_THRESHOLD,
       expiresIn: Math.max(0, expiresIn),
-      platform: 'mobile'
+      platform: 'mobile',
+      userRole
     };
   }
 
   /**
    * Vérification si la session est valide
    */
-  static isSessionValid(session: AuthSession): boolean {
+  static isSessionValid(session: Session): boolean {
     const status = this.getSessionStatus(session);
     return status.isValid;
   }
@@ -122,7 +125,7 @@ export class SessionManager {
   /**
    * Vérification si la session nécessite un renouvellement
    */
-  static needsSessionRefresh(session: AuthSession): boolean {
+  static needsSessionRefresh(session: Session): boolean {
     const status = this.getSessionStatus(session);
     return status.needsRefresh;
   }
@@ -130,7 +133,7 @@ export class SessionManager {
   /**
    * Démarrage du timer de renouvellement automatique
    */
-  private static startAutoRefreshTimer(session: AuthSession): void {
+  static startAutoRefreshTimer(session: Session): void {
     // Arrêter le timer existant s'il y en a un
     this.stopAutoRefreshTimer();
 
@@ -209,7 +212,7 @@ export class SessionManager {
   /**
    * Obtention des informations de session formatées
    */
-  static getSessionInfo(session: AuthSession): {
+  static getSessionInfo(session: Session): {
     userId: string;
     userRole: string;
     platform: string;

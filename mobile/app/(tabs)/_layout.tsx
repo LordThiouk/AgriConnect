@@ -3,8 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 
 export default function TabLayout() {
-  const { user, isLoading } = useAuth();
-  const userRole = user?.user_metadata?.role;
+  const { isLoading, userRole } = useAuth();
 
   return (
     <Tabs
@@ -25,7 +24,32 @@ export default function TabLayout() {
         },
       }}>
       
-      {/* Dashboard - Accueil */}
+      {/* Tableaux de bord spécifiques par rôle - Mobile uniquement */}
+      {!isLoading && userRole === 'producer' && (
+        <Tabs.Screen
+          name="producer-dashboard"
+          options={{
+            title: 'Mon Tableau de Bord',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="leaf" size={size} color={color} />
+            ),
+          }}
+        />
+      )}
+
+      {!isLoading && userRole === 'agent' && (
+        <Tabs.Screen
+          name="agent-dashboard"
+          options={{
+            title: 'Tableau de Bord',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="person" size={size} color={color} />
+            ),
+          }}
+        />
+      )}
+
+      {/* Dashboard par défaut */}
       <Tabs.Screen
         name="index"
         options={{
@@ -36,8 +60,8 @@ export default function TabLayout() {
         }}
       />
 
-      {/* Collecte - Pour les agents */}
-      {!isLoading && (userRole === 'agent' || userRole === 'admin') && (
+      {/* Collecte - Pour les agents uniquement */}
+      {!isLoading && userRole === 'agent' && (
         <Tabs.Screen
           name="collecte"
           options={{
@@ -67,6 +91,17 @@ export default function TabLayout() {
           title: 'Profil',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person" size={size} color={color} />
+          ),
+        }}
+      />
+
+      {/* Debug - Débogage de l'authentification (développement uniquement) */}
+      <Tabs.Screen
+        name="debug"
+        options={{
+          title: 'Debug',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="bug" size={size} color={color} />
           ),
         }}
       />

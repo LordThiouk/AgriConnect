@@ -15,7 +15,8 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
-  StatusBar
+  StatusBar,
+  Dimensions
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
@@ -27,25 +28,8 @@ import {
 } from '../../lib/auth/mobileAuthService';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-// Clipboard: use dynamic import for native, and navigator.clipboard on web
-import { Platform as RNPlatform } from 'react-native';
 
-const getClipboardText = async (): Promise<string> => {
-  if (RNPlatform.OS === 'web' && typeof navigator !== 'undefined' && 'clipboard' in navigator) {
-    try {
-      // @ts-ignore web clipboard API
-      return await navigator.clipboard.readText();
-    } catch {
-      return '';
-    }
-  }
-  try {
-    const Clipboard = await import('expo-clipboard');
-    return await Clipboard.getStringAsync();
-  } catch {
-    return '';
-  }
-};
+const { width, height } = Dimensions.get('window');
 
 const LoginScreen: React.FC = () => {
   const router = useRouter();
@@ -57,20 +41,6 @@ const LoginScreen: React.FC = () => {
   const [countdown, setCountdown] = useState(0);
   const [isSendingOTP, setIsSendingOTP] = useState(false);
   const [isVerifyingOTP, setIsVerifyingOTP] = useState(false);
-  const otpHiddenInputRef = React.useRef<TextInput>(null);
-
-  const maskedPhone = React.useMemo(() => {
-    const cleaned = phone.replace(/[^0-9+]/g, '');
-    const formatted = formatPhoneNumber(cleaned) || cleaned;
-    // +221 77 *** ** 45
-    const digits = formatted.replace(/[^0-9]/g, '');
-    if (digits.length >= 11) {
-      const p2 = digits.slice(-9, -7); // 2
-      const last2 = digits.slice(-2);
-      return `+221 ${p2} ** ** ${last2}`;
-    }
-    return formatted || phone;
-  }, [phone]);
 
   // Rediriger si déjà authentifié
   useEffect(() => {
@@ -88,7 +58,7 @@ const LoginScreen: React.FC = () => {
 
   // Gestion du countdown
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
+    let interval: NodeJS.Timeout;
     if (countdown > 0) {
       interval = setInterval(() => {
         setCountdown(prev => prev - 1);
@@ -99,18 +69,14 @@ const LoginScreen: React.FC = () => {
 
   // Envoyer l'OTP
   const handleSendOTP = async () => {
-    console.log('📱 [LOGIN] handleSendOTP - Numéro saisi:', phone);
-    
     const formattedPhone = formatPhoneNumber(phone.trim());
     if (!formattedPhone) {
-      console.log('❌ [LOGIN] handleSendOTP - Numéro non formatable:', phone);
-      Alert.alert('Erreur', 'Numéro de téléphone invalide. Utilisez le format: 70 123 45 67');
+      Alert.alert('Erreur', 'Numéro de téléphone invalide');
       return;
     }
 
     if (!validatePhoneNumber(formattedPhone)) {
-      console.log('❌ [LOGIN] handleSendOTP - Numéro non valide:', formattedPhone);
-      Alert.alert('Erreur', 'Format de numéro invalide. Utilisez le format: 70 123 45 67');
+      Alert.alert('Erreur', 'Format de numéro invalide. Utilisez le format +221XXXXXXXXX');
       return;
     }
 
@@ -230,36 +196,27 @@ const LoginScreen: React.FC = () => {
     >
       <StatusBar barStyle="light-content" backgroundColor="#3D944B" />
       
-      <View style={styles.header}>
+      <LinearGradient
+        colors={['#3D944B', '#2E7D32']}
+        style={styles.header}
+      >
         <View style={styles.headerContent}>
-          <View style={styles.logoContainer}>
-            <Ionicons name="leaf" size={24} color="#3D944B" />
-            <Text style={styles.logoText}>AgriConnect</Text>
-          </View>
-          <View style={styles.mainIcon}>
-            <Ionicons name="leaf" size={40} color="white" />
-          </View>
-          <Text style={styles.title}>Connexion</Text>
-          <Text style={styles.subtitle}>Entrez votre numéro de téléphone pour continuer</Text>
+          <Ionicons name="leaf" size={60} color="white" />
+          <Text style={styles.title}>AgriConnect</Text>
+          <Text style={styles.subtitle}>Connectez-vous à votre compte</Text>
         </View>
-      </View>
+      </LinearGradient>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.formContainer}>
           {!otpSent ? (
             // Étape 1: Saisie du numéro de téléphone
             <View style={styles.stepContainer}>
-              <Text style={styles.inputLabel}>Numéro de téléphone</Text>
               <View style={styles.inputContainer}>
-                <View style={styles.flagContainer}>
-                  <View style={styles.flagGreen} />
-                  <View style={styles.flagYellow} />
-                  <View style={styles.flagRed} />
-                </View>
-                <Text style={styles.countryCode}>+221</Text>
+                <Ionicons name="call" size={20} color="#666" style={styles.inputIcon} />
                 <TextInput
                   style={styles.phoneInput}
-                  placeholder="70 123 45 67"
+                  placeholder="+221 77 123 45 67"
                   placeholderTextColor="#999"
                   value={phone}
                   onChangeText={setPhone}
@@ -276,76 +233,40 @@ const LoginScreen: React.FC = () => {
                 {isSendingOTP ? (
                   <ActivityIndicator size="small" color="white" />
                 ) : (
-                  <Text style={styles.primaryButtonText}>Envoyer le code</Text>
+                  <>
+                    <Text style={styles.primaryButtonText}>Se connecter</Text>
+                    <Ionicons name="arrow-forward" size={20} color="white" style={styles.buttonIcon} />
+                  </>
                 )}
               </TouchableOpacity>
+
+              
 
               <TouchableOpacity style={styles.forgotPassword}>
                 <Text style={styles.forgotPasswordText}>Mot de passe oublié ?</Text>
               </TouchableOpacity>
             </View>
           ) : (
-            // Étape 2: Vérification OTP (design amélioré)
+            // Étape 2: Vérification OTP
             <View style={styles.stepContainer}>
-              <View style={styles.lockIconBox}>
-                <Ionicons name="lock-closed" size={32} color="#FFFFFF" />
+              <Text style={styles.stepTitle}>Code de vérification</Text>
+              <Text style={styles.stepDescription}>
+                Entrez le code à 6 chiffres envoyé au {phone}
+              </Text>
+
+              <View style={styles.otpContainer}>
+                <TextInput
+                  style={styles.otpInput}
+                  placeholder="000000"
+                  placeholderTextColor="#999"
+                  value={otp}
+                  onChangeText={setOtp}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  autoFocus
+                />
               </View>
-              <Text style={styles.verifyTitle}>Entrez le code</Text>
-              <Text style={styles.verifySubtitle}>Un code à 6 chiffres a été envoyé au</Text>
-              <Text style={styles.verifyPhone}>{maskedPhone}</Text>
 
-              {/* OTP boxes */}
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => otpHiddenInputRef.current?.focus()}
-                style={styles.otpBoxesRow}
-              >
-                {[0,1,2,3,4,5].map((i) => (
-                  <View key={i} style={[styles.otpBox, otp.length === i && styles.otpBoxActive]}>
-                    <Text style={styles.otpDigit}>{otp[i] ?? ''}</Text>
-                  </View>
-                ))}
-              </TouchableOpacity>
-
-              {/* Hidden input to capture OTP */}
-              <TextInput
-                ref={otpHiddenInputRef}
-                value={otp}
-                onChangeText={(t) => setOtp(t.replace(/\D/g,'').slice(0,6))}
-                keyboardType="number-pad"
-                maxLength={6}
-                autoFocus
-                style={styles.otpHiddenInput}
-              />
-
-              {/* Paste button */}
-              <TouchableOpacity
-                style={styles.pasteButton}
-                onPress={async () => {
-                  const text = await getClipboardText();
-                  const onlyDigits = (text || '').replace(/\D/g,'').slice(0,6);
-                  if (onlyDigits.length > 0) setOtp(onlyDigits);
-                }}
-              >
-                <Ionicons name="clipboard" size={16} color="#3D944B" />
-                <Text style={styles.pasteText}>Coller le code</Text>
-              </TouchableOpacity>
-
-              {/* Countdown and resend */}
-              <View style={styles.expiryRow}>
-                <Ionicons name="time-outline" size={16} color="#8A8A8A" />
-                <Text style={styles.expiryText}>Code expire dans </Text>
-                <Text style={styles.expiryCountdown}>{`00:${String(Math.max(countdown,0)).padStart(2,'0')}`}</Text>
-              </View>
-              {countdown > 0 ? (
-                <Text style={styles.resendDisabled}>Renvoyer le code</Text>
-              ) : (
-                <TouchableOpacity onPress={handleResendOTP}>
-                  <Text style={styles.resendLink}>Renvoyer le code</Text>
-                </TouchableOpacity>
-              )}
-
-              {/* Validate button */}
               <TouchableOpacity
                 style={[styles.primaryButton, isVerifyingOTP && styles.buttonDisabled]}
                 onPress={handleVerifyOTP}
@@ -354,15 +275,36 @@ const LoginScreen: React.FC = () => {
                 {isVerifyingOTP ? (
                   <ActivityIndicator size="small" color="white" />
                 ) : (
-                  <Text style={styles.primaryButtonText}>Valider</Text>
+                  <>
+                    <Text style={styles.primaryButtonText}>Vérifier le code</Text>
+                    <Ionicons name="checkmark" size={20} color="white" style={styles.buttonIcon} />
+                  </>
                 )}
               </TouchableOpacity>
 
-              {/* Modify number */}
-              <TouchableOpacity style={styles.modifyButton} onPress={handleBackToPhone}>
-                <Ionicons name="create-outline" size={16} color="#3D944B" />
-                <Text style={styles.modifyButtonText}>Modifier le numéro</Text>
-              </TouchableOpacity>
+              {/* Actions secondaires */}
+              <View style={styles.secondaryActions}>
+                <TouchableOpacity
+                  style={styles.secondaryButton}
+                  onPress={handleBackToPhone}
+                >
+                  <Ionicons name="arrow-back" size={16} color="#3D944B" />
+                  <Text style={styles.secondaryButtonText}>Retour</Text>
+                </TouchableOpacity>
+
+                {countdown > 0 ? (
+                  <Text style={styles.countdownText}>
+                    Renvoyer dans {countdown}s
+                  </Text>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.resendButton}
+                    onPress={handleResendOTP}
+                  >
+                    <Text style={styles.resendButtonText}>Renvoyer le code</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
           )}
         </View>
@@ -390,45 +332,23 @@ const styles = StyleSheet.create({
     marginTop: 15,
   },
   header: {
-    paddingTop: 60,
+    paddingTop: 50,
     paddingBottom: 40,
     paddingHorizontal: 20,
-    alignItems: 'center',
   },
   headerContent: {
     alignItems: 'center',
   },
-  logoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  logoText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginLeft: 8,
-  },
-  mainIcon: {
-    width: 60,
-    height: 60,
-    backgroundColor: '#3D944B',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
+    color: 'white',
+    marginTop: 15,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: 20,
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginTop: 8,
   },
   content: {
     flex: 1,
@@ -439,58 +359,30 @@ const styles = StyleSheet.create({
   },
   stepContainer: {
     backgroundColor: 'white',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 24,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 4,
     },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
-    marginBottom: 8,
+    shadowRadius: 8,
+    elevation: 8,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: '#E9ECEF',
   },
-  flagContainer: {
-    flexDirection: 'row',
-    marginRight: 8,
-  },
-  flagGreen: {
-    width: 4,
-    height: 12,
-    backgroundColor: '#00853F',
-  },
-  flagYellow: {
-    width: 4,
-    height: 12,
-    backgroundColor: '#FCD116',
-  },
-  flagRed: {
-    width: 4,
-    height: 12,
-    backgroundColor: '#CE1126',
-  },
-  countryCode: {
-    fontSize: 16,
-    color: '#333',
-    marginRight: 8,
-    fontWeight: '500',
+  inputIcon: {
+    marginRight: 12,
   },
   phoneInput: {
     flex: 1,
@@ -499,11 +391,20 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     backgroundColor: '#3D944B',
-    borderRadius: 8,
-    paddingVertical: 14,
+    borderRadius: 12,
+    paddingVertical: 16,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: 20,
+    shadowColor: '#3D944B',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -512,13 +413,33 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+    marginRight: 8,
+  },
+  buttonIcon: {
+    marginLeft: 4,
+  },
+  footerLinks: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  footerText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  linkText: {
+    fontSize: 14,
+    color: '#3D944B',
+    fontWeight: '600',
   },
   forgotPassword: {
     alignItems: 'center',
   },
   forgotPasswordText: {
     fontSize: 14,
-    color: '#666',
+    color: '#3D944B',
+    fontWeight: '500',
   },
   // Styles pour l'étape OTP
   stepTitle: {
@@ -553,142 +474,18 @@ const styles = StyleSheet.create({
     borderColor: '#E9ECEF',
     minWidth: 200,
   },
-  otpHiddenInput: {
-    position: 'absolute',
-    height: 0,
-    width: 0,
-    opacity: 0,
-  },
-  lockIconBox: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#3D944B',
-    alignSelf: 'center',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  verifyTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#1E293B',
-    textAlign: 'center',
-    marginBottom: 6,
-  },
-  verifySubtitle: {
-    fontSize: 14,
-    color: '#667085',
-    textAlign: 'center',
-  },
-  verifyPhone: {
-    fontSize: 14,
-    color: '#2E7D32',
-    textAlign: 'center',
-    fontWeight: '700',
-    marginTop: 4,
-    marginBottom: 12,
-  },
-  otpBoxesRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginHorizontal: 6,
-    marginTop: 8,
-    marginBottom: 10,
-  },
-  otpBox: {
-    width: 48,
-    height: 56,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#D0D5DD',
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  otpBoxActive: {
-    borderColor: '#3D944B',
-    shadowColor: '#3D944B',
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  otpDigit: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  pasteButton: {
-    alignSelf: 'center',
-    borderWidth: 1,
-    borderColor: '#3D944B',
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  pasteText: {
-    color: '#2E7D32',
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  expiryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginVertical: 8,
-    gap: 6,
-  },
-  expiryText: {
-    color: '#6B7280',
-    fontSize: 14,
-  },
-  expiryCountdown: {
-    color: '#2E7D32',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  resendDisabled: {
-    textAlign: 'center',
-    color: '#98A2B3',
-    marginBottom: 8,
-  },
-  resendLink: {
-    textAlign: 'center',
-    color: '#3D944B',
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  modifyButton: {
-    borderWidth: 1,
-    borderColor: '#D0D5DD',
-    borderRadius: 8,
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 8,
-  },
-  modifyButtonText: {
-    color: '#111827',
-    fontWeight: '600',
-    marginLeft: 8,
-  },
   secondaryActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  backButton: {
+  secondaryButton: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 8,
     paddingHorizontal: 12,
   },
-  backButtonText: {
+  secondaryButtonText: {
     fontSize: 14,
     color: '#3D944B',
     fontWeight: '500',
