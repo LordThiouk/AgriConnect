@@ -54,8 +54,14 @@ export default function IndexScreen() {
           router.replace('/(auth)/role-selection');
         } else {
           // Rôle non autorisé pour mobile
-          console.log('❌ [NAVIGATION] Utilisateur non autorisé pour mobile, rôle:', userRole);
-          router.replace('/(auth)/login');
+          // Si agent non approuvé, écran d'attente
+          if (userRole === 'agent') {
+            console.log('⏳ [NAVIGATION] Agent non approuvé, redirection vers agent-pending');
+            router.replace('/(auth)/agent-pending');
+          } else {
+            console.log('❌ [NAVIGATION] Utilisateur non autorisé pour mobile, rôle:', userRole);
+            router.replace('/(auth)/login');
+          }
         }
       } else {
         // Utilisateur non authentifié

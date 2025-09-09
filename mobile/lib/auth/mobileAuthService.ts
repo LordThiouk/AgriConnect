@@ -383,6 +383,26 @@ export const fetchUserRoleFromDatabase = async (userId: string): Promise<UserRol
 };
 
 /**
+ * Récupère approval_status depuis la table profiles
+ */
+export const fetchApprovalStatus = async (userId: string): Promise<'pending' | 'approved' | 'rejected' | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('approval_status')
+      .eq('user_id', userId)
+      .single();
+
+    if (error) {
+      return null;
+    }
+    return (data?.approval_status as any) || null;
+  } catch {
+    return null;
+  }
+};
+
+/**
  * Crée un profil utilisateur avec un rôle spécifique
  * @param user - Utilisateur Supabase
  * @param role - Rôle à assigner (producteur ou agent)
@@ -500,8 +520,17 @@ export const getUserInfo = async (user: User | null, session: Session | null): P
     }
   }
   
-  // Calculer canAccessMobile avec le rôle récupéré depuis la base de données
-  const canAccess = userRole ? ['agent', 'producer'].includes(userRole) : false;
+  // Lire approval_status pour les agents
+  let approval: 'pending' | 'approved' | 'rejected' | null = null;
+  if (userRole === 'agent') {
+    approval = await fetchApprovalStatus(user.id);
+  }
+  // Calculer canAccessMobile avec validation agent approuvé
+  const canAccess = userRole
+    ? userRole === 'agent'
+      ? approval === 'approved'
+      : userRole === 'producer'
+    : false;
   
   console.log('👤 [AUTH] getUserInfo - Informations utilisateur finales:', {
     userId: user?.id,
@@ -561,4 +590,5 @@ export class MobileAuthService {
   static createUserProfile = createUserProfile;
   static userProfileExists = userProfileExists;
   static fetchUserRoleFromDatabase = fetchUserRoleFromDatabase;
+  static fetchApprovalStatus = fetchApprovalStatus;
 }

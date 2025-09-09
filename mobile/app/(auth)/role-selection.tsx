@@ -51,8 +51,12 @@ const RoleSelectionScreen: React.FC = () => {
         // Actualiser l'authentification pour récupérer le nouveau rôle
         await refreshAuth();
         
-        // Rediriger vers l'application
-        router.replace('/(tabs)');
+        // Rediriger selon le rôle
+        if (role === 'agent') {
+          router.replace('/(auth)/agent-pending');
+        } else {
+          router.replace('/(tabs)');
+        }
       } else {
         console.log('❌ [ROLE] Échec de la création du profil');
         Alert.alert(
