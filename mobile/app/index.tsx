@@ -21,9 +21,9 @@ export default function IndexScreen() {
       case 'producer':
         return '/(tabs)/producer-dashboard' as any;
       case 'agent':
-        return '/(tabs)/test-redirect' as any; // Test temporaire
+        return '/(tabs)/agent-dashboard' as any;
       default:
-        return '/(tabs)/test-redirect' as any; // Test temporaire
+        return '/(tabs)/index' as any;
     }
   };
 

@@ -408,7 +408,7 @@ export const fetchApprovalStatus = async (userId: string): Promise<'pending' | '
  * @param role - Rôle à assigner (producteur ou agent)
  * @returns true si le profil a été créé, false sinon
  */
-export const createUserProfile = async (user: User, role: UserRole): Promise<boolean> => {
+export const createUserProfile = async (user: User, role: UserRole, displayNameOverride?: string): Promise<boolean> => {
   try {
     console.log('👤 [AUTH] createUserProfile - Création du profil pour:', user.id, 'avec le rôle:', role);
     
@@ -417,7 +417,7 @@ export const createUserProfile = async (user: User, role: UserRole): Promise<boo
       .insert({
         user_id: user.id,
         role: role,
-        display_name: user.user_metadata?.full_name || 'Utilisateur Mobile',
+        display_name: displayNameOverride || user.user_metadata?.full_name || 'Utilisateur Mobile',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       });

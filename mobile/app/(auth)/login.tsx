@@ -52,11 +52,14 @@ const LoginScreen: React.FC = () => {
   const { isLoading, error, clearError, isAuthenticated } = useAuth();
   
   const [phone, setPhone] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [isSendingOTP, setIsSendingOTP] = useState(false);
   const [isVerifyingOTP, setIsVerifyingOTP] = useState(false);
+  const [hasVerifiedSuccess, setHasVerifiedSuccess] = useState(false);
   const otpHiddenInputRef = React.useRef<TextInput>(null);
 
   const maskedPhone = React.useMemo(() => {
@@ -138,6 +141,9 @@ const LoginScreen: React.FC = () => {
 
   // Vérifier l'OTP
   const handleVerifyOTP = async () => {
+    if (isVerifyingOTP || hasVerifiedSuccess) {
+      return;
+    }
     if (!otp.trim()) {
       Alert.alert('Erreur', 'Veuillez saisir le code de vérification');
       return;
@@ -176,11 +182,13 @@ const LoginScreen: React.FC = () => {
         
         if (!hasProfile) {
           console.log('👤 [LOGIN] handleVerifyOTP - Pas de profil, redirection vers sélection de rôle...');
-          router.replace('/(auth)/role-selection');
+          const displayName = `${firstName.trim()} ${lastName.trim()}`.trim();
+          setHasVerifiedSuccess(true);
+          router.replace({ pathname: '/(auth)/role-selection', params: { displayName } as any });
         } else {
           console.log('✅ [LOGIN] handleVerifyOTP - Profil existant, redirection vers l\'app...');
-          // La redirection se fera automatiquement via useEffect
-          Alert.alert('Succès', 'Connexion réussie !');
+          setHasVerifiedSuccess(true);
+          router.replace('/(tabs)');
         }
       } else {
         console.log('❌ [LOGIN] handleVerifyOTP - Échec de la connexion:', error?.message);
@@ -240,7 +248,7 @@ const LoginScreen: React.FC = () => {
             <Ionicons name="leaf" size={40} color="white" />
           </View>
           <Text style={styles.title}>Connexion</Text>
-          <Text style={styles.subtitle}>Entrez votre numéro de téléphone pour continuer</Text>
+          <Text style={styles.subtitle}>Entrez vos informations pour continuer</Text>
         </View>
       </View>
 
@@ -249,6 +257,23 @@ const LoginScreen: React.FC = () => {
           {!otpSent ? (
             // Étape 1: Saisie du numéro de téléphone
             <View style={styles.stepContainer}>
+              <Text style={styles.inputLabel}>Prénom</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Votre prénom"
+                placeholderTextColor="#999"
+                value={firstName}
+                onChangeText={setFirstName}
+              />
+
+              <Text style={styles.inputLabel}>Nom</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Votre nom"
+                placeholderTextColor="#999"
+                value={lastName}
+                onChangeText={setLastName}
+              />
               <Text style={styles.inputLabel}>Numéro de téléphone</Text>
               <View style={styles.inputContainer}>
                 <View style={styles.flagContainer}>
@@ -271,7 +296,7 @@ const LoginScreen: React.FC = () => {
               <TouchableOpacity
                 style={[styles.primaryButton, isSendingOTP && styles.buttonDisabled]}
                 onPress={handleSendOTP}
-                disabled={isSendingOTP || !phone.trim()}
+                disabled={isSendingOTP || !phone.trim() || !firstName.trim() || !lastName.trim()}
               >
                 {isSendingOTP ? (
                   <ActivityIndicator size="small" color="white" />
@@ -347,9 +372,9 @@ const LoginScreen: React.FC = () => {
 
               {/* Validate button */}
               <TouchableOpacity
-                style={[styles.primaryButton, isVerifyingOTP && styles.buttonDisabled]}
+                style={[styles.primaryButton, (isVerifyingOTP || hasVerifiedSuccess) && styles.buttonDisabled]}
                 onPress={handleVerifyOTP}
-                disabled={isVerifyingOTP || otp.length !== 6}
+                disabled={isVerifyingOTP || hasVerifiedSuccess || otp.length !== 6}
               >
                 {isVerifyingOTP ? (
                   <ActivityIndicator size="small" color="white" />
@@ -466,6 +491,17 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderWidth: 1,
     borderColor: '#E0E0E0',
+  },
+  textInput: {
+    backgroundColor: 'white',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    fontSize: 16,
+    color: '#333',
   },
   flagContainer: {
     flexDirection: 'row',

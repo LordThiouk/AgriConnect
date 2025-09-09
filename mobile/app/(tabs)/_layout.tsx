@@ -4,6 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 
 export default function TabLayout() {
   const { isLoading, userRole } = useAuth();
+  const showProducer = !isLoading && userRole === 'producer';
+  const showAgent = !isLoading && userRole === 'agent';
 
   return (
     <Tabs
@@ -25,35 +27,34 @@ export default function TabLayout() {
       }}>
       
       {/* Tableaux de bord spécifiques par rôle - Mobile uniquement */}
-      {!isLoading && userRole === 'producer' && (
-        <Tabs.Screen
-          name="producer-dashboard"
-          options={{
-            title: 'Mon Tableau de Bord',
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="leaf" size={size} color={color} />
-            ),
-          }}
-        />
-      )}
+      <Tabs.Screen
+        name="producer-dashboard"
+        options={{
+          title: 'Mon Tableau de Bord',
+          href: showProducer ? undefined : null,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="leaf" size={size} color={color} />
+          ),
+        }}
+      />
 
-      {!isLoading && userRole === 'agent' && (
-        <Tabs.Screen
-          name="agent-dashboard"
-          options={{
-            title: 'Tableau de Bord',
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="person" size={size} color={color} />
-            ),
-          }}
-        />
-      )}
+      <Tabs.Screen
+        name="agent-dashboard"
+        options={{
+          title: 'Tableau de Bord',
+          href: showAgent ? undefined : null,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person" size={size} color={color} />
+          ),
+        }}
+      />
 
       {/* Dashboard par défaut */}
       <Tabs.Screen
         name="index"
         options={{
           title: 'Accueil',
+          href: null,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home" size={size} color={color} />
           ),
@@ -61,17 +62,16 @@ export default function TabLayout() {
       />
 
       {/* Collecte - Pour les agents uniquement */}
-      {!isLoading && userRole === 'agent' && (
-        <Tabs.Screen
-          name="collecte"
-          options={{
-            title: 'Collecte',
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="add-circle" size={size} color={color} />
-            ),
-          }}
-        />
-      )}
+      <Tabs.Screen
+        name="collecte"
+        options={{
+          title: 'Collecte',
+          href: showAgent ? undefined : null,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="add-circle" size={size} color={color} />
+          ),
+        }}
+      />
 
       {/* Carte - GPS et localisation */}
       <Tabs.Screen
@@ -80,6 +80,17 @@ export default function TabLayout() {
           title: 'Carte',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="map" size={size} color={color} />
+          ),
+        }}
+      />
+
+      {/* Observations */}
+      <Tabs.Screen
+        name="observations"
+        options={{
+          title: 'Observations',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="eye" size={size} color={color} />
           ),
         }}
       />
@@ -95,16 +106,8 @@ export default function TabLayout() {
         }}
       />
 
-      {/* Debug - Débogage de l'authentification (développement uniquement) */}
-      <Tabs.Screen
-        name="debug"
-        options={{
-          title: 'Debug',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="bug" size={size} color={color} />
-          ),
-        }}
-      />
+      {/* Debug - hors des onglets */}
+      <Tabs.Screen name="debug" options={{ href: null }} />
     </Tabs>
   );
 }

@@ -20,6 +20,7 @@
     "@react-navigation/elements": "^2.3.8",
     "@react-navigation/native": "^7.1.6",
     "@supabase/supabase-js": "^2.55.0",
+    "anser": "^2.3.2",
     "expo": "~53.0.20",
     "expo-blur": "~14.1.5",
     "expo-clipboard": "^6.0.3",
@@ -47,6 +48,7 @@
     "react-native-url-polyfill": "^2.0.0",
     "react-native-web": "~0.20.0",
     "react-native-webview": "13.13.5",
+    "whatwg-fetch": "^3.6.20",
     "zod": "^4.0.17"
   },
   "devDependencies": {

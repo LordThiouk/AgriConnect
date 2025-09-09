@@ -17,23 +17,34 @@ import {
   ActivityIndicator,
   StatusBar
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
+import { SessionManager } from '../../lib/auth/sessionManager';
 import { createUserProfile } from '../../lib/auth/mobileAuthService';
 import { Ionicons } from '@expo/vector-icons';
 import type { UserRole } from '../../../types/user';
 
 const RoleSelectionScreen: React.FC = () => {
   const router = useRouter();
+  const params = useLocalSearchParams<{ displayName?: string }>();
   const { user, session, refreshAuth } = useAuth();
   
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [isCreatingProfile, setIsCreatingProfile] = useState(false);
 
   const handleRoleSelection = async (role: UserRole) => {
-    if (!user || !session) {
-      Alert.alert('Erreur', 'Session utilisateur introuvable');
-      return;
+    let effectiveUser = user;
+    let effectiveSession = session;
+    if (!effectiveUser || !effectiveSession) {
+      // Essayer de récupérer la session courante pour éviter l'erreur
+      const current = await SessionManager.getCurrentSession();
+      if (current) {
+        effectiveUser = current.user;
+        effectiveSession = current;
+      } else {
+        Alert.alert('Erreur', 'Session utilisateur introuvable');
+        return;
+      }
     }
 
     setSelectedRole(role);
@@ -43,7 +54,7 @@ const RoleSelectionScreen: React.FC = () => {
       console.log('🎯 [ROLE] Sélection du rôle:', role);
       
       // Créer le profil avec le rôle sélectionné
-      const profileCreated = await createUserProfile(user, role);
+      const profileCreated = await createUserProfile(effectiveUser, role, params.displayName as string | undefined);
       
       if (profileCreated) {
         console.log('✅ [ROLE] Profil créé avec succès, actualisation de l\'auth...');

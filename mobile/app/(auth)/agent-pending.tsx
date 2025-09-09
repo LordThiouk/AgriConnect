@@ -1,11 +1,12 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, BackHandler, Linking, RefreshControl, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function AgentPendingScreen() {
   const router = useRouter();
-  const { refreshAuth } = useAuth();
+  const { refreshAuth, userRole, canAccessMobile, isAuthenticated } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
@@ -17,8 +18,15 @@ export default function AgentPendingScreen() {
     }
   }, [refreshAuth]);
 
+  // Rediriger automatiquement vers le dashboard agent dès approbation
+  useEffect(() => {
+    if (isAuthenticated && userRole === 'agent' && canAccessMobile) {
+      router.replace('/(tabs)/agent-dashboard');
+    }
+  }, [isAuthenticated, userRole, canAccessMobile, router]);
+
   const handleSupport = () => {
-    Linking.openURL('tel:+2210951543');
+    Linking.openURL('tel:+221770951543');
   };
 
   const handleExit = () => {
@@ -32,10 +40,15 @@ export default function AgentPendingScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
       <View style={styles.header}>
-        <Text style={styles.logo}>AgriConnect</Text>
+        <View style={styles.logoRow}>
+          <Ionicons name="leaf" size={24} color="#3D944B" />
+          <Text style={styles.logo}>AgriConnect</Text>
+        </View>
       </View>
 
-      <View style={styles.illustration} />
+      <View style={styles.illustration}>
+        <Ionicons name="hourglass" size={40} color="#1F2937" />
+      </View>
 
       <Text style={styles.title}>Compte en attente</Text>
       <Text style={styles.subtitle}>
@@ -65,8 +78,9 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F6F6F6' },
   content: { padding: 24, alignItems: 'center' },
   header: { width: '100%', paddingVertical: 16, alignItems: 'center' },
-  logo: { fontSize: 18, fontWeight: '700', color: '#3D944B' },
-  illustration: { width: 96, height: 96, borderRadius: 48, backgroundColor: '#FFD65A', marginVertical: 24 },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  logo: { fontSize: 18, fontWeight: '700', color: '#3D944B', marginLeft: 8 },
+  illustration: { width: 96, height: 96, borderRadius: 48, backgroundColor: '#FFD65A', marginVertical: 24, justifyContent: 'center', alignItems: 'center' },
   title: { fontSize: 22, fontWeight: '800', color: '#1F2937', textAlign: 'center' },
   subtitle: { fontSize: 14, color: '#4B5563', textAlign: 'center', marginTop: 8 },
   infoCard: { width: '100%', backgroundColor: '#fff', borderRadius: 12, padding: 14, marginTop: 20, borderLeftWidth: 4, borderLeftColor: '#3D944B' },
