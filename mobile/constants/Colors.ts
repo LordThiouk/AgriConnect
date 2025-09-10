@@ -23,4 +23,31 @@ export const Colors = {
     tabIconDefault: '#9BA1A6',
     tabIconSelected: tintColorDark,
   },
+  primary: '#3D944B',
+  secondary: '#FFD65A',
+  success: {
+    light: '#E8F5E8',
+    dark: '#3D944B',
+  },
+  warning: {
+    light: '#FFF8E1',
+    dark: '#FFD65A',
+  },
+  error: {
+    light: '#FFEBEE',
+    dark: '#FF6B6B',
+  },
+  info: '#4ECDC4',
+  gray: {
+    light: '#F5F5F5',
+    medium: '#9E9E9E',
+    dark: '#616161',
+  },
+  white: '#FFFFFF',
+  black: '#000000',
+  background: '#F6F6F6',
+  text: {
+    primary: '#212121',
+    secondary: '#757575',
+  },
 };

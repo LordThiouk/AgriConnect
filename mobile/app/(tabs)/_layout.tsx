@@ -70,6 +70,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="add-circle" size={size} color={color} />
           ),
+          headerShown: false, // Désactiver le header des tabs pour permettre le header personnalisé
         }}
       />
 

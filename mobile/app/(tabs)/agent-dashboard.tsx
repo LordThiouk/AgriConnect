@@ -4,24 +4,24 @@
  */
 
 import React, { useLayoutEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { useNavigation, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
+import { useAgentDashboard } from '../../hooks/useAgentDashboard';
 // import { LinearGradient } from 'expo-linear-gradient';
 
 export default function AgentDashboard() {
-  const { user, userRole, phone } = useAuth();
+  const { user } = useAuth();
   const navigation = useNavigation();
   const router = useRouter();
-  const [trackWidth, setTrackWidth] = useState(0);
-  const percent = 87; // pour NativeWind/Tailwind
+  
+  // Utiliser le hook pour récupérer les vraies données (avec ID de test par défaut)
+  const { stats, visits, alerts, loading, error, refresh } = useAgentDashboard(user?.id || 'test-agent-123');
 
   const today = new Date().toLocaleDateString();
   const agentName = user?.user_metadata?.display_name || 'Agent terrain';
   const agentFirstName = (agentName || '').split(' ')[0] || agentName;
-  // const cooperativeName = user?.user_metadata?.cooperative_name;
-  const isOffline = false; // TODO: remplacer par état réseau réel
   // Titre d'entête natif riche (Bonjour + date) et actions à droite
   const HeaderTitle = () => (
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -52,38 +52,72 @@ export default function AgentDashboard() {
       headerTintColor: '#111827',
       headerTitleAlign: 'left',
     } as any);
-  }, [navigation, agentFirstName, today]);
+  }, [navigation, agentFirstName, today, HeaderTitle, HeaderRight]);
 
-  // KPI (mock pour l’instant)
-  const stats = [
-    { title: 'Producteurs suivis', value: '24', icon: 'people', color: '#3D944B' },
-    { title: 'Parcelles actives', value: '18', icon: 'map', color: '#FFD65A' },
+  // KPI basés sur les vraies données
+  const kpiStats = [
+    { 
+      title: 'Producteurs suivis', 
+      value: stats?.producersCount?.toString() || '0', 
+      icon: 'people', 
+      color: '#3D944B' 
+    },
+    { 
+      title: 'Parcelles actives', 
+      value: stats?.activePlotsCount?.toString() || '0', 
+      icon: 'map', 
+      color: '#FFD65A' 
+    },
   ];
 
-  // Visites du jour (mock)
-  const visitsToday: Array<{ id: string; producer: string; location?: string; status: 'à faire'|'en cours'|'terminé'; hasGps: boolean }>= [
-    { id: 'v1', producer: 'Moussa Diop', location: 'Thiès', status: 'à faire', hasGps: true },
-    { id: 'v2', producer: 'Awa Ndiaye', location: 'Mbour', status: 'en cours', hasGps: false },
-    { id: 'v3', producer: 'Ibrahima S.', location: 'Keur Massar', status: 'terminé', hasGps: true },
-  ];
+  // Pourcentage de fiches complétées
+  const percent = stats?.completedFilesPercent || 0;
 
-  // Alertes (mock)
-  const alerts: Array<{ id: string; title: string; desc: string; severity: 'high'|'medium' }>= [
-    { id: 'a1', title: 'Maladie détectée', desc: 'Parcelle Awa Ndiaye - Tomate', severity: 'high' },
-    { id: 'a2', title: 'Visite en retard', desc: 'Moussa Diop - Maïs', severity: 'medium' },
-  ];
+  // Gestion des états de chargement et d'erreur
+  if (loading && !stats) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <ActivityIndicator size="large" color="#3D944B" />
+        <Text style={styles.loadingText}>Chargement des données...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <Ionicons name="alert-circle" size={48} color="#DC2626" />
+        <Text style={styles.errorTitle}>Erreur de chargement</Text>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={refresh}>
+          <Text style={styles.retryButtonText}>Réessayer</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.scrollView} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={refresh}
+            colors={['#3D944B']}
+            tintColor="#3D944B"
+          />
+        }
+      >
         {/* En-tête (carte claire) */}
         
 
         {/* Cartes KPI */}
         <View style={styles.statsContainer}>
-          <Text style={styles.sectionTitle}>Vue d’ensemble</Text>
+          <Text style={styles.sectionTitle}>Vue d&apos;ensemble</Text>
           <View style={styles.statsGrid}>
-            {stats.map((stat, index) => (
+            {kpiStats.map((stat, index) => (
               <View key={index} style={styles.statCard}>
                 <View style={[styles.kpiIcon, { backgroundColor: stat.color }]}>
                   <Ionicons name={stat.icon as any} size={18} color="#ffffff" />
@@ -116,23 +150,23 @@ export default function AgentDashboard() {
           <View style={styles.cardHeaderRow}>
             <Text style={styles.sectionTitle}>Visites du jour</Text>
             <Text style={styles.countText}>
-              {visitsToday.length} {visitsToday.length === 1 ? 'visite' : 'visites'}
+              {visits.length} {visits.length === 1 ? 'visite' : 'visites'}
             </Text>
             
           </View>
-          {visitsToday.length === 0 ? (
-            <Text style={styles.emptyText}>Aucune visite planifiée aujourd’hui</Text>
+          {visits.length === 0 ? (
+            <Text style={styles.emptyText}>Aucune visite planifiée aujourd&apos;hui</Text>
           ) : (
-            visitsToday.map(v => (
+            visits.map(v => (
               <View key={v.id} style={styles.visitRow}>
                 <View style={styles.visitIcon}>
                   <Ionicons name="walk" size={18} color="#3D944B" />
                 </View>
                 <View style={styles.visitInfo}>
-                  <Text style={styles.visitTitle}>{v.producer}</Text>
+                  <Text style={styles.visitTitle}>{v.producer} - {v.location}</Text>
                   <View style={styles.visitMetaRow}>
                     <Ionicons name="location" size={12} color={v.hasGps ? '#6b7280' : '#cbd5e1'} />
-                    <Text style={styles.visitMetaText}>{v.hasGps ? (v.location || 'Localisation') : 'Localisation non disponible'}</Text>
+                    <Text style={styles.visitMetaText}>{v.hasGps ? 'GPS disponible' : 'Localisation non disponible'}</Text>
                   </View>
                 </View>
                 <View style={styles.statusRight}>
@@ -158,17 +192,28 @@ export default function AgentDashboard() {
               </Text>
             </View>
           </View>
-          {alerts.map(a => (
-            <View key={a.id} style={[styles.alertCard, a.severity === 'high' ? styles.alertLeftRed : styles.alertLeftYellow]}>
-              <View style={[styles.alertBadge, a.severity === 'high' ? styles.badgeRed : styles.badgeOrange]} />
-              <View style={styles.alertContent}>
-                <Text style={styles.alertTitle}>{a.title}</Text>
-                <Text style={styles.alertDescription}>{a.desc}</Text>
-                <Text style={styles.alertTime}>il y a 2 jours</Text>
+          {alerts.length === 0 ? (
+            <Text style={styles.emptyText}>Aucune alerte pour le moment</Text>
+          ) : (
+            alerts.map(a => (
+              <View key={a.id} style={[styles.alertCard, a.severity === 'high' ? styles.alertLeftRed : styles.alertLeftYellow]}>
+                <View style={[styles.alertBadge, a.severity === 'high' ? styles.badgeRed : styles.badgeOrange]} />
+                <View style={styles.alertContent}>
+                  <Text style={styles.alertTitle}>{a.title}</Text>
+                  <Text style={styles.alertDescription}>{a.description}</Text>
+                  <Text style={styles.alertTime}>
+                    {new Date(a.createdAt).toLocaleDateString('fr-FR', {
+                      day: 'numeric',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </Text>
+                </View>
+                <Ionicons name={a.severity === 'high' ? 'warning' : 'alert-circle'} size={18} color={a.severity === 'high' ? '#DC2626' : '#F59E0B'} />
               </View>
-              <Ionicons name={a.severity === 'high' ? 'warning' : 'alert-circle'} size={18} color={a.severity === 'high' ? '#DC2626' : '#F59E0B'} />
-            </View>
-          ))}
+            ))
+          )}
         </View>
 
         {/* Actions de fin de page */}
@@ -193,6 +238,42 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  centerContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#6b7280',
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#DC2626',
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginTop: 8,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  retryButton: {
+    backgroundColor: '#3D944B',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 16,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   headerCard: { backgroundColor: '#FFFFFF', marginHorizontal: 20, marginTop: 16, borderRadius: 12, padding: 16, elevation: 2 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

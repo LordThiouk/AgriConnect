@@ -1,6 +1,6 @@
 /**
- * Shared Supabase Client Configuration for AgriConnect
- * This client can be used by both web and mobile applications
+ * Supabase Client Configuration for AgriConnect Mobile
+ * Copied from the root lib/supabase/client.ts to avoid Metro resolution issues
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -42,7 +42,6 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 
 // Export types for convenience
 export type { User, Session, AuthError } from '@supabase/supabase-js';
-export type { Database } from './types/database';
 
 // Helper functions
 export const getCurrentUser = async () => {
@@ -61,5 +60,3 @@ export const signOut = async () => {
   const { error } = await supabase.auth.signOut();
   if (error) throw error;
 };
-
-export { supabase };
