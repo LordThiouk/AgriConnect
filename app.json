@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "d0068f90-fd64-40a2-83c5-9aeecc0a6871"
+      }
+    },
+    "android": {
+      "package": "com.lordthiouk.agriconnectworkspace"
+    }
+  }
+}
