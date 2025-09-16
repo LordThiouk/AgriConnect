@@ -74,13 +74,14 @@ export default function TabLayout() {
         }}
       />
 
-      {/* Carte - GPS et localisation */}
+      {/* Parcelles - top-level */}
       <Tabs.Screen
-        name="map"
+        name="parcelles" // Correction: pointe vers le répertoire
         options={{
-          title: 'Carte',
+          title: 'Parcelles',
+          headerShown: false, // Le Stack interne gère son propre header
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="map" size={size} color={color} />
+            <Ionicons name="pricetag" size={size} color={color} />
           ),
         }}
       />

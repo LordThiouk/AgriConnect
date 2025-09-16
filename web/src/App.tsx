@@ -13,6 +13,7 @@ import UserRoleDebug from './components/UserRoleDebug';
 import PaginationTest from './components/test/PaginationTest';
 import SupabaseTest from './components/test/SupabaseTest';
 import DataSeeder from './components/test/DataSeeder';
+import CampaignsPage from './pages/Campaigns';
 import './App.css';
 
 function App() {
@@ -42,6 +43,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <ProducersPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/campaigns" 
+              element={
+                <ProtectedRoute>
+                  <CampaignsPage />
                 </ProtectedRoute>
               } 
             />

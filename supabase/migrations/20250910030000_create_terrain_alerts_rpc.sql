@@ -1,4 +1,4 @@
-r-- Créer une fonction RPC pour récupérer les alertes terrain d'un agent
+-- Créer une fonction RPC pour récupérer les alertes terrain d'un agent
 CREATE OR REPLACE FUNCTION get_agent_terrain_alerts(p_agent_id uuid)
 RETURNS json
 LANGUAGE plpgsql

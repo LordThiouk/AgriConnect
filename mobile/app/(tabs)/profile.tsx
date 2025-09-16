@@ -1,11 +1,21 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Switch } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
 const ProfileScreen: React.FC = () => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, isAuthenticated } = useAuth();
+  const router = useRouter();
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const userRole = user?.user_metadata?.role;
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      // Assurer la redirection hors des onglets après déconnexion
+      router.replace('/(auth)/login');
+    }
+  }, [isAuthenticated, router]);
 
   const handleSignOut = () => {
     Alert.alert(
@@ -13,7 +23,20 @@ const ProfileScreen: React.FC = () => {
       'Êtes-vous sûr de vouloir vous déconnecter ?',
       [
         { text: 'Annuler', style: 'cancel' },
-        { text: 'Déconnexion', onPress: signOut, style: 'destructive' },
+        { 
+          text: 'Déconnexion', 
+          onPress: async () => {
+            try {
+              setIsSigningOut(true);
+              await signOut();
+              // La redirection est aussi assurée par l'effet ci‑dessus
+              router.replace('/(auth)/login');
+            } finally {
+              setIsSigningOut(false);
+            }
+          }, 
+          style: 'destructive' 
+        },
       ]
     );
   };
@@ -133,9 +156,9 @@ const ProfileScreen: React.FC = () => {
 
       {/* Bouton de déconnexion */}
       <View style={styles.signOutSection}>
-        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut} disabled={isSigningOut}>
           <Ionicons name="log-out-outline" size={20} color="#ef4444" />
-          <Text style={styles.signOutButtonText}>Se Déconnecter</Text>
+          <Text style={styles.signOutButtonText}>{isSigningOut ? 'Déconnexion…' : 'Se Déconnecter'}</Text>
         </TouchableOpacity>
       </View>
 

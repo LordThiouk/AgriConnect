@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useCallback, useLayoutEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
-  TouchableOpacity, 
+import React, { useState, useEffect, useCallback, useLayoutEffect, useMemo } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
   RefreshControl,
   Alert,
-  ActivityIndicator
+  ActivityIndicator,
+  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useNavigation } from 'expo-router';
@@ -16,6 +16,8 @@ import { CollecteService } from '../../../lib/services/collecte';
 import { FarmFileDisplay } from '../../../types/collecte';
 import { useAuth } from '../../../context/AuthContext';
 
+type FilterStatus = 'all' | 'draft' | 'completed';
+
 export default function CollecteScreen() {
   const router = useRouter();
   const navigation = useNavigation();
@@ -23,28 +25,40 @@ export default function CollecteScreen() {
   const [farmFiles, setFarmFiles] = useState<FarmFileDisplay[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<FilterStatus>('all');
 
   const loadFarmFiles = useCallback(async () => {
-    // Utiliser l'ID de l'agent de test pour le développement
-    const agentId = 'd6daff9e-c1af-4a96-ab51-bd8925813890';
-    
+    if (!user) {
+      console.log("[DIAGNOSTIC] Tentative de chargement des fiches, mais l'utilisateur n'est pas encore disponible.");
+      return;
+    }
+
+    // Diagnostic crucial pour vérifier l'ID utilisateur utilisé pour l'appel
+    console.log(`\n\n[DIAGNOSTIC] Appel de la fonction pour récupérer les fiches avec l'ID utilisateur : ${user.id}\n\n`);
+
+    setRefreshing(true);
     try {
-      setLoading(true);
-      console.log('🔄 Chargement des fiches pour l\'agent:', agentId);
-      const files = await CollecteService.getFarmFiles(agentId);
-      console.log('✅ Fiches chargées:', files.length);
+      if (!refreshing) setLoading(true);
+      const files = await CollecteService.getFarmFiles(user.id);
       setFarmFiles(files);
     } catch (error) {
-      console.error('Erreur lors du chargement des fiches:', error);
-      Alert.alert('Erreur', 'Impossible de charger les fiches d\'exploitation');
+      console.error('Erreur chargement fiches:', error);
+      Alert.alert('Erreur', 'Impossible de charger les fiches.');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }, []);
+  }, [user, refreshing]);
 
   useEffect(() => {
-    loadFarmFiles();
-  }, [loadFarmFiles]);
+    if (user) loadFarmFiles();
+  }, [user]);
+
+  const filteredFarmFiles = useMemo(() => {
+    if (activeFilter === 'all') return farmFiles;
+    return farmFiles.filter(file => file.status === activeFilter);
+  }, [farmFiles, activeFilter]);
+
 
   // Configuration du header
   const today = new Date().toLocaleDateString();
@@ -92,7 +106,14 @@ export default function CollecteScreen() {
     console.log('Action rapide:', action);
     switch (action) {
       case 'add_plot':
-        router.push('/(tabs)/collecte/fiches/create');
+        // MVP: si on a au moins une fiche, ouvrir l'écran d'ajout parcelle pour la première
+        if (farmFiles.length > 0) {
+          const first = farmFiles[0];
+          router.push(`/(tabs)/collecte/fiches/${first.id}/parcelles/add`);
+        } else {
+          // sinon, proposer de créer une fiche
+          router.push('/(tabs)/collecte/fiches/create');
+        }
         break;
       case 'new_visit':
         Alert.alert('Nouvelle Visite', 'Fonctionnalité à implémenter');
@@ -159,174 +180,175 @@ export default function CollecteScreen() {
     }
   };
 
-  if (loading) {
+  const renderStatusBadge = (status: string) => {
+    let backgroundColor = Colors.gray.light;
+    let textColor = Colors.gray.dark;
+    let text = status.toUpperCase();
+
+    if (status === 'draft') {
+      backgroundColor = Colors.warning.light;
+      textColor = Colors.warning.dark;
+      text = 'BROUILLON';
+    } else if (status === 'completed') {
+      backgroundColor = Colors.success.light;
+      textColor = Colors.success.dark;
+      text = 'COMPLÉTÉE';
+    }
+
+    return (
+      <View style={[styles.statusBadge, { backgroundColor, marginLeft: 'auto' }]}>
+        <Text style={[styles.statusBadgeText, { color: textColor }]}>{text}</Text>
+      </View>
+    );
+  };
+
+  const renderItem = ({ item }: { item: FarmFileDisplay }) => (
+    <TouchableOpacity
+      style={styles.farmFileCard}
+      onPress={() => router.push(`/(tabs)/collecte/fiches/create?farmFileId=${item.id}`)}
+    >
+      <View style={styles.cardHeader}>
+        <Text style={styles.farmFileName} numberOfLines={1}>{item.producerName}</Text>
+        <StatusBadge status={item.status} />
+      </View>
+
+      <View style={styles.infoRow}>
+        <Ionicons name="location-outline" size={16} color={Colors.gray.medium} />
+        <Text style={styles.infoText}>{item.location}</Text>
+      </View>
+
+      <View style={styles.infoRow}>
+        <Ionicons name="leaf-outline" size={16} color={Colors.gray.medium} />
+        <Text style={styles.infoText}>{item.plotsCount} parcelles</Text>
+      </View>
+      
+      <View style={styles.completionContainer}>
+        <Text style={styles.completionText}>{Math.round(item.completionPercent)}% complété</Text>
+        <View style={styles.progressBar}>
+          <View style={[styles.progress, { width: `${item.completionPercent}%`, backgroundColor: item.completionPercent === 100 ? Colors.success.dark : Colors.primary }]} />
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
+  const FilterComponent = () => (
+    <View style={styles.filterContainer}>
+      {(['all', 'draft', 'completed'] as FilterStatus[]).map((status) => (
+        <TouchableOpacity
+          key={status}
+          style={[styles.filterButton, activeFilter === status && styles.activeFilterButton]}
+          onPress={() => setActiveFilter(status)}
+        >
+          <Text style={[styles.filterButtonText, activeFilter === status && styles.activeFilterButtonText]}>
+            {status === 'all' ? 'Toutes' : status === 'draft' ? 'Brouillons' : 'Complétées'}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+
+  if (loading && !refreshing) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={Colors.primary} />
-        <Text style={styles.loadingText}>Chargement des fiches...</Text>
+        <Text>Chargement des fiches...</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {/* Bouton principal pour nouvelle fiche */}
-      <View style={styles.primaryButtonContainer}>
-        <TouchableOpacity 
-          style={styles.primaryButton}
-          onPress={() => router.push('/(tabs)/collecte/fiches/create')}
-        >
-          <Ionicons name="add" size={20} color={Colors.white} />
-          <Text style={styles.primaryButtonText}>Nouvelle Fiche Exploitation</Text>
-        </TouchableOpacity>
-      </View>
+      <FlatList
+        data={filteredFarmFiles}
+        renderItem={renderItem}
+        keyExtractor={item => item.id}
+        ListHeaderComponent={
+          <>
+            <View style={styles.primaryButtonContainer}>
+              <TouchableOpacity
+                style={styles.primaryButton}
+                onPress={() => router.push('/(tabs)/collecte/fiches/create')}
+              >
+                <Ionicons name="add" size={20} color={Colors.white} />
+                <Text style={styles.primaryButtonText}>Nouvelle Fiche Exploitation</Text>
+              </TouchableOpacity>
+            </View>
 
-      {/* Actions rapides */}
-      <View style={styles.quickActionsContainer}>
-        <TouchableOpacity 
-          style={styles.quickActionButton}
-          onPress={() => handleQuickAction('add_plot')}
-        >
-          <Ionicons name="location" size={24} color={Colors.primary} />
-          <Text style={styles.quickActionText}>Ajouter Parcelle</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.quickActionButton}
-          onPress={() => handleQuickAction('new_visit')}
-        >
-          <Ionicons name="calendar" size={24} color={Colors.primary} />
-          <Text style={styles.quickActionText}>Nouvelle Visite</Text>
-        </TouchableOpacity>
-        
-            <TouchableOpacity
-          style={styles.quickActionButton}
-          onPress={() => handleQuickAction('add_observation')}
-        >
-          <Ionicons name="camera" size={24} color={Colors.primary} />
-          <Text style={styles.quickActionText}>Observation</Text>
-            </TouchableOpacity>
-      </View>
+            <View style={styles.quickActionsContainer}>
+              <TouchableOpacity
+                style={styles.quickActionButton}
+                onPress={() => handleQuickAction('add_plot')}
+              >
+                <Ionicons name="location" size={24} color={Colors.primary} />
+                <Text style={styles.quickActionText}>Ajouter Parcelle</Text>
+              </TouchableOpacity>
 
-      {/* Section Fiches Existantes */}
-      <View style={styles.sectionContainer}>
-        <Text style={styles.sectionTitle}>Fiches Existantes</Text>
-        
-        <ScrollView 
-          style={styles.farmFilesList}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-          showsVerticalScrollIndicator={false}
-        >
-          {farmFiles.length === 0 ? (
+              <TouchableOpacity
+                style={styles.quickActionButton}
+                onPress={() => handleQuickAction('new_visit')}
+              >
+                <Ionicons name="calendar" size={24} color={Colors.primary} />
+                <Text style={styles.quickActionText}>Nouvelle Visite</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.quickActionButton}
+                onPress={() => handleQuickAction('add_observation')}
+              >
+                <Ionicons name="camera" size={24} color={Colors.primary} />
+                <Text style={styles.quickActionText}>Observation</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.header}>
+              <Text style={styles.headerTitle}>Fiches Existantes</Text>
+            </View>
+            <FilterComponent />
+          </>
+        }
+        ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Ionicons name="document-outline" size={64} color={Colors.gray.medium} />
-              <Text style={styles.emptyStateTitle}>Aucune fiche d&apos;exploitation</Text>
-              <Text style={styles.emptyStateSubtitle}>
-                Créez votre première fiche pour commencer la collecte
+              <Ionicons name="document-text-outline" size={50} color={Colors.gray.medium} />
+              <Text style={styles.emptyStateText}>Aucune fiche trouvée</Text>
+              <Text style={styles.emptyStateSubText}>
+                {activeFilter !== 'all' ? `Aucune fiche avec le statut "${activeFilter}".` : "Créez une nouvelle fiche pour commencer."}
               </Text>
             </View>
-          ) : (
-            farmFiles.map((farmFile) => (
-              <View key={farmFile.id} style={styles.farmFileCard}>
-                {/* En-tête de la carte */}
-                <View style={styles.cardHeader}>
-                  <Text style={styles.farmFileName}>{farmFile.producerName}</Text>
-                  <View style={styles.cardActions}>
-                    <TouchableOpacity style={styles.viewButton}>
-                      <Ionicons name="eye" size={16} color={Colors.gray.dark} />
-                    </TouchableOpacity>
-            </View>
-          </View>
-
-                {/* Informations de localisation */}
-                <View style={styles.locationInfo}>
-                  <Ionicons name="location-outline" size={16} color={Colors.gray.medium} />
-                  <Text style={styles.locationText}>{farmFile.location}</Text>
-            </View>
-
-                {/* Informations des parcelles */}
-                <View style={styles.plotsInfo}>
-                  <Ionicons name="leaf-outline" size={16} color={Colors.gray.medium} />
-                  <Text style={styles.plotsText}>{farmFile.plotsCount} parcelles</Text>
-      </View>
-
-                {/* Badges de statut */}
-                <View style={styles.statusBadges}>
-                  <View style={[styles.statusBadge, getStatusBadgeStyle(farmFile.syncStatus)]}>
-                    <Ionicons 
-                      name={getSyncIcon(farmFile.syncStatus)} 
-                      size={12} 
-                      color={getStatusBadgeStyle(farmFile.syncStatus).color} 
-                    />
-                    <Text style={[styles.statusBadgeText, { color: getStatusBadgeStyle(farmFile.syncStatus).color }]}>
-                      {farmFile.syncStatus === 'synced' ? 'Synchronisé' : 
-                       farmFile.syncStatus === 'pending' ? 'En attente' : 'Erreur'}
-            </Text>
-          </View>
-                  
-                  <View style={[styles.completionBadge, getCompletionBadgeStyle(farmFile.completionPercent)]}>
-                    <Text style={[styles.completionBadgeText, { color: getCompletionBadgeStyle(farmFile.completionPercent).color }]}>
-                      {farmFile.completionPercent}% complété
-            </Text>
-          </View>
-                </View>
-
-                {/* Boutons d'action */}
-                <View style={styles.actionButtons}>
-                  <TouchableOpacity 
-                    style={[styles.actionButton, getActionButtonStyle(farmFile.completionPercent)]}
-                    onPress={() => router.push(`/(tabs)/collecte/fiches/${farmFile.id}`)}
-                  >
-                    <Ionicons 
-                      name={farmFile.completionPercent === 100 ? "checkmark" : "create"} 
-                      size={16} 
-                      color={getActionButtonStyle(farmFile.completionPercent).color} 
-                    />
-                    <Text style={[styles.actionButtonText, { color: getActionButtonStyle(farmFile.completionPercent).color }]}>
-                      {getActionButtonText(farmFile.completionPercent)}
-            </Text>
-                  </TouchableOpacity>
-          </View>
-        </View>
-            ))
-          )}
-        </ScrollView>
-      </View>
-
-      {/* Bouton flottant */}
-      <TouchableOpacity 
-        style={styles.floatingButton}
-        onPress={() => router.push('/(tabs)/collecte/fiches/create')}
-      >
-        <Ionicons name="add" size={24} color={Colors.white} />
-      </TouchableOpacity>
+          }
+          contentContainerStyle={styles.listContentContainer}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        />
+        <TouchableOpacity
+            style={styles.floatingButton}
+            onPress={() => router.push('/(tabs)/collecte/fiches/create')}
+        >
+            <Ionicons name="add" size={24} color={Colors.white} />
+        </TouchableOpacity>
     </View>
   );
 }
 
+const StatusBadge = ({ status }: { status: string }) => {
+    const { backgroundColor, color, text } = useMemo(() => {
+        if (status === 'draft') return { backgroundColor: Colors.warning.light, color: Colors.warning.dark, text: 'BROUILLON' };
+        if (status === 'completed') return { backgroundColor: Colors.success.light, color: Colors.success.dark, text: 'COMPLÉTÉE' };
+        return { backgroundColor: Colors.gray.light, color: Colors.gray.dark, text: status.toUpperCase() };
+    }, [status]);
+
+    return (
+        <View style={[styles.statusBadge, { backgroundColor }]}>
+            <Text style={[styles.statusBadgeText, { color }]}>{text}</Text>
+        </View>
+    );
+};
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.background,
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: Colors.gray.dark,
-  },
+  container: { flex: 1, backgroundColor: Colors.background },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  listContentContainer: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 80 },
   primaryButtonContainer: {
-    padding: 20,
-    backgroundColor: Colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.gray.light,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    paddingTop:10
   },
   primaryButton: {
     flexDirection: 'row',
@@ -334,7 +356,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: Colors.primary,
     paddingVertical: 12,
-    paddingHorizontal: 20,
     borderRadius: 8,
     gap: 8,
   },
@@ -345,17 +366,21 @@ const styles = StyleSheet.create({
   },
   quickActionsContainer: {
     flexDirection: 'row',
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
     gap: 12,
   },
   quickActionButton: {
     flex: 1,
-    backgroundColor: Colors.warning.light,
+    backgroundColor: Colors.white,
     paddingVertical: 16,
-    paddingHorizontal: 12,
     borderRadius: 8,
     alignItems: 'center',
     gap: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2,
   },
   quickActionText: {
     color: Colors.primary,
@@ -363,134 +388,37 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
-  sectionContainer: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.text.primary,
-    marginBottom: 16,
-  },
-  farmFilesList: {
-    flex: 1,
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  emptyStateTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.text.primary,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyStateSubtitle: {
-    fontSize: 14,
-    color: Colors.text.secondary,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
+  header: { marginBottom: 16, paddingHorizontal:20 },
+  headerTitle: { fontSize: 22, fontWeight: 'bold', color: Colors.text.primary },
+  filterContainer: { flexDirection: 'row', gap: 8, marginBottom: 20, paddingHorizontal:20 },
+  filterButton: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, backgroundColor: Colors.gray.light },
+  activeFilterButton: { backgroundColor: Colors.primary },
+  filterButtonText: { color: Colors.text.secondary, fontWeight: '500' },
+  activeFilterButtonText: { color: Colors.white },
   farmFileCard: {
     backgroundColor: Colors.white,
     borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
-    shadowColor: Colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
     elevation: 3,
   },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  farmFileName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: Colors.text.primary,
-    flex: 1,
-  },
-  cardActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  viewButton: {
-    padding: 8,
-    borderRadius: 6,
-    backgroundColor: Colors.gray.light,
-  },
-  locationInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 6,
-  },
-  locationText: {
-    fontSize: 14,
-    color: Colors.text.secondary,
-  },
-  plotsInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    gap: 6,
-  },
-  plotsText: {
-    fontSize: 14,
-    color: Colors.text.secondary,
-  },
-  statusBadges: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 16,
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 12,
-    gap: 4,
-  },
-  statusBadgeText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  completionBadge: {
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 12,
-  },
-  completionBadgeText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    gap: 6,
-  },
-  actionButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  farmFileName: { fontSize: 16, fontWeight: 'bold', color: Colors.text.primary, flex: 1 },
+  statusBadge: { paddingVertical: 4, paddingHorizontal: 8, borderRadius: 12 },
+  statusBadgeText: { fontSize: 10, fontWeight: 'bold' },
+  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  infoText: { fontSize: 14, color: Colors.text.secondary },
+  completionContainer: { marginTop: 12 },
+  completionText: { fontSize: 12, color: Colors.text.secondary, alignSelf: 'flex-end', marginBottom: 4 },
+  progressBar: { height: 6, backgroundColor: Colors.gray.light, borderRadius: 3, overflow: 'hidden' },
+  progress: { height: '100%', borderRadius: 3 },
+  emptyState: { alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
+  emptyStateText: { marginTop: 16, fontSize: 18, fontWeight: '600', color: Colors.text.primary },
+  emptyStateSubText: { marginTop: 8, fontSize: 14, color: Colors.text.secondary, textAlign: 'center' },
   floatingButton: {
     position: 'absolute',
     bottom: 20,
@@ -501,31 +429,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: Colors.black,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
     elevation: 8,
-  },
-  // Styles pour le header
-  onlinePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#E8F5E8',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  dotGreen: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#3D944B',
-    marginRight: 4,
-  },
-  onlineText: {
-    fontSize: 12,
-    color: '#3D944B',
-    fontWeight: '500',
   },
 });

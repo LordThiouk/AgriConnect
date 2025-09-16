@@ -1,10 +1,50 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { CollecteService } from '../../../../../../lib/services/collecte';
 
 const AddParcelleScreen: React.FC = () => {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const [code, setCode] = React.useState('');
+  const [area, setArea] = React.useState('');
+  const [variety, setVariety] = React.useState('');
+  const [typology, setTypology] = React.useState('');
+  const [size, setSize] = React.useState('');
+  const [saving, setSaving] = React.useState(false);
+
+  const onSave = async () => {
+    if (!id) return;
+    if (!code || !area) {
+      Alert.alert('Champs requis', 'Identifiant parcelle et surface sont requis.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const farmFilePlotId = await CollecteService.createFarmFilePlot({
+        farmFileId: id,
+        code,
+        areaHa: Number(area),
+        cottonVariety: variety || undefined,
+        typology: typology || undefined,
+        producerSize: size || undefined,
+      });
+      if (farmFilePlotId) {
+        Alert.alert('Succès', 'La parcelle a été ajoutée à la fiche.', [
+          {
+            text: 'OK',
+            onPress: () => {
+              router.replace(`/(tabs)/parcelles/${farmFilePlotId}/dashboard`);
+            },
+          },
+        ]);
+      }
+    } catch (e: any) {
+      Alert.alert('Erreur', e?.message || 'Impossible de créer la parcelle');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -15,29 +55,26 @@ const AddParcelleScreen: React.FC = () => {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Identification</Text>
-          <TextInput style={styles.input} placeholder="Identifiant parcelle *" />
-          <TextInput style={styles.input} placeholder="Surface recensée (ha) *" keyboardType="numeric" />
-          <TextInput style={styles.input} placeholder="Surface piquetée (ha)" keyboardType="numeric" />
-          <TextInput style={styles.input} placeholder="Vague de plantation" />
+          <TextInput style={styles.input} placeholder="Identifiant parcelle *" value={code} onChangeText={setCode} />
+          <TextInput style={styles.input} placeholder="Surface recensée (ha) *" keyboardType="numeric" value={area} onChangeText={setArea} />
         </View>
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Classification</Text>
-          <TextInput style={styles.input} placeholder="Typologie (A/B/C/D/CC/EAM)" />
-          <TextInput style={styles.input} placeholder="Taille (Standard/HGros/Super gros)" />
-          <TextInput style={styles.input} placeholder="Variété (CE/CM/SH/NAW)" />
+          <TextInput style={styles.input} placeholder="Typologie (A/B/C/D/CC/EAM)" value={typology} onChangeText={setTypology} />
+          <TextInput style={styles.input} placeholder="Taille (Standard/HGros/Super gros)" value={size} onChangeText={setSize} />
+          <TextInput style={styles.input} placeholder="Variété (CE/CM/SH/NAW)" value={variety} onChangeText={setVariety} />
         </View>
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Responsable & Localisation</Text>
-          <TextInput style={styles.input} placeholder="Responsable parcelle" />
           <Text style={styles.help}>GPS sera capturé automatiquement (fallback saisie manuelle)</Text>
         </View>
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.primaryButton} onPress={() => router.back()}>
-          <Text style={styles.primaryButtonText}>Enregistrer (brouillon)</Text>
+        <TouchableOpacity style={styles.primaryButton} onPress={onSave} disabled={saving}>
+          <Text style={styles.primaryButtonText}>{saving ? 'Enregistrement…' : 'Enregistrer (brouillon)'}</Text>
         </TouchableOpacity>
       </View>
     </View>

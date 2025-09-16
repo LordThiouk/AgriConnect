@@ -3,12 +3,12 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import Sidebar from '../components/Layout/Sidebar';
 import Header from '../components/Layout/Header';
-import SearchBar from '../components/producers/SearchBar';
-import FilterDropdown from '../components/producers/FilterDropdown';
-import ProducersTable from '../components/producers/ProducersTable';
-import Pagination from '../components/producers/Pagination';
-import ProducerModal from '../components/producers/ProducerModal';
-import ProducerDetailsModal from '../components/producers/ProducerDetailsModal';
+import SearchBar from '../components/Producers/SearchBar';
+import FilterDropdown from '../components/Producers/FilterDropdown';
+import ProducersTable from '../components/Producers/ProducersTable';
+import Pagination from '../components/Producers/Pagination';
+import ProducerModal from '../components/Producers/ProducerModal';
+import ProducerDetailsModal from '../components/Producers/ProducerDetailsModal';
 import { ProducersService, Producer, ProducerFilters } from '../services/producersService';
 
 const Producers: React.FC = () => {

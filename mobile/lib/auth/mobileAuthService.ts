@@ -365,8 +365,9 @@ export const fetchUserRoleFromDatabase = async (userId: string): Promise<UserRol
     const { data, error } = await supabase
       .from('profiles')
       .select('role')
-      .eq('user_id', userId)
-      .single();
+      .or(`id.eq.${userId},user_id.eq.${userId}`)
+      .limit(1)
+      .maybeSingle();
     
     if (error) {
       console.log('❌ [AUTH] fetchUserRoleFromDatabase - Erreur:', error);
@@ -390,8 +391,9 @@ export const fetchApprovalStatus = async (userId: string): Promise<'pending' | '
     const { data, error } = await supabase
       .from('profiles')
       .select('approval_status')
-      .eq('user_id', userId)
-      .single();
+      .or(`id.eq.${userId},user_id.eq.${userId}`)
+      .limit(1)
+      .maybeSingle();
 
     if (error) {
       return null;
@@ -487,6 +489,7 @@ export const getUserInfo = async (user: User | null, session: Session | null): P
   userRole: UserRole | null;
   canAccessMobile: boolean;
   phone: string | null;
+  producerId: string | null; // Ajouter le producerId
 }> => {
   if (!user || !session) {
     return {
@@ -495,7 +498,8 @@ export const getUserInfo = async (user: User | null, session: Session | null): P
       session: null,
       userRole: null,
       canAccessMobile: false,
-      phone: null
+      phone: null,
+      producerId: null, // Initialiser à null
     };
   }
 
@@ -520,6 +524,27 @@ export const getUserInfo = async (user: User | null, session: Session | null): P
     }
   }
   
+  // NOUVEAU: Récupérer le producerId si l'utilisateur est un producteur
+  let producerId: string | null = null;
+  if (userRole === 'producer' && user.id) {
+    try {
+      const { data: producerData, error: producerError } = await supabase
+        .from('producers')
+        .select('id')
+        .eq('profile_id', user.id)
+        .single();
+      
+      if (producerError) {
+        console.warn(`[AUTH] Avertissement: Impossible de lier le profil producteur: ${producerError.message}`);
+      } else if (producerData) {
+        producerId = producerData.id;
+        console.log(`✅ [AUTH] Profil producteur lié avec succès. Producer ID: ${producerId}`);
+      }
+    } catch (e) {
+       console.error(`[AUTH] Erreur critique lors de la liaison du profil producteur:`, e);
+    }
+  }
+
   // Lire approval_status pour les agents
   let approval: 'pending' | 'approved' | 'rejected' | null = null;
   if (userRole === 'agent') {
@@ -545,7 +570,8 @@ export const getUserInfo = async (user: User | null, session: Session | null): P
     session,
     userRole,
     canAccessMobile: canAccess,
-    phone
+    phone,
+    producerId, // Retourner le producerId
   };
 };
 

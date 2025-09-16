@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { CollecteService } from '../../../../../../lib/services/collecte';
 
 type Parcelle = {
   id: string;
@@ -9,16 +10,33 @@ type Parcelle = {
   variety?: string;
 };
 
-const mockParcelles: Parcelle[] = [];
-
 const ParcellesListScreen: React.FC = () => {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const [items, setItems] = React.useState<Parcelle[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const load = async () => {
+      if (!id) return;
+      setLoading(true);
+      const data = await CollecteService.getFarmFilePlots(id);
+      const mapped: Parcelle[] = (data || []).map((p: any) => ({
+        id: p.id,
+        code: p.name_season_snapshot,
+        areaHa: p.area_hectares,
+        variety: p.cotton_variety || undefined,
+      }));
+      setItems(mapped);
+      setLoading(false);
+    };
+    load();
+  }, [id]);
 
   const renderItem = ({ item }: { item: Parcelle }) => (
     <TouchableOpacity
       style={styles.card}
-      onPress={() => router.push(`/(tabs)/collecte/parcelles/${item.id}/dashboard`)}
+      onPress={() => router.push(`/(tabs)/parcelles/${item.id}/dashboard`)}
     >
       <View style={styles.cardHeader}>
         <Text style={styles.cardTitle}>Parcelle {item.code}</Text>
@@ -37,7 +55,7 @@ const ParcellesListScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-      {mockParcelles.length === 0 ? (
+      {items.length === 0 && !loading ? (
         <View style={styles.empty}>
           <Text style={styles.emptyTitle}>Aucune parcelle</Text>
           <Text style={styles.emptySubtitle}>Ajoutez votre première parcelle pour cette fiche.</Text>
@@ -47,7 +65,7 @@ const ParcellesListScreen: React.FC = () => {
         </View>
       ) : (
         <FlatList
-          data={mockParcelles}
+          data={items}
           keyExtractor={(p) => p.id}
           renderItem={renderItem}
           contentContainerStyle={styles.list}

@@ -17,6 +17,7 @@ export interface AuthState {
   userRole: UserRole | null;
   canAccessMobile: boolean;
   phone: string | null;
+  producerId: string | null; // Ajouter le producerId
   error: string | null;
 }
 
@@ -47,6 +48,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     userRole: null,
     canAccessMobile: false,
     phone: null,
+    producerId: null, // Initialiser
     error: null
   });
 
@@ -73,6 +75,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           userRole: userInfo.userRole,
           canAccessMobile: userInfo.canAccessMobile,
           phone: userInfo.phone,
+          producerId: userInfo.producerId, // Mettre à jour
           error: null
         });
 
@@ -87,6 +90,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           userRole: null,
           canAccessMobile: false,
           phone: null,
+          producerId: null, // Initialiser
           error: null
         });
       }
@@ -100,6 +104,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         userRole: null,
         canAccessMobile: false,
         phone: null,
+        producerId: null, // Initialiser
         error: 'Erreur lors de la vérification de l\'authentification'
       });
     }
@@ -167,6 +172,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             userRole: null,
             canAccessMobile: false,
             phone: null,
+            producerId: null, // Réinitialiser
             error: 'Accès refusé. Seuls les agents et producteurs peuvent utiliser l\'application mobile.'
           });
           return { success: false, error: 'Accès refusé. Seuls les agents et producteurs peuvent utiliser l\'application mobile.' };
@@ -182,6 +188,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           userRole: userInfo.userRole,
           canAccessMobile: userInfo.canAccessMobile,
           phone: userInfo.phone,
+          producerId: userInfo.producerId, // Mettre à jour
           error: null
         });
 
@@ -201,6 +208,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           userRole: null,
           canAccessMobile: false,
           phone: null,
+          producerId: null, // Réinitialiser
           error: response.error || 'Session invalide'
         });
         return { success: false, error: response.error };
@@ -216,7 +224,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Déconnexion
   const handleSignOut = async () => {
     try {
-      await MobileAuthService.signOut();
+      // SessionManager.clearSession appelle déjà MobileAuthService.signOut
       await SessionManager.clearSession();
       
       setState({
@@ -227,6 +235,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         userRole: null,
         canAccessMobile: false,
         phone: null,
+        producerId: null, // Réinitialiser
         error: null
       });
     } catch (error) {
@@ -252,6 +261,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           userRole: userInfo.userRole,
           canAccessMobile: userInfo.canAccessMobile,
           phone: userInfo.phone,
+          producerId: userInfo.producerId, // Mettre à jour
           error: null
         }));
       } else {
@@ -283,6 +293,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           userRole: userInfo.userRole,
           canAccessMobile: userInfo.canAccessMobile,
           phone: userInfo.phone,
+          producerId: userInfo.producerId, // Mettre à jour
           error: null
         });
       } else {
@@ -294,6 +305,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           userRole: null,
           canAccessMobile: false,
           phone: null,
+          producerId: null, // Réinitialiser
           error: null
         });
       }
@@ -307,6 +319,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         userRole: null,
         canAccessMobile: false,
         phone: null,
+        producerId: null, // Réinitialiser
         error: 'Erreur lors du rafraîchissement de l\'authentification'
       });
     }

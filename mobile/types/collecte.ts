@@ -18,36 +18,117 @@ export type Plot = Database['public']['Tables']['plots']['Row'];
 export type PlotInsert = Database['public']['Tables']['plots']['Insert'];
 export type PlotUpdate = Database['public']['Tables']['plots']['Update'];
 
-// Types pour l'affichage dans l'interface de collecte
+export type Observation = Database['public']['Tables']['observations']['Row'];
+export type ObservationInsert = Database['public']['Tables']['observations']['Insert'];
+export type ObservationUpdate = Database['public']['Tables']['observations']['Update'];
+
+export type Participant = Database['public']['Tables']['participants']['Row'];
+export type ParticipantInsert = Database['public']['Tables']['participants']['Insert'];
+
+export type Recommendation = Database['public']['Tables']['recommendations']['Row'];
+export type RecommendationInsert = Database['public']['Tables']['recommendations']['Insert'];
+
+export type Operation = Database['public']['Tables']['operations']['Row'];
+export type OperationInsert = Database['public']['Tables']['operations']['Insert'];
+
+export type Crop = Database['public']['Tables']['crops']['Row'];
+
+export type Input = Database['public']['Tables']['inputs']['Row'];
+export type InputInsert = Database['public']['Tables']['inputs']['Insert'];
+
+export const operationTypes = [
+  'sowing',
+  'fertilization',
+  'irrigation',
+  'weeding',
+  'pesticide',
+  'harvest',
+  'tillage',
+  'scouting',
+] as const;
+export type AppOperationType = (typeof operationTypes)[number];
+
+export type ObservationType = 'pest_disease' | 'emergence' | 'phenology' | 'other';
+export type ObservationSeverity = 1 | 2 | 3 | 4 | 5;
+
+/**
+ * Représente une observation formatée pour l'affichage
+ */
+export interface ObservationDisplay {
+  id: string;
+  type: ObservationType;
+  date: string;
+  title: string;
+  severity?: ObservationSeverity;
+  description: string;
+  author: string;
+  photoUrl?: string;
+}
+
+/**
+ * Représente un participant (intervenant) formaté pour l'affichage
+ */
+export interface ParticipantDisplay {
+  id: string;
+  name: string;
+  role: string;
+  age?: number;
+  tags: string[];
+}
+
+/**
+ * Représente un conseil (recommandation) formaté pour l'affichage
+ */
+export interface RecommendationDisplay {
+  id: string;
+  title: string;
+  message: string;
+  date: string;
+  status: string;
+  type: string;
+}
+
+/**
+ * Représente une opération agricole formatée pour l'affichage
+ */
+export interface OperationDisplay {
+  id: string;
+  type: string;
+  product?: string | null;
+  description?: string | null;
+  date: string;
+  author?: string;
+}
+
+/**
+ * Représente un intrant (input) formaté pour l'affichage
+ */
+export interface InputDisplay {
+  id: string;
+  category: string;
+  label?: string;
+  quantity?: number;
+  unit?: string;
+  date: string;
+}
+
+/**
+ * Représente une fiche d'exploitation formatée pour l'affichage dans l'UI
+ */
 export interface FarmFileDisplay {
   id: string;
   name: string;
   producerName: string;
-  location: string; // commune, department, region
+  location: string;
   plotsCount: number;
-  completionStatus: 'draft' | 'in_progress' | 'completed' | 'validated' | 'not_started';
   completionPercent: number;
-  syncStatus: 'synced' | 'pending' | 'error' | 'offline';
+  status: string;
+  completionStatus: CompletionStatus;
+  syncStatus: SyncStatus;
   lastUpdated: string;
-  createdBy: string;
-  cooperativeId: string;
-  // Données complètes pour l'affichage
-  producer?: {
-    first_name: string;
-    last_name: string;
-    phone: string;
-    commune?: string;
-    department?: string;
-    region?: string;
-  };
-  plots?: PlotDisplay[];
-  cooperative?: {
-    name: string;
-  };
-  // Données supplémentaires de la RPC
-  totalAreaHectares?: number;
-  soilTypes?: string[];
-  waterSources?: string[];
+  // optionnels pour usage interne
+  createdBy?: string;
+  cooperativeId?: string;
 }
 
 export interface ProducerDisplay {
@@ -66,12 +147,18 @@ export interface PlotDisplay {
   name: string;
   area: number;
   producerName: string;
+  variety?: string;
+  location?: string;
   soilType?: string;
   waterSource?: string;
   status: 'preparation' | 'cultivated' | 'fallow';
   cropsCount: number;
   lastOperation?: string;
   hasGps: boolean;
+  createdBy?: string;
+  // Optionnel: coordonnées si disponibles
+  lat?: number;
+  lon?: number;
 }
 
 // Statuts de complétion des fiches
@@ -97,7 +184,7 @@ export const QUICK_ACTIONS: QuickAction[] = [
     title: 'Ajouter parcelle',
     icon: 'map-pin',
     color: '#3D944B',
-    route: '/collecte/parcelles/add',
+    route: '/(tabs)/parcelles/select-fiche',
     description: 'Créer une nouvelle parcelle'
   },
   {

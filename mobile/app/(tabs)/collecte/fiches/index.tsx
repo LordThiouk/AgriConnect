@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
+import { OfflineQueueService } from '../../../../lib/services/offlineQueue';
 
 type FicheItem = {
   id: string;
@@ -13,6 +14,14 @@ const mockData: FicheItem[] = [];
 
 const FichesIndexScreen: React.FC = () => {
   const router = useRouter();
+  const [pendingCount, setPendingCount] = React.useState(0);
+
+  React.useEffect(() => {
+    const update = () => setPendingCount(OfflineQueueService.list().filter(i => i.status === 'pending').length);
+    update();
+    const id = setInterval(update, 3000);
+    return () => clearInterval(id);
+  }, []);
 
   const renderItem = ({ item }: { item: FicheItem }) => (
     <TouchableOpacity
@@ -32,7 +41,14 @@ const FichesIndexScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Mes Fiches d'exploitation</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text style={styles.title}>Mes Fiches d&apos;exploitation</Text>
+          {pendingCount > 0 && (
+            <View style={styles.syncBadge}>
+              <Text style={styles.syncBadgeText}>À synchroniser: {pendingCount}</Text>
+            </View>
+          )}
+        </View>
         <TouchableOpacity style={styles.addButton} onPress={() => router.push('/(tabs)/collecte/fiches/create')}>
           <Text style={styles.addButtonText}>+ Nouvelle fiche</Text>
         </TouchableOpacity>
@@ -41,7 +57,7 @@ const FichesIndexScreen: React.FC = () => {
       {mockData.length === 0 ? (
         <View style={styles.empty}>
           <Text style={styles.emptyTitle}>Aucune fiche</Text>
-          <Text style={styles.emptySubtitle}>Créez votre première fiche d'exploitation pour commencer.</Text>
+          <Text style={styles.emptySubtitle}>Créez votre première fiche d&apos;exploitation pour commencer.</Text>
           <TouchableOpacity style={styles.primaryButton} onPress={() => router.push('/(tabs)/collecte/fiches/create')}>
             <Text style={styles.primaryButtonText}>Créer une fiche</Text>
           </TouchableOpacity>
@@ -77,7 +93,9 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 6 },
   emptySubtitle: { fontSize: 14, color: '#6b7280', textAlign: 'center', marginBottom: 16 },
   primaryButton: { backgroundColor: '#10b981', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10 },
-  primaryButtonText: { color: '#ffffff', fontWeight: '700' }
+  primaryButtonText: { color: '#ffffff', fontWeight: '700' },
+  syncBadge: { backgroundColor: '#fef3c7', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
+  syncBadgeText: { color: '#92400e', fontWeight: '600' }
 });
 
 export default FichesIndexScreen;

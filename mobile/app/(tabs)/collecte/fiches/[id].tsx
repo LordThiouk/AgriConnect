@@ -6,6 +6,11 @@ const FicheDetailScreen: React.FC = () => {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
 
+  const continueEditing = () => {
+    if (!id) return;
+    router.push(`/(tabs)/collecte/fiches/create?farmFileId=${id}`);
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -30,8 +35,12 @@ const FicheDetailScreen: React.FC = () => {
         </View>
 
         <View style={styles.actions}>
-          <TouchableOpacity style={styles.primaryButton} onPress={() => router.push(`/(tabs)/collecte/fiches/${id}/parcelles/add`)}>
-            <Text style={styles.primaryButtonText}>Ajouter une parcelle</Text>
+          <TouchableOpacity style={styles.primaryButton} onPress={continueEditing}>
+            <Text style={styles.primaryButtonText}>Continuer la modification</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.secondaryButton} onPress={() => router.push(`/(tabs)/collecte/fiches/${id}/parcelles/add`)}>
+            <Text style={styles.secondaryButtonText}>Ajouter une parcelle</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.secondaryButton} onPress={() => router.push(`/(tabs)/collecte/fiches/${id}/parcelles`)}>
@@ -53,7 +62,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 16, fontWeight: '600', color: '#111827', marginBottom: 6 },
   textMuted: { fontSize: 13, color: '#6b7280' },
   actions: { marginTop: 8, gap: 10 },
-  primaryButton: { backgroundColor: '#10b981', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
+  primaryButton: { backgroundColor: '#3D944B', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
   primaryButtonText: { color: '#ffffff', fontWeight: '700' },
   secondaryButton: { backgroundColor: '#e5e7eb', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
   secondaryButtonText: { color: '#111827', fontWeight: '700' }

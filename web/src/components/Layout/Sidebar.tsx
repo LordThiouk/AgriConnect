@@ -6,7 +6,8 @@ import {
   MapPin, 
   Settings, 
   LogOut,
-  X
+  X,
+  Megaphone
 } from 'lucide-react';
 import { Button } from '../ui/button';
 
@@ -22,6 +23,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
     { icon: BarChart3, label: 'Tableau de bord', path: '/dashboard' },
     { icon: Users, label: 'Producteurs', path: '/producers' },
     { icon: MapPin, label: 'Parcelles', path: '/plots' },
+    { icon: Megaphone, label: 'Campagnes', path: '/campaigns' },
     { icon: Settings, label: 'Paramètres', path: '/settings' },
   ];
 
