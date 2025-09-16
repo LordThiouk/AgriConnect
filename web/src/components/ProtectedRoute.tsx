@@ -5,7 +5,6 @@
 
 import React, { ReactNode, useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Shield, Lock, Monitor } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { UserRole } from '../../../types/user';
 
@@ -89,7 +88,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         <div className="text-center max-w-md mx-auto px-4">
           <div className="flex justify-center mb-6">
             <div className="flex items-center justify-center w-20 h-20 bg-red-100 rounded-full">
-              <Lock className="w-10 h-10 text-red-600" />
+              <div className="w-10 h-10 text-red-600 text-2xl">🔒</div>
             </div>
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
@@ -116,7 +115,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         <div className="text-center max-w-md mx-auto px-4">
           <div className="flex justify-center mb-6">
             <div className="flex items-center justify-center w-20 h-20 bg-red-100 rounded-full">
-              <Monitor className="w-10 h-10 text-red-600" />
+              <div className="w-10 h-10 text-red-600 text-2xl">💻</div>
             </div>
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
@@ -158,7 +157,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
           <div className="text-center max-w-md mx-auto px-4">
             <div className="flex justify-center mb-6">
               <div className="flex items-center justify-center w-20 h-20 bg-red-100 rounded-full">
-                <Shield className="w-10 h-10 text-red-600" />
+                <div className="w-10 h-10 text-red-600 text-2xl">🛡️</div>
               </div>
             </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-4">

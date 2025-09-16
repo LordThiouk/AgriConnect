@@ -7,7 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Eye, EyeOff, Mail, Lock, Leaf, User, ArrowRight, BarChart3, Users, Settings, HelpCircle } from 'lucide-react';
+// Removed lucide-react imports to fix rendering issues
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -80,7 +80,7 @@ const LoginPage: React.FC = () => {
             <div className="text-center mb-8">
               <div className="flex justify-center mb-4">
                 <div className="flex items-center justify-center w-16 h-16 bg-green-600 rounded-full">
-                  <Leaf className="w-8 h-8 text-white" />
+                  <div className="w-8 h-8 text-white text-2xl">🌱</div>
                 </div>
               </div>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">
@@ -100,7 +100,7 @@ const LoginPage: React.FC = () => {
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <User className="h-5 w-5 text-gray-400" />
+                    <div className="h-5 w-5 text-gray-400 text-lg">👤</div>
                   </div>
                   <input
                     id="email"
@@ -124,7 +124,7 @@ const LoginPage: React.FC = () => {
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-gray-400" />
+                    <div className="h-5 w-5 text-gray-400 text-lg">🔒</div>
                   </div>
                   <input
                     id="password"
@@ -144,9 +144,9 @@ const LoginPage: React.FC = () => {
                     className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
                   >
                     {showPassword ? (
-                      <EyeOff className="h-5 w-5" />
+                      <div className="h-5 w-5 text-lg">🙈</div>
                     ) : (
-                      <Eye className="h-5 w-5" />
+                      <div className="h-5 w-5 text-lg">👁️</div>
                     )}
                   </button>
                 </div>
@@ -196,7 +196,7 @@ const LoginPage: React.FC = () => {
                 ) : (
                   <>
                     Se connecter
-                    <ArrowRight className="ml-2 h-4 w-4" />
+                    <div className="ml-2 h-4 w-4 text-lg">→</div>
                   </>
                 )}
               </button>
@@ -225,15 +225,15 @@ const LoginPage: React.FC = () => {
         <div className="max-w-md mx-auto">
           <div className="flex justify-around">
             <button className="flex flex-col items-center space-y-1 text-green-600 hover:text-green-700 transition-colors">
-              <BarChart3 className="h-6 w-6" />
+              <div className="h-6 w-6 text-xl">📊</div>
               <span className="text-xs font-medium">Analytics</span>
             </button>
             <button className="flex flex-col items-center space-y-1 text-green-600 hover:text-green-700 transition-colors">
-              <Users className="h-6 w-6" />
+              <div className="h-6 w-6 text-xl">👥</div>
               <span className="text-xs font-medium">Supervision</span>
             </button>
             <button className="flex flex-col items-center space-y-1 text-green-600 hover:text-green-700 transition-colors">
-              <Settings className="h-6 w-6" />
+              <div className="h-6 w-6 text-xl">⚙️</div>
               <span className="text-xs font-medium">Administration</span>
             </button>
           </div>

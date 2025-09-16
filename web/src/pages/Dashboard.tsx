@@ -8,12 +8,7 @@ import EvolutionChart from '../components/dashboard/EvolutionChart';
 import CultureDistributionChart from '../components/dashboard/CultureDistributionChart';
 import AlertsPanel from '../components/dashboard/AlertsPanel';
 import MapPanel from '../components/dashboard/MapPanel';
-import { 
-  Users, 
-  MapPin, 
-  Wheat, 
-  UserCheck
-} from 'lucide-react';
+// Removed lucide-react imports to fix rendering issues
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
