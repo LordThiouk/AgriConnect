@@ -355,93 +355,45 @@ export class CollecteService {
    */
   static async getAgentPlots(agentId: string, filters?: { query?: string, village?: string, crop?: string, status?: string }): Promise<PlotDisplay[]> {
     try {
-      console.log('🌾 Récupération des parcelles (farm_file_plots) pour l\'agent:', agentId, 'avec filtres:', filters);
+      console.log('🌾 Récupération des parcelles via RPC pour l\'agent:', agentId, 'avec filtres:', filters);
 
-      // Plots liés à des producteurs assignés à l'agent
-      const { data: assignments, error: assignErr } = await this.supabase
-        .from('agent_producer_assignments')
-        .select('producer_id')
-        .eq('agent_id', agentId);
+      // Utiliser la fonction RPC pour récupérer les parcelles
+      const { data: plots, error: rpcError } = await this.supabase
+        .rpc('get_agent_plots', { agent_auth_id: agentId });
 
-      if (assignErr) {
-        console.error('❌ Erreur lors de la récupération des affectations:', assignErr);
-        throw assignErr;
+      if (rpcError) {
+        console.error('❌ Erreur lors de l\'appel RPC get_agent_plots:', rpcError);
+        throw rpcError;
       }
 
-      const producerIds = (assignments || []).map(a => a.producer_id);
-      if (producerIds.length === 0) {
-        console.warn('⚠️ Aucun producteur assigné, retour liste vide');
+      console.log('📋 Parcelles récupérées via RPC:', plots?.length || 0, 'parcelles');
+      console.log('📋 Détails des parcelles:', plots);
+
+      if (!plots || plots.length === 0) {
+        console.warn('⚠️ Aucune parcelle trouvée via RPC, retour liste vide');
         return [];
       }
 
-      let query = this.supabase
-        .from('farm_file_plots')
-        .select(`
-          id,
-          name_season_snapshot,
-          area_hectares,
-          cotton_variety,
-          typology,
-          soil_type,
-          water_source,
-          status,
-          center_point,
-          producers!plots_producer_id_fkey (
-            first_name,
-            last_name
-          ),
-          farm_files!fk_plots_farm_file (
-            commune,
-            village
-          )
-        `)
-        .in('producer_id', producerIds);
-
-      // Application des filtres
-      if (filters?.status) {
-        query = query.eq('status', filters.status);
-      }
-      if (filters?.crop) {
-        // Supposant que `variety` contient la culture
-        query = query.ilike('cotton_variety', `%${filters.crop}%`);
-      }
-      if (filters?.village) {
-        query = query.ilike('farm_files.village', `%${filters.village}%`);
-      }
-      if (filters?.query) {
-        // Recherche sur le nom de la parcelle OU le nom du producteur
-        const producerNameQuery = `producers.first_name.ilike.%${filters.query}%,producers.last_name.ilike.%${filters.query}%`;
-        query = query.or(`name_season_snapshot.ilike.%${filters.query}%,${producerNameQuery}`);
-      }
-      
-      const { data, error } = await query.order('updated_at', { ascending: false });
-
-      if (error) {
-        console.error('❌ Erreur lors de la récupération des parcelles (farm_file_plots):', error);
-        throw error;
-      }
-
-      const plotsDisplay: PlotDisplay[] = (data || []).map((row: any) => ({
-        id: row.id,
-        name: row.name_season_snapshot,
-        area: row.area_hectares,
-        producerName: row.producers
-          ? formatProducerName(row.producers.first_name, row.producers.last_name)
-          : '—',
-        location: row.farm_files?.village || row.farm_files?.commune || undefined,
-        variety: row.cotton_variety,
-        soilType: row.soil_type || undefined,
-        waterSource: row.water_source || undefined,
-        status: (row.status as 'preparation' | 'cultivated' | 'fallow') || 'preparation',
+      // Transformer les données RPC en format PlotDisplay
+      const plotsDisplay: PlotDisplay[] = plots.map((plot: any) => ({
+        id: plot.id,
+        name: plot.name_season_snapshot,
+        area: plot.area_hectares,
+        producerName: `${plot.producer_first_name || ''} ${plot.producer_last_name || ''}`.trim() || '—',
+        location: '', // À remplir si nécessaire
+        variety: '', // À remplir si nécessaire
+        soilType: '', // À remplir si nécessaire
+        waterSource: '', // À remplir si nécessaire
+        status: 'active' as 'preparation' | 'cultivated' | 'fallow',
         cropsCount: 0,
         lastOperation: undefined,
-        hasGps: !!row.center_point,
+        hasGps: !!plot.geom,
       }));
 
-      console.log('✅ Parcelles (agent) récupérées:', plotsDisplay.length);
+      console.log('✅ Parcelles (agent) récupérées via RPC:', plotsDisplay.length);
       return plotsDisplay;
     } catch (error) {
-      console.error('❌ Erreur générale dans getAgentPlots:', error);
+      console.error('❌ Erreur générale dans getAgentPlots (RPC):', error);
       throw error;
     }
   }
@@ -708,62 +660,57 @@ export class CollecteService {
   }
 
   /**
-   * Récupère une parcelle par son ID (farm_file_plots)
+   * Récupère une parcelle par son ID via fonction RPC
    */
-  static async getPlotById(plotId: string): Promise<PlotDisplay | null> {
+  static async getPlotById(plotId: string, agentId?: string): Promise<PlotDisplay | null> {
     try {
-      console.log('🌾 Récupération de la parcelle:', plotId);
+      console.log('🌾 Récupération de la parcelle via RPC:', plotId, 'pour agent:', agentId);
 
-      const { data, error } = await this.supabase
-        .from('farm_file_plots')
-        .select(`
-          id,
-          name_season_snapshot,
-          area_hectares,
-          cotton_variety,
-          soil_type,
-          water_source,
-          status,
-          center_point,
-          farm_files!inner(created_by),
-          producers!plots_producer_id_fkey (
-            first_name,
-            last_name
-          )
-        `)
-        .eq('id', plotId)
-        .single();
-
-      if (error) {
-        console.error('❌ Erreur lors de la récupération de la parcelle:', error);
-        throw error;
+      if (!agentId) {
+        console.warn('⚠️ Agent ID manquant, impossible de récupérer la parcelle');
+        return null;
       }
-      
-      if (!data) return null;
 
-      const row = data as any;
+      // Utiliser la fonction RPC pour récupérer la parcelle
+      const { data: plots, error: rpcError } = await this.supabase
+        .rpc('get_plot_by_id', { 
+          p_plot_id: plotId, 
+          p_agent_auth_id: agentId 
+        });
+
+      if (rpcError) {
+        console.error('❌ Erreur lors de l\'appel RPC get_plot_by_id:', rpcError);
+        throw rpcError;
+      }
+
+      console.log('📋 Parcelle récupérée via RPC:', plots?.length || 0, 'parcelle(s)');
+
+      if (!plots || plots.length === 0) {
+        console.warn('⚠️ Aucune parcelle trouvée via RPC');
+        return null;
+      }
+
+      const plot = plots[0];
       const plotDisplay: PlotDisplay = {
-        id: row.id,
-        name: row.name_season_snapshot,
-        area: row.area_hectares,
-        producerName: row.producers
-          ? formatProducerName(row.producers.first_name, row.producers.last_name)
-          : '—',
-        variety: row.cotton_variety || undefined,
-        soilType: row.soil_type || undefined,
-        waterSource: row.water_source || undefined,
-        status: (row.status as 'preparation' | 'cultivated' | 'fallow') || 'preparation',
+        id: plot.id,
+        name: plot.name_season_snapshot,
+        area: plot.area_hectares,
+        producerName: `${plot.producer_first_name || ''} ${plot.producer_last_name || ''}`.trim() || '—',
+        variety: '', // À remplir si nécessaire
+        soilType: '', // À remplir si nécessaire
+        waterSource: '', // À remplir si nécessaire
+        status: 'active' as 'preparation' | 'cultivated' | 'fallow',
         cropsCount: 0, // TODO: A calculer
         lastOperation: undefined, // TODO: A implémenter
-        hasGps: !!row.center_point,
-        createdBy: row.farm_files?.created_by,
+        hasGps: !!plot.geom,
+        createdBy: undefined, // À remplir si nécessaire
       };
 
-      console.log('✅ Parcelle récupérée:', plotDisplay);
+      console.log('✅ Parcelle récupérée via RPC:', plotDisplay);
       return plotDisplay;
 
     } catch (error) {
-      console.error('❌ Erreur générale dans getPlotById:', error);
+      console.error('❌ Erreur générale dans getPlotById (RPC):', error);
       throw error;
     }
   }
@@ -1251,25 +1198,57 @@ export class CollecteService {
     }
   }
 
-  static async createCrop(cropData: Omit<Crop, 'id' | 'created_at' | 'updated_at'>): Promise<Crop> {
+  static async createCrop(cropData: Omit<Crop, 'id' | 'created_at' | 'updated_at'>, agentId?: string): Promise<Crop> {
     try {
-      console.log('🌱 Création d\'une nouvelle culture:', cropData);
-      const { data, error } = await this.supabase
-        .from('crops')
-        .insert(cropData as any)
-        .select()
-        .single();
+      console.log('🌱 Création d\'une nouvelle culture via RPC:', cropData, 'pour agent:', agentId);
 
-      if (error) {
-        console.error('❌ Erreur lors de la création de la culture:', error);
-        throw error;
+      if (!agentId) {
+        console.warn('⚠️ Agent ID manquant, impossible de créer la culture');
+        throw new Error('Agent ID manquant');
       }
-      if (!data) throw new Error('Aucune donnée retournée après la création de la culture.');
 
-      console.log('✅ Culture créée avec succès:', data);
-      return data;
+      // Utiliser la fonction RPC pour créer la culture
+      const { data: cropId, error: rpcError } = await this.supabase
+        .rpc('create_crop_for_agent', {
+          p_plot_id: cropData.plot_id,
+          p_crop_type: cropData.crop_type || 'Maize',
+          p_variety: cropData.variety || 'Default Variety',
+          p_sowing_date: cropData.sowing_date || new Date().toISOString(),
+          p_agent_auth_id: agentId,
+          p_season_id: cropData.season_id || null
+        });
+
+      if (rpcError) {
+        console.error('❌ Erreur lors de l\'appel RPC create_crop_for_agent:', rpcError);
+        throw rpcError;
+      }
+
+      if (!cropId) {
+        throw new Error('Aucun ID de culture retourné par la fonction RPC');
+      }
+
+      // Récupérer la culture créée via fonction RPC
+      const { data: crops, error: fetchError } = await this.supabase
+        .rpc('get_crop_by_id', {
+          p_crop_id: cropId,
+          p_agent_auth_id: agentId
+        });
+
+      if (fetchError) {
+        console.error('❌ Erreur lors de la récupération de la culture créée via RPC:', fetchError);
+        throw fetchError;
+      }
+
+      if (!crops || crops.length === 0) {
+        throw new Error('Aucune culture trouvée après création');
+      }
+
+      const crop = crops[0];
+
+      console.log('✅ Culture créée avec succès via RPC:', crop);
+      return crop;
     } catch (err) {
-      console.error('❌ Exception in createCrop:', err);
+      console.error('❌ Exception in createCrop (RPC):', err);
       throw err;
     }
   }

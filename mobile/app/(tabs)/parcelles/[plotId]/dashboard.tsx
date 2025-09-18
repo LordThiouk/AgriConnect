@@ -608,6 +608,7 @@ const IntrantsCard = ({ plotId }: { plotId: string }) => {
 const ParcelleDashboardScreen: React.FC = () => {
   const { plotId } = useLocalSearchParams<{ plotId: string }>();
   const router = useRouter();
+  const { user } = useAuth();
 
   const [plot, setPlot] = useState<PlotDisplay | null>(null);
   const [activeCrop, setActiveCrop] = useState<Crop | null>(null);
@@ -615,11 +616,11 @@ const ParcelleDashboardScreen: React.FC = () => {
   const [activeTab, setActiveTab] = useState('Infos');
 
   useEffect(() => {
-    if (plotId) {
+    if (plotId && user?.id) {
       const loadData = async () => {
         try {
           setLoading(true);
-          const plotData = await CollecteService.getPlotById(plotId);
+          const plotData = await CollecteService.getPlotById(plotId, user.id);
           setPlot(plotData);
 
           let cropData = await CollecteService.getActiveCropByPlotId(plotId);
@@ -637,7 +638,7 @@ const ParcelleDashboardScreen: React.FC = () => {
                 sowing_date: new Date().toISOString(),
                 status: 'en_cours',
                 created_by: plotData?.createdBy || undefined,
-              });
+              }, user?.id);
               cropData = newCrop;
             } else {
               console.warn("⚠️ Impossible de créer une culture par défaut : aucune saison active n'a été trouvée.");

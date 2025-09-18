@@ -1,0 +1,417 @@
+// Types centralisés pour AgriConnect
+// Ce fichier contient toutes les définitions de types partagées
+
+// ===== AUTHENTICATION TYPES =====
+export interface User {
+  id: string;
+  email?: string;
+  phone?: string;
+  role: 'admin' | 'supervisor' | 'agent' | 'producer' | 'coop_admin';
+  display_name?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// ===== COOPERATIVE TYPES =====
+export interface Cooperative {
+  id: string;
+  name: string;
+  region?: string;
+  department?: string;
+  commune?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  president_name?: string;
+  president_phone?: string;
+  established_date?: string;
+  member_count?: number;
+  producer_count?: number;
+  description?: string;
+  latitude?: number;
+  longitude?: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  created_by?: string;
+}
+
+export interface CooperativeFilters {
+  search?: string;
+  region?: string;
+  department?: string;
+  commune?: string;
+  is_active?: boolean;
+}
+
+// ===== PRODUCER TYPES =====
+export interface Producer {
+  id: string;
+  profile_id: string;
+  cooperative_id?: string;
+  first_name: string;
+  last_name: string;
+  phone?: string;
+  gender: 'M' | 'F' | 'O';
+  birth_date?: string;
+  region?: string;
+  department?: string;
+  commune?: string;
+  address?: string;
+  household_size?: number;
+  farming_experience_years?: number;
+  primary_language?: string;
+  education_level?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  // Relations
+  cooperative?: Cooperative;
+  assigned_agents?: Agent[];
+  farm_files?: FarmFile[];
+  recent_operations?: {
+    id: string;
+    operation_type: string;
+    operation_date: string;
+    description: string;
+    performer_id: string;
+  }[];
+  recent_observations?: {
+    id: string;
+    observation_type: string;
+    observation_date: string;
+    description: string;
+    observed_by: string;
+  }[];
+}
+
+export interface ProducerFilters {
+  search?: string;
+  cooperative_id?: string;
+  region?: string;
+  department?: string;
+  gender?: string;
+  is_active?: boolean;
+}
+
+// ===== AGENT TYPES =====
+export interface Agent {
+  id: string;
+  user_id: string;
+  display_name: string;
+  phone?: string;
+  role: 'agent';
+  region?: string;
+  department?: string;
+  commune?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// ===== FARM FILE TYPES =====
+export interface FarmFile {
+  id: string;
+  responsible_producer_id: string;
+  cooperative_id?: string;
+  status: 'draft' | 'validated';
+  total_area_hectares: number;
+  equipment_inventory?: EquipmentItem[];
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+  // Relations
+  producer?: Producer;
+  cooperative?: Cooperative;
+  plots?: Plot[];
+}
+
+export interface EquipmentItem {
+  id: string;
+  name: string;
+  quantity: number;
+  condition: 'excellent' | 'good' | 'fair' | 'poor';
+  notes?: string;
+}
+
+// ===== PLOT TYPES =====
+export interface Plot {
+  id: string;
+  producer_id: string;
+  name: string;
+  area_hectares?: number;
+  soil_type?: 'sandy' | 'clay' | 'loam' | 'silt' | 'organic' | 'other';
+  soil_ph?: number;
+  water_source?: 'rain' | 'irrigation' | 'well' | 'river' | 'other';
+  irrigation_type?: 'none' | 'drip' | 'sprinkler' | 'flood' | 'other';
+  slope_percent?: number;
+  elevation_meters?: number;
+  status: 'active' | 'inactive' | 'abandoned';
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+  // Relations
+  producer?: Producer;
+  crops?: Crop[];
+}
+
+// ===== CROP TYPES =====
+export interface Crop {
+  id: string;
+  plot_id: string;
+  crop_type: string;
+  variety?: string;
+  planting_date?: string;
+  expected_harvest_date?: string;
+  actual_harvest_date?: string;
+  estimated_yield_kg_ha?: number;
+  actual_yield_kg_ha?: number;
+  status: 'planted' | 'growing' | 'harvested' | 'failed';
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+  // Relations
+  plot?: Plot;
+  operations?: Operation[];
+  observations?: Observation[];
+}
+
+// ===== OPERATION TYPES =====
+export interface Operation {
+  id: string;
+  crop_id: string;
+  plot_id: string;
+  operation_type: 'semis' | 'fertilisation' | 'irrigation' | 'desherbage' | 'phytosanitaire' | 'recolte' | 'labour' | 'reconnaissance';
+  operation_date: string;
+  description?: string;
+  product_used?: string;
+  dose_per_hectare?: number;
+  total_dose?: number;
+  unit?: 'kg' | 'l' | 'pieces' | 'other';
+  cost_per_hectare?: number;
+  total_cost?: number;
+  performer_id?: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+  // Relations
+  crop?: {
+    id: string;
+    crop_type: string;
+    variety: string;
+  };
+  plot?: {
+    id: string;
+    name: string;
+  };
+}
+
+export interface OperationFilters {
+  search?: string;
+  operation_type?: string;
+  plot_id?: string;
+  crop_id?: string;
+  date_from?: string;
+  date_to?: string;
+}
+
+// ===== OBSERVATION TYPES =====
+export interface Observation {
+  id: string;
+  crop_id: string;
+  plot_id: string;
+  observation_type: 'levée' | 'maladie' | 'ravageur' | 'stress_hydrique' | 'stress_nutritionnel' | 'développement' | 'other';
+  observation_date: string;
+  emergence_percent?: number;
+  pest_disease_name?: string;
+  severity?: number; // 1-5 scale
+  affected_area_percent?: number;
+  description?: string;
+  recommendations?: string;
+  observed_by?: string;
+  created_at: string;
+  updated_at: string;
+  // Relations
+  crop?: {
+    id: string;
+    crop_type: string;
+    variety: string;
+  };
+  plot?: {
+    id: string;
+    name: string;
+  };
+}
+
+export interface ObservationFilters {
+  search?: string;
+  observation_type?: string;
+  plot_id?: string;
+  crop_id?: string;
+  date_from?: string;
+  date_to?: string;
+}
+
+// ===== PAGINATION TYPES =====
+export interface PaginationParams {
+  page: number;
+  limit: number;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+// ===== DASHBOARD TYPES =====
+export interface DashboardStats {
+  totalProducers: number;
+  totalCooperatives: number;
+  totalRegions: number;
+  totalDepartments: number;
+  activeProducers: number;
+  recentOperations: number;
+  pendingObservations: number;
+}
+
+export interface CultureDistribution {
+  crop_type: string;
+  count: number;
+  percentage: number;
+}
+
+export interface RegionalStats {
+  region: string;
+  producer_count: number;
+  cooperative_count: number;
+  total_area: number;
+}
+
+// ===== FORM TYPES =====
+export interface ProducerFormData {
+  first_name: string;
+  last_name: string;
+  phone?: string;
+  gender: 'M' | 'F' | 'O';
+  birth_date?: string;
+  region?: string;
+  department?: string;
+  commune?: string;
+  address?: string;
+  household_size?: number;
+  farming_experience_years?: number;
+  primary_language?: string;
+  education_level?: string;
+  cooperative_id?: string;
+}
+
+export interface CooperativeFormData {
+  name: string;
+  region?: string;
+  department?: string;
+  commune?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  president_name?: string;
+  president_phone?: string;
+  established_date?: string;
+}
+
+export interface OperationFormData {
+  operation_type: string;
+  operation_date: string;
+  description?: string;
+  product_used?: string;
+  dose_per_hectare?: string;
+  total_dose?: string;
+  unit?: string;
+  cost_per_hectare?: string;
+  total_cost?: string;
+  notes?: string;
+}
+
+export interface ObservationFormData {
+  observation_type: string;
+  observation_date: string;
+  emergence_percent?: string;
+  pest_disease_name?: string;
+  severity?: string;
+  affected_area_percent?: string;
+  description?: string;
+  recommendations?: string;
+}
+
+export interface FarmFileFormData {
+  responsible_producer_id: string;
+  cooperative_id?: string;
+  status: 'draft' | 'validated';
+  total_area_hectares: string;
+  equipment_inventory: EquipmentItem[];
+  notes?: string;
+}
+
+// ===== API RESPONSE TYPES =====
+export interface ApiResponse<T> {
+  data: T;
+  success: boolean;
+  message?: string;
+  error?: string;
+}
+
+export interface ErrorResponse {
+  code: string;
+  message: string;
+  details?: any;
+  hint?: string;
+}
+
+// ===== FILTER TYPES =====
+export interface FilterOption {
+  value: string;
+  label: string;
+  count?: number;
+}
+
+export interface FilterOptions {
+  regions: FilterOption[];
+  departments: FilterOption[];
+  communes: FilterOption[];
+  cooperatives: FilterOption[];
+  genders: FilterOption[];
+  operation_types: FilterOption[];
+  observation_types: FilterOption[];
+}
+
+// ===== EXPORT TYPES =====
+export interface ExportOptions {
+  format: 'csv' | 'excel' | 'pdf';
+  filters?: any;
+  fields?: string[];
+}
+
+// ===== NOTIFICATION TYPES =====
+export interface Notification {
+  id: string;
+  user_id: string;
+  title: string;
+  message: string;
+  type: 'info' | 'warning' | 'error' | 'success';
+  is_read: boolean;
+  created_at: string;
+}
+
+// ===== AUDIT TYPES =====
+export interface AuditLog {
+  id: string;
+  table_name: string;
+  record_id: string;
+  action: 'INSERT' | 'UPDATE' | 'DELETE';
+  old_values?: any;
+  new_values?: any;
+  user_id: string;
+  created_at: string;
+}

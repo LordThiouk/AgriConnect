@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import Sidebar from '../components/Layout/Sidebar';
-import Header from '../components/Layout/Header';
+import Layout from '../components/Layout/Layout';
 import SearchBar from '../components/Producers/SearchBar';
 import FilterDropdown from '../components/Producers/FilterDropdown';
 import ProducersTable from '../components/Producers/ProducersTable';
@@ -17,7 +16,6 @@ const Producers: React.FC = () => {
   const [producers, setProducers] = useState<Producer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);

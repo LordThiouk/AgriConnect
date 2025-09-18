@@ -3,6 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { TrendingUp } from 'lucide-react';
 
+// Type assertion pour résoudre le conflit de types
+const TrendingUpIcon = TrendingUp as any;
+
 interface EvolutionData {
   year: string;
   hectares: number;
@@ -17,7 +20,7 @@ const EvolutionChart: React.FC<EvolutionChartProps> = ({ data }) => {
     <Card className="shadow-lg">
       <CardHeader className="pb-4">
         <CardTitle className="flex items-center text-lg font-semibold text-gray-900">
-          <TrendingUp className="h-5 w-5 mr-2 text-green-600" />
+          <TrendingUpIcon className="h-5 w-5 text-green-600 mr-2" />
           Évolution des surfaces cultivées
         </CardTitle>
         <p className="text-sm text-gray-500">

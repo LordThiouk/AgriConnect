@@ -3,6 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { PieChart as PieChartIcon } from 'lucide-react';
 
+// Type assertion pour résoudre le conflit de types
+const PieChartIconComponent = PieChartIcon as any;
+
 interface CultureData {
   name: string;
   value: number;
@@ -48,7 +51,7 @@ const CultureDistributionChart: React.FC<CultureDistributionChartProps> = ({ dat
     <Card className="shadow-lg">
       <CardHeader className="pb-4">
         <CardTitle className="flex items-center text-lg font-semibold text-gray-900">
-          <PieChartIcon className="h-5 w-5 mr-2 text-green-600" />
+          <PieChartIconComponent className="h-5 w-5 text-green-600 mr-2" />
           Répartition des cultures
         </CardTitle>
         <p className="text-sm text-gray-500">

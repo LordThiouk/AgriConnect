@@ -14,6 +14,10 @@ export const operationFormSchema = z.object({
   operation_type: z.enum(operationTypes, { required_error: 'Le type est requis' }),
   product_used: z.string().optional(),
   description: z.string().optional(),
+  crop_id: z.string({ required_error: 'L\'ID de la culture est requis' }),
+  dose_per_hectare: z.number().optional(),
+  total_dose: z.number().optional(),
+  unit: z.string().optional(),
 });
 
 export type OperationFormData = z.infer<typeof operationFormSchema>;
@@ -36,13 +40,17 @@ const OperationForm: React.FC<OperationFormProps> = ({ onSubmit, initialValues, 
       operation_type: initialValues?.operation_type,
       product_used: initialValues?.product_used || '',
       description: initialValues?.description || '',
+      crop_id: initialValues?.crop_id || '',
+      dose_per_hectare: initialValues?.dose_per_hectare,
+      total_dose: initialValues?.total_dose,
+      unit: initialValues?.unit || '',
     },
   });
 
   const pickerItems = operationTypes.map((op) => ({ label: op, value: op }));
 
   return (
-    <View className="space-y-4 p-4">
+    <View style={{ padding: 20 }}>
       <Controller
         control={control}
         name="operation_date"
@@ -102,6 +110,70 @@ const OperationForm: React.FC<OperationFormProps> = ({ onSubmit, initialValues, 
             multiline
             numberOfLines={3}
             error={errors.description?.message}
+          />
+        )}
+      />
+
+      <Controller
+        control={control}
+        name="crop_id"
+        render={({ field: { onChange, value } }) => (
+          <FormField
+            label="ID de la culture (requis)"
+            placeholder="Ex: uuid-de-la-culture"
+            value={value}
+            onChangeText={onChange}
+            error={errors.crop_id?.message}
+          />
+        )}
+      />
+
+      <Controller
+        control={control}
+        name="dose_per_hectare"
+        render={({ field: { onChange, value } }) => (
+          <FormField
+            label="Dose par hectare (optionnel)"
+            placeholder="Ex: 50"
+            value={value?.toString()}
+            onChangeText={(text) => {
+              const num = parseFloat(text);
+              onChange(isNaN(num) ? undefined : num);
+            }}
+            keyboardType="numeric"
+            error={errors.dose_per_hectare?.message}
+          />
+        )}
+      />
+
+      <Controller
+        control={control}
+        name="total_dose"
+        render={({ field: { onChange, value } }) => (
+          <FormField
+            label="Dose totale (optionnel)"
+            placeholder="Ex: 100"
+            value={value?.toString()}
+            onChangeText={(text) => {
+              const num = parseFloat(text);
+              onChange(isNaN(num) ? undefined : num);
+            }}
+            keyboardType="numeric"
+            error={errors.total_dose?.message}
+          />
+        )}
+      />
+
+      <Controller
+        control={control}
+        name="unit"
+        render={({ field: { onChange, value } }) => (
+          <FormField
+            label="Unité (optionnel)"
+            placeholder="Ex: kg, L, unités"
+            value={value}
+            onChangeText={onChange}
+            error={errors.unit?.message}
           />
         )}
       />

@@ -2,7 +2,15 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
-import { AlertTriangle, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { AlertTriangle, XCircle, CheckCircle, Info, Clock, AlertCircle } from 'lucide-react';
+
+// Type assertions pour résoudre le conflit de types
+const AlertTriangleIcon = AlertTriangle as any;
+const XCircleIcon = XCircle as any;
+const CheckCircleIcon = CheckCircle as any;
+const InfoIcon = Info as any;
+const ClockIcon = Clock as any;
+const AlertCircleIcon = AlertCircle as any;
 
 interface Alert {
   id: string;
@@ -37,13 +45,13 @@ const AlertsPanel: React.FC<AlertsPanelProps> = ({ alerts, onResolve, onDismiss 
   const getTypeIcon = (type: string) => {
     switch (type) {
       case 'warning':
-        return <AlertTriangle className="h-4 w-4 text-yellow-600" />;
+        return <AlertTriangleIcon className="h-4 w-4 text-yellow-600" />;
       case 'error':
-        return <XCircle className="h-4 w-4 text-red-600" />;
+        return <XCircleIcon className="h-4 w-4 text-red-600" />;
       case 'success':
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
+        return <CheckCircleIcon className="h-4 w-4 text-green-600" />;
       default:
-        return <AlertTriangle className="h-4 w-4 text-blue-600" />;
+        return <InfoIcon className="h-4 w-4 text-blue-600" />;
     }
   };
 
@@ -64,7 +72,7 @@ const AlertsPanel: React.FC<AlertsPanelProps> = ({ alerts, onResolve, onDismiss 
     <Card className="shadow-lg">
       <CardHeader className="pb-4">
         <CardTitle className="flex items-center text-lg font-semibold text-gray-900">
-          <AlertTriangle className="h-5 w-5 mr-2 text-orange-600" />
+          <AlertCircleIcon className="h-5 w-5 text-orange-600 mr-2" />
           Alertes récentes
         </CardTitle>
         <p className="text-sm text-gray-500">
@@ -75,7 +83,7 @@ const AlertsPanel: React.FC<AlertsPanelProps> = ({ alerts, onResolve, onDismiss 
         <div className="space-y-4">
           {alerts.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-500" />
+              <CheckCircleIcon className="h-12 w-12 text-green-600 mx-auto mb-4" />
               <p>Aucune alerte récente</p>
             </div>
           ) : (
@@ -112,7 +120,7 @@ const AlertsPanel: React.FC<AlertsPanelProps> = ({ alerts, onResolve, onDismiss 
                       </p>
                       <div className="flex items-center space-x-4 text-xs text-gray-500">
                         <div className="flex items-center space-x-1">
-                          <Clock className="h-3 w-3" />
+                          <ClockIcon className="h-3 w-3" />
                           <span>{alert.timestamp}</span>
                         </div>
                         {getStatusBadge(alert.status)}
@@ -128,7 +136,7 @@ const AlertsPanel: React.FC<AlertsPanelProps> = ({ alerts, onResolve, onDismiss 
                         onClick={() => onResolve?.(alert.id)}
                         className="text-green-600 border-green-300 hover:bg-green-50"
                       >
-                        <CheckCircle className="h-3 w-3 mr-1" />
+                        <CheckCircleIcon className="h-3 w-3 mr-1" />
                         Résoudre
                       </Button>
                       <Button
@@ -137,7 +145,7 @@ const AlertsPanel: React.FC<AlertsPanelProps> = ({ alerts, onResolve, onDismiss 
                         onClick={() => onDismiss?.(alert.id)}
                         className="text-gray-600 border-gray-300 hover:bg-gray-50"
                       >
-                        <XCircle className="h-3 w-3 mr-1" />
+                        <XCircleIcon className="h-3 w-3 mr-1" />
                         Ignorer
                       </Button>
                     </div>

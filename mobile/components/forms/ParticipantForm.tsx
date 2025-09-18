@@ -5,6 +5,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import FormField from '@/components/FormField';
 import DateField from '@/components/DateField';
+import CompatiblePicker from '@/components/CompatiblePicker';
 import { Button } from '@/components/ui/button';
 import Checkbox from 'expo-checkbox';
 import { ThemedText as Text } from '@/components/ThemedText';
@@ -12,10 +13,12 @@ import { ThemedText as Text } from '@/components/ThemedText';
 export const participantFormSchema = z.object({
   name: z.string().min(2, 'Le nom est requis (2 caractères min).'),
   role: z.string().min(2, 'Le rôle est requis (2 caractères min).'),
+  sex: z.enum(['M', 'F']).optional(),
   birthdate: z.date().optional(),
   literacy: z.boolean().optional(),
   // Languages will be handled as a simple text field for now
   languages: z.string().optional(),
+  phone: z.string().optional(),
 });
 
 export type ParticipantFormData = z.infer<typeof participantFormSchema>;
@@ -78,6 +81,42 @@ const ParticipantForm: React.FC<ParticipantFormProps> = ({
             value={value ? value.toISOString().split('T')[0] : undefined}
             onChange={(dateString) => onChange(new Date(dateString))}
             error={typeof errors.birthdate === 'string' ? errors.birthdate : errors.birthdate?.message}
+          />
+        )}
+      />
+      <View style={{ marginBottom: 16 }}>
+        <Text style={{ fontSize: 16, color: '#374151', marginBottom: 6 }}>Sexe (optionnel)</Text>
+        <Controller
+          control={control}
+          name="sex"
+          render={({ field: { onChange, value } }) => (
+            <CompatiblePicker
+              selectedValue={value || ''}
+              onValueChange={onChange}
+              items={[
+                { label: 'Masculin', value: 'M' },
+                { label: 'Féminin', value: 'F' }
+              ]}
+            />
+          )}
+        />
+        {errors.sex && (
+          <Text style={{ color: '#dc2626', fontSize: 12, marginTop: 4 }}>
+            {errors.sex.message}
+          </Text>
+        )}
+      </View>
+      <Controller
+        control={control}
+        name="phone"
+        render={({ field: { onChange, value } }) => (
+          <FormField
+            label="Téléphone (optionnel)"
+            placeholder="Ex: +221XXXXXXXXX"
+            value={value}
+            onChangeText={onChange}
+            keyboardType="phone-pad"
+            error={typeof errors.phone === 'string' ? errors.phone : errors.phone?.message}
           />
         )}
       />

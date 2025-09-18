@@ -18,6 +18,10 @@ export const observationFormSchema = z.object({
   observation_type: z.enum(observationTypes as [string, ...string[]], { required_error: 'Le type est requis.' }),
   description: z.string().optional(),
   severity: z.number().min(1).max(5).optional(),
+  crop_id: z.string({ required_error: 'L\'ID de la culture est requis' }),
+  emergence_percent: z.number().min(0).max(100).optional(),
+  pest_disease_name: z.string().optional(),
+  affected_area_percent: z.number().min(0).max(100).optional(),
 });
 
 export type ObservationFormData = z.infer<typeof observationFormSchema>;
@@ -35,7 +39,13 @@ const ObservationForm: React.FC<ObservationFormProps> = ({
 }) => {
   const { control, handleSubmit, setValue, watch, formState: { errors } } = useForm<ObservationFormData>({
     resolver: zodResolver(observationFormSchema),
-    defaultValues: initialValues,
+    defaultValues: {
+      ...initialValues,
+      crop_id: initialValues?.crop_id || '',
+      emergence_percent: initialValues?.emergence_percent,
+      pest_disease_name: initialValues?.pest_disease_name || '',
+      affected_area_percent: initialValues?.affected_area_percent,
+    },
   });
 
   const severity = watch('severity');
@@ -95,6 +105,70 @@ const ObservationForm: React.FC<ObservationFormProps> = ({
           onRatingChange={(newRating: number) => setValue('severity', newRating)}
         />
       </View>
+
+      <Controller
+        control={control}
+        name="crop_id"
+        render={({ field: { onChange, value } }) => (
+          <FormField
+            label="ID de la culture (requis)"
+            placeholder="Ex: uuid-de-la-culture"
+            value={value}
+            onChangeText={onChange}
+            error={errors.crop_id?.message}
+          />
+        )}
+      />
+
+      <Controller
+        control={control}
+        name="emergence_percent"
+        render={({ field: { onChange, value } }) => (
+          <FormField
+            label="Pourcentage de levée (optionnel)"
+            placeholder="Ex: 85"
+            value={value?.toString()}
+            onChangeText={(text) => {
+              const num = parseInt(text);
+              onChange(isNaN(num) ? undefined : num);
+            }}
+            keyboardType="numeric"
+            error={errors.emergence_percent?.message}
+          />
+        )}
+      />
+
+      <Controller
+        control={control}
+        name="pest_disease_name"
+        render={({ field: { onChange, value } }) => (
+          <FormField
+            label="Nom du ravageur/maladie (optionnel)"
+            placeholder="Ex: Pucerons, Mildiou"
+            value={value}
+            onChangeText={onChange}
+            error={errors.pest_disease_name?.message}
+          />
+        )}
+      />
+
+      <Controller
+        control={control}
+        name="affected_area_percent"
+        render={({ field: { onChange, value } }) => (
+          <FormField
+            label="Pourcentage de surface affectée (optionnel)"
+            placeholder="Ex: 15"
+            value={value?.toString()}
+            onChangeText={(text) => {
+              const num = parseFloat(text);
+              onChange(isNaN(num) ? undefined : num);
+            }}
+            keyboardType="numeric"
+            error={errors.affected_area_percent?.message}
+          />
+        )}
+      />
       
       <Button onPress={handleSubmit(onSubmit)} disabled={isSubmitting}>
         <Text>{isSubmitting ? 'Enregistrement...' : 'Enregistrer'}</Text>

@@ -1,6 +1,9 @@
 import React from 'react';
 import { ChevronDown } from 'lucide-react';
 
+// Type assertion pour résoudre le conflit de types
+const ChevronDownIcon = ChevronDown as any;
+
 interface FilterDropdownProps {
   label: string;
   value: string;
@@ -35,7 +38,7 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
           ))}
         </select>
         <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-          <ChevronDown className="h-4 w-4 text-gray-400" />
+          <ChevronDownIcon className="h-4 w-4 text-gray-400" />
         </div>
       </div>
     </div>

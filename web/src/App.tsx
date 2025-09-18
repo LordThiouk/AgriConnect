@@ -12,11 +12,16 @@ import ResetPasswordPage from './pages/ResetPassword';
 import UserRoleDebug from './components/UserRoleDebug';
 import PaginationTest from './components/test/PaginationTest';
 import SupabaseTest from './components/test/SupabaseTest';
+import TestSupabase from './pages/TestSupabase';
 import DataSeeder from './components/test/DataSeeder';
 import CampaignsPage from './pages/Campaigns';
+import CooperativesPage from './pages/cooperatives';
+import Debug from './pages/Debug';
 import './App.css';
 
 function App() {
+  console.log('🔍 App component loaded');
+  
   return (
     <AuthProvider>
       <ToastProvider>
@@ -55,6 +60,14 @@ function App() {
               } 
             />
             <Route 
+              path="/cooperatives" 
+              element={
+                <ProtectedRoute>
+                  <CooperativesPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
               path="/test-pagination" 
               element={
                 <ProtectedRoute>
@@ -71,6 +84,14 @@ function App() {
               } 
             />
             <Route 
+              path="/test-supabase-connection" 
+              element={
+                <ProtectedRoute>
+                  <TestSupabase />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
               path="/seed-data" 
               element={
                 <ProtectedRoute>
@@ -79,9 +100,16 @@ function App() {
               } 
             />
             
+            {/* Route de debug simple */}
+            <Route 
+              path="/debug"
+              element={<Debug />}
+            />
+            
+            
             {/* Route de debug (accessible même sans permissions web) */}
             <Route 
-              path="/debug" 
+              path="/debug-role" 
               element={
                 <ProtectedRoute allowDebugAccess={true}>
                   <UserRoleDebug />
@@ -90,8 +118,8 @@ function App() {
             />
             
             {/* Redirection par défaut */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={<Navigate to="/debug" replace />} />
+            <Route path="*" element={<Navigate to="/debug" replace />} />
           </Routes>
         </div>
         </Router>

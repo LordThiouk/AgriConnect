@@ -1,349 +1,411 @@
 import React, { useState, useEffect } from 'react';
-import { producersService, authService } from '../../../../lib/services/api';
-import { Database } from '../../../../lib/supabase/types/database';
-import ProducerForm from '../../components/Producers/ProducerForm';
+import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
+import Layout from '../../components/Layout/Layout';
+import SearchBar from '../../components/Producers/SearchBar';
+import FilterDropdown from '../../components/Producers/FilterDropdown';
+import ProducersTable from '../../components/Producers/ProducersTable';
+import Pagination from '../../components/Producers/Pagination';
+import ProducerModal from '../../components/Producers/ProducerModal';
+import ProducerDetailsModal from '../../components/Producers/ProducerDetailsModal';
+import AgentAssignmentModal from '../../components/Producers/AgentAssignmentModal';
+import { ProducersService, Producer, ProducerFilters } from '../../services/producersService';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Plus, RefreshCw, Users, BarChart3, MapPin, Building2 } from 'lucide-react';
 
-type Producer = Database['public']['Tables']['producers']['Row'];
-type ProducerCreate = Omit<Producer, 'id' | 'created_at' | 'updated_at'>;
+// Type assertions pour résoudre le conflit de types
+const PlusIcon = Plus as any;
+const RefreshCwIcon = RefreshCw as any;
+const UsersIcon = Users as any;
+const BarChart3Icon = BarChart3 as any;
+const MapPinIcon = MapPin as any;
+const Building2Icon = Building2 as any;
 
-const ProducersPage: React.FC = () => {
+const Producers: React.FC = () => {
+  const { user } = useAuth();
+  const { showToast } = useToast();
   const [producers, setProducers] = useState<Producer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [editingProducer, setEditingProducer] = useState<Producer | null>(null);
-  const [formLoading, setFormLoading] = useState(false);
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 10,
-    total: 0,
-    pages: 0
+  
+  // Modal states
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [isAgentModalOpen, setIsAgentModalOpen] = useState(false);
+  const [selectedProducer, setSelectedProducer] = useState<Producer | null>(null);
+  
+  // Filters state
+  const [filters, setFilters] = useState<ProducerFilters>({
+    search: '',
+    region: '',
+    culture: '',
+    status: ''
   });
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const itemsPerPage = 20;
+  
+  // Filter options
+  const [regions, setRegions] = useState<string[]>([]);
+  const [cultures, setCultures] = useState<string[]>([]);
+  const [cooperativesCount, setCooperativesCount] = useState<number>(0);
+  const statusOptions = ['active', 'inactive'];
 
-  // Check authentication on component mount
   useEffect(() => {
-    if (!authService.isAuthenticated()) {
-      setError('Veuillez vous connecter pour accéder à cette page');
-      setLoading(false);
-      return;
-    }
-    loadProducers();
-  }, []);
+    fetchProducers();
+    fetchFilterOptions();
+    fetchCooperativesCount();
+  }, [filters, currentPage]);
 
-  const loadProducers = async (page = 1) => {
+  const fetchProducers = async () => {
     try {
       setLoading(true);
       setError(null);
-      
-      const response = await producersService.getAll({
-        page,
-        limit: pagination.limit
-      });
-      
-      setProducers(response.data);
-      setPagination(response.pagination);
+
+      const result = await ProducersService.getProducers(filters, { page: currentPage, limit: itemsPerPage });
+      setProducers(result.data);
+      setTotalPages(result.totalPages);
+      setTotalItems(result.total);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Échec du chargement des producteurs');
-      console.error('Error loading producers:', err);
+      console.error('Error fetching producers:', err);
+      setError(err instanceof Error ? err.message : 'Erreur lors du chargement des producteurs');
+      showToast('Erreur lors du chargement des producteurs', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCreateProducer = async (data: Partial<Producer>) => {
+  const fetchFilterOptions = async () => {
     try {
-      setFormLoading(true);
-      // Ensure required fields are present for creation
-      const createData: ProducerCreate = {
-        first_name: data.first_name || '',
-        last_name: data.last_name || '',
-        phone: data.phone || '',
-        cooperative_id: data.cooperative_id || '',
-        region: data.region || '',
-        department: data.department || '',
-        commune: data.commune || '',
-        village: data.village || '',
-        gender: data.gender || 'M',
-        birth_date: data.birth_date || null,
-        education_level: data.education_level || null,
-        household_size: data.household_size || 1,
-        farming_experience_years: data.farming_experience_years || 0,
-        primary_language: data.primary_language || null,
-        address: data.address || null,
-        email: data.email || null,
-        is_active: data.is_active ?? true,
-        profile_id: data.profile_id || null
-      };
-      
-      await producersService.create(createData);
-      setShowForm(false);
-      loadProducers(pagination.page);
+      const options = await ProducersService.getFilterOptions();
+      setRegions(options.regions);
+      setCultures(options.cultures);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Échec de la création du producteur');
-      console.error('Error creating producer:', err);
-    } finally {
-      setFormLoading(false);
+      console.error('Error fetching filter options:', err);
     }
   };
 
-  const handleUpdateProducer = async (data: Partial<Producer>) => {
-    if (!editingProducer) return;
-    
+  const fetchCooperativesCount = async () => {
     try {
-      setFormLoading(true);
-      await producersService.update(editingProducer.id, data);
-      setEditingProducer(null);
-      loadProducers(pagination.page);
+      // Import CooperativesService dynamically to avoid circular dependency
+      const { CooperativesService } = await import('../../services/cooperativesService');
+      const result = await CooperativesService.getCooperatives({}, 1, 1);
+      setCooperativesCount(result.total);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Échec de la mise à jour du producteur');
-      console.error('Error updating producer:', err);
-    } finally {
-      setFormLoading(false);
+      console.error('Error fetching cooperatives count:', err);
+      setCooperativesCount(0);
     }
   };
 
-  const handleDeleteProducer = async (id: string) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce producteur ?')) return;
-    
-    try {
-      await producersService.delete(id);
-      loadProducers(pagination.page);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Échec de la suppression du producteur');
-      console.error('Error deleting producer:', err);
-    }
+  const handleAddProducer = () => {
+    setSelectedProducer(null);
+    setIsAddModalOpen(true);
   };
 
   const handleEditProducer = (producer: Producer) => {
-    setEditingProducer(producer);
-    setShowForm(true);
+    setSelectedProducer(producer);
+    setIsEditModalOpen(true);
   };
 
-  const handleCancelForm = () => {
-    setShowForm(false);
-    setEditingProducer(null);
+  const handleViewProducer = async (producer: Producer) => {
+    try {
+      setLoading(true);
+      const fullProducer = await ProducersService.getProducerById(producer.id);
+      setSelectedProducer(fullProducer);
+      setIsDetailsModalOpen(true);
+    } catch (error) {
+      console.error('Error loading producer details:', error);
+      showToast('Erreur lors du chargement des détails', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Chargement des producteurs...</p>
-        </div>
-      </div>
-    );
-  }
+  const handleManageAgents = async (producer: Producer) => {
+    console.log('Manage agents clicked for producer:', producer);
+    console.log('Producer ID:', producer?.id);
+    
+    if (!producer || !producer.id) {
+      console.error('Producer ID is undefined for manage agents:', producer);
+      showToast('Erreur: ID du producteur manquant', 'error');
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      const fullProducer = await ProducersService.getProducerById(producer.id);
+      setSelectedProducer(fullProducer);
+      setIsAgentModalOpen(true);
+    } catch (error) {
+      console.error('Error loading producer details:', error);
+      showToast('Erreur lors du chargement des détails', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  if (error && !producers.length) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-lg max-w-md">
-            <h3 className="text-lg font-medium mb-2">Erreur</h3>
-            <p>{error}</p>
-            {error.includes('connecter') && (
-              <button
-                onClick={() => window.location.href = '/login'}
-                className="mt-4 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-              >
-                Aller à la Connexion
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const handleSaveProducer = () => {
+    setIsAddModalOpen(false);
+    setIsEditModalOpen(false);
+    fetchProducers();
+    showToast('Producteur sauvegardé avec succès', 'success');
+  };
+
+  const handleDeleteProducer = async (producer: Producer) => {
+    console.log('Delete button clicked for producer:', producer);
+    console.log('Producer type:', typeof producer);
+    console.log('Producer keys:', Object.keys(producer || {}));
+    console.log('Producer ID value:', producer?.id);
+    
+    // Validate producer ID
+    if (!producer || !producer.id) {
+      console.error('Producer ID is undefined:', producer);
+      showToast('Erreur: ID du producteur manquant', 'error');
+      return;
+    }
+    
+    if (window.confirm(`Êtes-vous sûr de vouloir supprimer le producteur ${producer.first_name} ${producer.last_name} ?`)) {
+      console.log('User confirmed deletion');
+      try {
+        setLoading(true);
+        
+        // Optimistic update: remove producer from list immediately
+        setProducers(prevProducers => prevProducers.filter(p => p.id !== producer.id));
+        setTotalItems(prevTotal => prevTotal - 1);
+        
+        console.log('Calling ProducersService.deleteProducer with ID:', producer.id);
+        await ProducersService.deleteProducer(producer.id);
+        console.log('Producer deleted successfully');
+        
+        // Refresh the list to ensure consistency
+        await fetchProducers();
+        showToast('Producteur supprimé avec succès', 'success');
+      } catch (error) {
+        console.error('Error deleting producer:', error);
+        // Revert optimistic update on error
+        await fetchProducers();
+        showToast(`Erreur lors de la suppression: ${error instanceof Error ? error.message : 'Erreur inconnue'}`, 'error');
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      console.log('User cancelled deletion');
+    }
+  };
+
+  const handleRefresh = () => {
+    fetchProducers();
+    showToast('Données actualisées', 'success');
+  };
+
+  const handleFilterChange = (field: keyof ProducerFilters, value: string) => {
+    setFilters(prev => ({ ...prev, [field]: value === 'all' || value === '' ? undefined : value }));
+    setCurrentPage(1);
+  };
+
+  const handleSearchChange = (value: string) => {
+    setFilters(prev => ({ ...prev, search: value }));
+    setCurrentPage(1);
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="md:flex md:items-center md:justify-between mb-6">
-          <div className="flex-1 min-w-0">
-            <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+    <Layout>
+      {/* Header */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <UsersIcon className="h-6 w-6" />
               Gestion des Producteurs
-            </h2>
-            <p className="mt-1 text-sm text-gray-500">
-              Gérez les producteurs agricoles et leurs informations
+            </h1>
+            <p className="text-gray-600 mt-1">
+              Gérez et supervisez vos producteurs membres
             </p>
           </div>
-          <div className="mt-4 flex md:mt-0 md:ml-4">
-            <button
-              onClick={() => setShowForm(true)}
-              className="ml-3 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={handleRefresh}
+              disabled={loading}
+              className="flex items-center gap-2"
             >
-              Ajouter un Producteur
-            </button>
+              <RefreshCwIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Actualiser
+            </Button>
+            <Button
+              onClick={handleAddProducer}
+              className="flex items-center gap-2"
+            >
+              <PlusIcon className="h-4 w-4" />
+              Nouveau Producteur
+            </Button>
           </div>
         </div>
-
-        {/* Error Display */}
-        {error && (
-          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-            {error}
-          </div>
-        )}
-
-        {/* Form Modal */}
-        {showForm && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
-              <div className="mt-3">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">
-                  {editingProducer ? 'Modifier le Producteur' : 'Ajouter un Nouveau Producteur'}
-                </h3>
-                <ProducerForm
-                  producer={editingProducer || undefined}
-                  onSubmit={editingProducer ? handleUpdateProducer : handleCreateProducer}
-                  onCancel={handleCancelForm}
-                  isLoading={formLoading}
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Producers List */}
-        <div className="bg-white shadow overflow-hidden sm:rounded-md">
-          {producers.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="text-gray-400 mb-4">
-                <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-              </div>
-              <h3 className="text-sm font-medium text-gray-900 mb-2">Aucun producteur trouvé</h3>
-              <p className="text-sm text-gray-500 mb-6">
-                Commencez par ajouter votre premier producteur.
-              </p>
-              <button
-                onClick={() => setShowForm(true)}
-                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-              >
-                Ajouter un Producteur
-              </button>
-            </div>
-          ) : (
-            <ul className="divide-y divide-gray-200">
-              {producers.map((producer) => (
-                <li key={producer.id} className="px-6 py-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
-                          <span className="text-sm font-medium text-green-800">
-                            {producer.first_name?.[0]}{producer.last_name?.[0]}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">
-                          {producer.first_name} {producer.last_name}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {producer.phone} • {producer.village}, {producer.commune}
-                        </div>
-                        <div className="text-xs text-gray-400">
-                          Coopérative: {producer.cooperative_id} • Région: {producer.region}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => handleEditProducer(producer)}
-                        className="text-green-600 hover:text-green-900 text-sm font-medium"
-                      >
-                        Modifier
-                      </button>
-                      <button
-                        onClick={() => handleDeleteProducer(producer.id)}
-                        className="text-red-600 hover:text-red-900 text-sm font-medium"
-                      >
-                        Supprimer
-                      </button>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        {/* Pagination */}
-        {pagination.pages > 1 && (
-          <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6 mt-6">
-            <div className="flex-1 flex justify-between sm:hidden">
-              <button
-                onClick={() => loadProducers(pagination.page - 1)}
-                disabled={pagination.page <= 1}
-                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Précédent
-              </button>
-              <button
-                onClick={() => loadProducers(pagination.page + 1)}
-                disabled={pagination.page >= pagination.pages}
-                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Suivant
-              </button>
-            </div>
-            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm text-gray-700">
-                  Affichage de{' '}
-                  <span className="font-medium">{(pagination.page - 1) * pagination.limit + 1}</span>
-                  {' '}à{' '}
-                  <span className="font-medium">
-                    {Math.min(pagination.page * pagination.limit, pagination.total)}
-                  </span>
-                  {' '}sur{' '}
-                  <span className="font-medium">{pagination.total}</span>
-                  {' '}résultats
-                </p>
-              </div>
-              <div>
-                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                  <button
-                    onClick={() => loadProducers(pagination.page - 1)}
-                    disabled={pagination.page <= 1}
-                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Précédent
-                  </button>
-                  {Array.from({ length: Math.min(5, pagination.pages) }, (_, i) => {
-                    const page = i + 1;
-                    return (
-                      <button
-                        key={page}
-                        onClick={() => loadProducers(page)}
-                        className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                          page === pagination.page
-                            ? 'z-10 bg-green-50 border-green-500 text-green-600'
-                            : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                        }`}
-                      >
-                        {page}
-                      </button>
-                    );
-                  })}
-                  <button
-                    onClick={() => loadProducers(pagination.page + 1)}
-                    disabled={pagination.page >= pagination.pages}
-                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Suivant
-                  </button>
-                </nav>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
-    </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center">
+              <UsersIcon className="h-8 w-8 text-blue-600" />
+              <div className="ml-3">
+                <p className="text-sm font-medium text-gray-600">Total Producteurs</p>
+                <p className="text-2xl font-bold text-gray-900">{totalItems}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center">
+              <Building2Icon className="h-8 w-8 text-green-600" />
+              <div className="ml-3">
+                <p className="text-sm font-medium text-gray-600">Coopératives</p>
+                <p className="text-2xl font-bold text-gray-900">{cooperativesCount}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center">
+              <MapPinIcon className="h-8 w-8 text-purple-600" />
+              <div className="ml-3">
+                <p className="text-sm font-medium text-gray-600">Régions</p>
+                <p className="text-2xl font-bold text-gray-900">{regions.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center">
+              <BarChart3Icon className="h-8 w-8 text-orange-600" />
+              <div className="ml-3">
+                <p className="text-sm font-medium text-gray-600">Cultures</p>
+                <p className="text-2xl font-bold text-gray-900">{cultures.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <Card className="mb-6">
+        <CardContent className="p-4">
+          <div className="flex flex-col lg:flex-row gap-4">
+            <div className="flex-1">
+              <SearchBar
+                value={filters.search || ''}
+                onChange={handleSearchChange}
+                placeholder="Rechercher un producteur..."
+              />
+            </div>
+            <div className="flex gap-2">
+              <FilterDropdown
+                label="Région"
+                value={filters.region || 'all'}
+                options={regions}
+                onChange={(value) => handleFilterChange('region', value)}
+                placeholder="Toutes les régions"
+              />
+              <FilterDropdown
+                label="Culture"
+                value={filters.culture || 'all'}
+                options={cultures}
+                onChange={(value) => handleFilterChange('culture', value)}
+                placeholder="Toutes les cultures"
+              />
+              <FilterDropdown
+                label="Statut"
+                value={filters.status || 'all'}
+                options={statusOptions}
+                onChange={(value) => handleFilterChange('status', value)}
+                placeholder="Tous les statuts"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Producers Table */}
+      <Card>
+        <CardContent className="p-0">
+          <ProducersTable
+            producers={producers}
+            loading={loading}
+            onView={handleViewProducer}
+            onEdit={handleEditProducer}
+            onDownload={() => {}}
+            onDelete={handleDeleteProducer}
+            onManageAgents={handleManageAgents}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="mt-4">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            itemsPerPage={itemsPerPage}
+            onPageChange={handlePageChange}
+          />
+        </div>
+      )}
+
+      {/* Modals */}
+      <ProducerModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSave={handleSaveProducer}
+        producer={null}
+        title="Ajouter un producteur"
+      />
+
+      <ProducerModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        onSave={handleSaveProducer}
+        producer={selectedProducer}
+        title="Modifier le producteur"
+      />
+
+      <ProducerDetailsModal
+        isOpen={isDetailsModalOpen}
+        onClose={() => setIsDetailsModalOpen(false)}
+        producer={selectedProducer}
+        onEdit={handleEditProducer}
+        onDelete={handleDeleteProducer}
+      />
+
+      <AgentAssignmentModal
+        isOpen={isAgentModalOpen}
+        onClose={() => setIsAgentModalOpen(false)}
+        producerId={selectedProducer?.id || ''}
+        producerName={selectedProducer ? `${selectedProducer.first_name} ${selectedProducer.last_name}` : ''}
+        assignedAgents={selectedProducer?.assigned_agents || []}
+        onAgentAssigned={() => {
+          // Refresh the producer details
+          if (selectedProducer) {
+            handleViewProducer(selectedProducer);
+          }
+        }}
+      />
+    </Layout>
   );
 };
 
-export default ProducersPage;
+export default Producers;

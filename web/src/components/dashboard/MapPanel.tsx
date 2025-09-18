@@ -1,7 +1,15 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
-import { MapPin, ZoomIn, Layers, Navigation } from 'lucide-react';
+import { MapPin, Map, Navigation, Search, BookOpen, Layers } from 'lucide-react';
+
+// Type assertions pour résoudre le conflit de types
+const MapPinIcon = MapPin as any;
+const MapIcon = Map as any;
+const NavigationIcon = Navigation as any;
+const SearchIcon = Search as any;
+const BookOpenIcon = BookOpen as any;
+const LayersIcon = Layers as any;
 
 interface MapPanelProps {
   plotCount?: number;
@@ -13,7 +21,7 @@ const MapPanel: React.FC<MapPanelProps> = ({ plotCount = 0, onViewMap }) => {
     <Card className="shadow-lg">
       <CardHeader className="pb-4">
         <CardTitle className="flex items-center text-lg font-semibold text-gray-900">
-          <MapPin className="h-5 w-5 mr-2 text-green-600" />
+          <MapPinIcon className="h-5 w-5 text-green-600 mr-2" />
           Carte des parcelles
         </CardTitle>
         <p className="text-sm text-gray-500">
@@ -26,7 +34,7 @@ const MapPanel: React.FC<MapPanelProps> = ({ plotCount = 0, onViewMap }) => {
           <div className="relative bg-gradient-to-br from-green-50 to-blue-50 rounded-lg border-2 border-dashed border-gray-300 h-64 flex items-center justify-center">
             <div className="text-center">
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <MapPin className="h-8 w-8 text-green-600" />
+                <MapIcon className="h-8 w-8 text-green-600" />
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">
                 Carte interactive
@@ -38,7 +46,7 @@ const MapPanel: React.FC<MapPanelProps> = ({ plotCount = 0, onViewMap }) => {
                 onClick={onViewMap}
                 className="bg-green-600 hover:bg-green-700 text-white"
               >
-                <Navigation className="h-4 w-4 mr-2" />
+                <NavigationIcon className="h-4 w-4 mr-2" />
                 Ouvrir la carte
               </Button>
             </div>
@@ -47,15 +55,15 @@ const MapPanel: React.FC<MapPanelProps> = ({ plotCount = 0, onViewMap }) => {
           {/* Contrôles de la carte */}
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm">
-              <ZoomIn className="h-4 w-4 mr-2" />
+              <SearchIcon className="h-3 w-3 mr-2" />
               Zoom
             </Button>
             <Button variant="outline" size="sm">
-              <Layers className="h-4 w-4 mr-2" />
+              <BookOpenIcon className="h-3 w-3 mr-2" />
               Couches
             </Button>
             <Button variant="outline" size="sm">
-              <MapPin className="h-4 w-4 mr-2" />
+              <LayersIcon className="h-3 w-3 mr-2" />
               Marqueurs
             </Button>
           </div>

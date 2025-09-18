@@ -86,6 +86,7 @@ export default function TabLayout() {
         }}
       />
 
+
       {/* Observations */}
       <Tabs.Screen
         name="observations"

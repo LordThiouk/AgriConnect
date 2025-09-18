@@ -1,12 +1,11 @@
 import React from 'react';
 import { Card, CardContent } from '../ui/card';
-import { LucideIcon } from 'lucide-react';
 
 interface KPICardProps {
   title: string;
   value: string | number;
   subtitle?: string;
-  icon: LucideIcon;
+  icon: React.ComponentType<any>; // Accept React components
   trend?: {
     value: number;
     isPositive: boolean;
@@ -18,7 +17,7 @@ const KPICard: React.FC<KPICardProps> = ({
   title, 
   value, 
   subtitle, 
-  icon: Icon, 
+  icon, 
   trend,
   color = 'blue'
 }) => {
@@ -70,7 +69,7 @@ const KPICard: React.FC<KPICardProps> = ({
             )}
           </div>
           <div className={`p-3 rounded-lg bg-white/20`}>
-            <Icon className={`h-6 w-6 ${iconColorClasses[color]}`} />
+            <icon className={`h-8 w-8 ${iconColorClasses[color]}`} />
           </div>
         </div>
       </CardContent>

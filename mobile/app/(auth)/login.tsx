@@ -3,7 +3,7 @@
  * Design moderne inspiré de l'image fournie
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -61,6 +61,10 @@ const LoginScreen: React.FC = () => {
   const [isVerifyingOTP, setIsVerifyingOTP] = useState(false);
   const [hasVerifiedSuccess, setHasVerifiedSuccess] = useState(false);
   const otpHiddenInputRef = React.useRef<TextInput>(null);
+  const isSendingOTPRef = React.useRef(false);
+  
+  // Protection globale contre les appels multiples
+  const lastCallTimeRef = React.useRef(0);
 
   const maskedPhone = React.useMemo(() => {
     const cleaned = phone.replace(/[^0-9+]/g, '');
@@ -101,25 +105,47 @@ const LoginScreen: React.FC = () => {
   }, [countdown]);
 
   // Envoyer l'OTP
-  const handleSendOTP = async () => {
+  const handleSendOTP = useCallback(async () => {
+    const now = Date.now();
+    console.log('🔍 [LOGIN] handleSendOTP - APPEL DÉTECTÉ - isSendingOTPRef.current:', isSendingOTPRef.current, 'lastCall:', lastCallTimeRef.current, 'diff:', now - lastCallTimeRef.current);
+    
+    // Protection temporelle - ignorer si appelé dans les 2 secondes
+    if (now - lastCallTimeRef.current < 2000) {
+      console.log('🚫 [LOGIN] handleSendOTP - Appel trop récent, ignorer (diff:', now - lastCallTimeRef.current, 'ms)');
+      return;
+    }
+    
+    // Protection contre les double-taps - IMMÉDIATEMENT avec ref
+    if (isSendingOTPRef.current) {
+      console.log('🚫 [LOGIN] handleSendOTP - Déjà en cours, ignorer');
+      return;
+    }
+
+    // Marquer le temps de l'appel et comme en cours
+    lastCallTimeRef.current = now;
+    isSendingOTPRef.current = true;
+    setIsSendingOTP(true);
     console.log('📱 [LOGIN] handleSendOTP - Numéro saisi:', phone);
     
     const formattedPhone = formatPhoneNumber(phone.trim());
     if (!formattedPhone) {
       console.log('❌ [LOGIN] handleSendOTP - Numéro non formatable:', phone);
       Alert.alert('Erreur', 'Numéro de téléphone invalide. Utilisez le format: 70 123 45 67');
+      isSendingOTPRef.current = false;
+      setIsSendingOTP(false);
       return;
     }
 
     if (!validatePhoneNumber(formattedPhone)) {
       console.log('❌ [LOGIN] handleSendOTP - Numéro non valide:', formattedPhone);
       Alert.alert('Erreur', 'Format de numéro invalide. Utilisez le format: 70 123 45 67');
+      isSendingOTPRef.current = false;
+      setIsSendingOTP(false);
       return;
     }
 
     try {
       console.log('📱 [LOGIN] handleSendOTP - Début avec téléphone:', formattedPhone);
-      setIsSendingOTP(true);
       
       const { error } = await sendOtpSms(formattedPhone);
       
@@ -135,9 +161,10 @@ const LoginScreen: React.FC = () => {
     } catch {
       Alert.alert('Erreur', 'Erreur lors de l\'envoi du code de vérification');
     } finally {
+      isSendingOTPRef.current = false;
       setIsSendingOTP(false);
     }
-  };
+  }, [phone]);
 
   // Vérifier l'OTP
   const handleVerifyOTP = async () => {
@@ -318,6 +345,15 @@ const LoginScreen: React.FC = () => {
               <Text style={styles.verifyTitle}>Entrez le code</Text>
               <Text style={styles.verifySubtitle}>Un code à 6 chiffres a été envoyé au</Text>
               <Text style={styles.verifyPhone}>{maskedPhone}</Text>
+              
+              {/* Message pour les numéros de test */}
+              {(phone === '770951543' || phone === '775478724') && (
+                <View style={styles.testInfo}>
+                  <Text style={styles.testInfoText}>
+                    🎯 Mode test : Utilisez le code <Text style={styles.testCode}>123456</Text>
+                  </Text>
+                </View>
+              )}
 
               {/* OTP boxes */}
               <TouchableOpacity
@@ -624,6 +660,27 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: 4,
     marginBottom: 12,
+  },
+  testInfo: {
+    backgroundColor: '#E3F2FD',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 8,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#2196F3',
+  },
+  testInfoText: {
+    fontSize: 13,
+    color: '#1565C0',
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  testCode: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#0D47A1',
+    fontFamily: 'monospace',
   },
   otpBoxesRow: {
     flexDirection: 'row',

@@ -85,6 +85,9 @@ export const sendOtpSms = async (phone: string): Promise<OtpResult> => {
       };
     }
 
+    // Utiliser l'authentification normale de Supabase
+    console.log('🔄 [AUTH] sendOtpSms - Utilisation de l\'authentification Supabase normale...');
+
     console.log('✅ [AUTH] sendOtpSms - Format téléphone valide, envoi OTP via Twilio...');
     
     const { error } = await supabase.auth.signInWithOtp({
@@ -130,6 +133,9 @@ export const verifyOtpSms = async (phone: string, token: string): Promise<Mobile
   console.log('📱 [AUTH] verifyOtpSms - Téléphone normalisé:', normalizedPhone);
   
   try {
+    // Utiliser l'authentification normale de Supabase
+    console.log('🔄 [AUTH] verifyOtpSms - Utilisation de l\'authentification Supabase normale...');
+
     console.log('🔐 [AUTH] verifyOtpSms - Appel à supabase.auth.verifyOtp...');
     
     const { data, error } = await supabase.auth.verifyOtp({
@@ -212,6 +218,58 @@ export const signOut = async (): Promise<{ success: boolean; error?: string }> =
     return {
       success: false,
       error: 'Erreur lors de la déconnexion'
+    };
+  }
+};
+
+/**
+ * Supprime tous les tokens et données d'authentification
+ * @returns Résultat de la suppression
+ */
+export const clearAllTokens = async (): Promise<{ success: boolean; error?: string }> => {
+  try {
+    console.log('🧹 [AUTH] clearAllTokens - Suppression de tous les tokens...');
+    
+    // 1. Déconnexion Supabase
+    await supabase.auth.signOut();
+    
+    // 2. Supprimer les données AsyncStorage
+    try {
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      await AsyncStorage.multiRemove([
+        'supabase.auth.token',
+        'supabase.auth.refresh_token',
+        'user_session',
+        'user_profile',
+        'user_role',
+        'auth_state',
+        'expo-secure-store.supabase.auth.token',
+        'expo-secure-store.supabase.auth.refresh_token'
+      ]);
+      console.log('✅ [AUTH] clearAllTokens - AsyncStorage nettoyé');
+    } catch (storageError) {
+      console.log('⚠️ [AUTH] clearAllTokens - Erreur AsyncStorage:', storageError);
+    }
+    
+    // 3. Supprimer les cookies (pour le web)
+    if (typeof document !== 'undefined') {
+      document.cookie.split(";").forEach(function(c) { 
+        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+      });
+      console.log('✅ [AUTH] clearAllTokens - Cookies supprimés');
+    }
+    
+    console.log('✅ [AUTH] clearAllTokens - Tous les tokens supprimés');
+    
+    return {
+      success: true,
+      error: undefined
+    };
+  } catch (error) {
+    console.error('❌ [AUTH] clearAllTokens - Erreur:', error);
+    return {
+      success: false,
+      error: 'Erreur lors de la suppression des tokens'
     };
   }
 };
@@ -608,6 +666,10 @@ export class MobileAuthService {
 
   static async signOut(): Promise<{ success: boolean; error?: string }> {
     return await signOut();
+  }
+
+  static async clearAllTokens(): Promise<{ success: boolean; error?: string }> {
+    return await clearAllTokens();
   }
 
   static getUserRole = getUserRole;

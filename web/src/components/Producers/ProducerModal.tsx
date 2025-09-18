@@ -1,13 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, User, Phone, MapPin, Mail } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 import { Button } from '../ui/button';
-import { Producer } from '../../services/producersService';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Textarea } from '../ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { Producer, ProducersService } from '../../services/producersService';
+import { useToast } from '../../context/ToastContext';
 
 interface ProducerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (producer: Partial<Producer>) => void;
-  producer?: Producer | null;
+  onSave: () => void;
+  producer: Producer | null;
   title: string;
 }
 
@@ -18,29 +25,67 @@ const ProducerModal: React.FC<ProducerModalProps> = ({
   producer,
   title
 }) => {
+  const { showToast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [cooperatives, setCooperatives] = useState<any[]>([]);
+  const [regions, setRegions] = useState<string[]>([]);
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [communes, setCommunes] = useState<string[]>([]);
+
+  // Form state
   const [formData, setFormData] = useState({
+    // Informations de base
     first_name: '',
     last_name: '',
     phone: '',
     email: '',
+    cooperative_id: '',
+    
+    // Localisation
     region: '',
     department: '',
     commune: '',
+    village: '',
+    address: '',
+    
+    // Informations personnelles
+    birth_date: '',
+    gender: '',
+    education_level: '',
+    farming_experience_years: '',
+    household_size: '',
+    primary_language: '',
+    
+    // Statut
     is_active: true
   });
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
-
   useEffect(() => {
+    if (isOpen) {
+      loadFormData();
+      loadOptions();
+    }
+  }, [isOpen, producer]);
+
+  const loadFormData = () => {
     if (producer) {
       setFormData({
         first_name: producer.first_name || '',
         last_name: producer.last_name || '',
         phone: producer.phone || '',
         email: producer.email || '',
+        cooperative_id: producer.cooperative_id || '',
         region: producer.region || '',
         department: producer.department || '',
         commune: producer.commune || '',
+        village: producer.village || '',
+        address: producer.address || '',
+        birth_date: producer.birth_date || '',
+        gender: producer.gender || '',
+        education_level: producer.education_level || '',
+        farming_experience_years: producer.farming_experience_years?.toString() || '',
+        household_size: producer.household_size?.toString() || '',
+        primary_language: producer.primary_language || '',
         is_active: producer.is_active ?? true
       });
     } else {
@@ -49,262 +94,426 @@ const ProducerModal: React.FC<ProducerModalProps> = ({
         last_name: '',
         phone: '',
         email: '',
+        cooperative_id: '',
         region: '',
         department: '',
         commune: '',
+        village: '',
+        address: '',
+        birth_date: '',
+        gender: '',
+        education_level: '',
+        farming_experience_years: '',
+        household_size: '',
+        primary_language: '',
         is_active: true
       });
     }
-    setErrors({});
-  }, [producer, isOpen]);
-
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.first_name.trim()) {
-      newErrors.first_name = 'Le prénom est requis';
-    }
-    if (!formData.last_name.trim()) {
-      newErrors.last_name = 'Le nom est requis';
-    }
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'Le téléphone est requis';
-    } else if (!/^\+?[1-9]\d{1,14}$/.test(formData.phone.replace(/\s/g, ''))) {
-      newErrors.phone = 'Format de téléphone invalide';
-    }
-    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Format d\'email invalide';
-    }
-    if (!formData.region.trim()) {
-      newErrors.region = 'La région est requise';
-    }
-    if (!formData.department.trim()) {
-      newErrors.department = 'Le département est requis';
-    }
-    if (!formData.commune.trim()) {
-      newErrors.commune = 'La commune est requise';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (validateForm()) {
-      onSave(formData);
+  const loadOptions = async () => {
+    try {
+      // Load cooperatives
+      const { CooperativesService } = await import('../../services/cooperativesService');
+      const cooperativesResult = await CooperativesService.getCooperatives({}, 1, 1000);
+      setCooperatives(cooperativesResult.data);
+
+      // Load regions
+      const regions = await ProducersService.getRegions();
+      setRegions(regions);
+
+      // Mock departments and communes for now
+      setDepartments(['Dakar', 'Thiès', 'Kaolack', 'Saint-Louis']);
+      setCommunes(['Commune 1', 'Commune 2', 'Commune 3']);
+    } catch (error) {
+      console.error('Error loading options:', error);
     }
   };
 
-  const handleChange = (field: string, value: string | boolean) => {
+  const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.first_name || !formData.last_name || !formData.phone) {
+      showToast('Veuillez remplir les champs obligatoires', 'error');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      const producerData = {
+        ...formData,
+        farming_experience_years: formData.farming_experience_years ? parseInt(formData.farming_experience_years) : null,
+        household_size: formData.household_size ? parseInt(formData.household_size) : null,
+        birth_date: formData.birth_date && formData.birth_date.trim() !== '' ? formData.birth_date : null,
+        email: formData.email && formData.email.trim() !== '' ? formData.email : null,
+        village: formData.village && formData.village.trim() !== '' ? formData.village : null,
+        address: formData.address && formData.address.trim() !== '' ? formData.address : null,
+        gender: formData.gender && formData.gender.trim() !== '' ? formData.gender : null,
+        education_level: formData.education_level && formData.education_level.trim() !== '' ? formData.education_level : null,
+        primary_language: formData.primary_language && formData.primary_language.trim() !== '' ? formData.primary_language : null,
+        is_active: formData.is_active === 'true' || formData.is_active === true
+      };
+
+      console.log('Form data before processing:', formData);
+      console.log('Processed producer data:', producerData);
+
+      if (producer) {
+        await ProducersService.updateProducer(producer.id, producerData);
+        showToast('Producteur modifié avec succès', 'success');
+      } else {
+        await ProducersService.createProducer(producerData);
+        showToast('Producteur créé avec succès', 'success');
+      }
+
+      onSave();
+    } catch (error) {
+      console.error('Error saving producer:', error);
+      showToast('Erreur lors de la sauvegarde', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (!isOpen) return null;
+  const genderOptions = [
+    { value: 'M', label: 'Homme' },
+    { value: 'F', label: 'Femme' },
+    { value: 'O', label: 'Autre' }
+  ];
+
+  const educationLevels = [
+    { value: 'none', label: 'Aucune' },
+    { value: 'primary', label: 'Primaire' },
+    { value: 'secondary', label: 'Secondaire' },
+    { value: 'high_school', label: 'Lycée' },
+    { value: 'university', label: 'Université' }
+  ];
+
+  const languages = [
+    { value: 'french', label: 'Français' },
+    { value: 'wolof', label: 'Wolof' },
+    { value: 'pulaar', label: 'Pulaar' },
+    { value: 'serer', label: 'Sérère' },
+    { value: 'diola', label: 'Diola' }
+  ];
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-            <User className="h-5 w-5 mr-2" />
-            {title}
-          </h2>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[800px] max-h-[90vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>
+            {producer ? 'Modifier les informations du producteur' : 'Ajouter un nouveau producteur'}
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto py-4">
+          <Tabs defaultValue="basic" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="basic">Informations de base</TabsTrigger>
+              <TabsTrigger value="location">Localisation</TabsTrigger>
+              <TabsTrigger value="personal">Informations personnelles</TabsTrigger>
+            </TabsList>
+
+            {/* Informations de base */}
+            <TabsContent value="basic" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Informations de base</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="first_name">Prénom *</Label>
+                      <Input
+                        id="first_name"
+                        value={formData.first_name}
+                        onChange={(e) => handleInputChange('first_name', e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="last_name">Nom *</Label>
+                      <Input
+                        id="last_name"
+                        value={formData.last_name}
+                        onChange={(e) => handleInputChange('last_name', e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="phone">Téléphone *</Label>
+                      <Input
+                        id="phone"
+                        value={formData.phone}
+                        onChange={(e) => handleInputChange('phone', e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => handleInputChange('email', e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="cooperative_id">Coopérative *</Label>
+                    <Select
+                      value={formData.cooperative_id}
+                      onValueChange={(value) => handleInputChange('cooperative_id', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sélectionner une coopérative" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {cooperatives
+                          .filter((coop) => coop.id && coop.name)
+                          .map((coop) => (
+                            <SelectItem key={coop.id} value={coop.id}>
+                              {coop.name}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="is_active"
+                      checked={formData.is_active}
+                      onChange={(e) => handleInputChange('is_active', e.target.checked.toString())}
+                    />
+                    <Label htmlFor="is_active">Producteur actif</Label>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Localisation */}
+            <TabsContent value="location" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Localisation</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="region">Région *</Label>
+                      <Select
+                        value={formData.region}
+                        onValueChange={(value) => handleInputChange('region', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionner une région" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {regions
+                            .filter((region) => region && region.trim() !== '')
+                            .map((region) => (
+                              <SelectItem key={region} value={region}>
+                                {region}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="department">Département *</Label>
+                      <Select
+                        value={formData.department}
+                        onValueChange={(value) => handleInputChange('department', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionner un département" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {departments
+                            .filter((dept) => dept && dept.trim() !== '')
+                            .map((dept) => (
+                              <SelectItem key={dept} value={dept}>
+                                {dept}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="commune">Commune *</Label>
+                      <Select
+                        value={formData.commune}
+                        onValueChange={(value) => handleInputChange('commune', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionner une commune" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {communes
+                            .filter((commune) => commune && commune.trim() !== '')
+                            .map((commune) => (
+                              <SelectItem key={commune} value={commune}>
+                                {commune}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="village">Village</Label>
+                      <Input
+                        id="village"
+                        value={formData.village}
+                        onChange={(e) => handleInputChange('village', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="address">Adresse</Label>
+                      <Input
+                        id="address"
+                        value={formData.address}
+                        onChange={(e) => handleInputChange('address', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Informations personnelles */}
+            <TabsContent value="personal" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Informations personnelles</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="birth_date">Date de naissance</Label>
+                      <Input
+                        id="birth_date"
+                        type="date"
+                        value={formData.birth_date}
+                        onChange={(e) => handleInputChange('birth_date', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="gender">Genre</Label>
+                      <Select
+                        value={formData.gender}
+                        onValueChange={(value) => handleInputChange('gender', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionner un genre" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {genderOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="education_level">Niveau d'éducation</Label>
+                      <Select
+                        value={formData.education_level}
+                        onValueChange={(value) => handleInputChange('education_level', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionner un niveau" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {educationLevels.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="primary_language">Langue principale</Label>
+                      <Select
+                        value={formData.primary_language}
+                        onValueChange={(value) => handleInputChange('primary_language', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionner une langue" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {languages.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="farming_experience_years">Années d'expérience agricole</Label>
+                      <Input
+                        id="farming_experience_years"
+                        type="number"
+                        min="0"
+                        value={formData.farming_experience_years}
+                        onChange={(e) => handleInputChange('farming_experience_years', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="household_size">Taille du ménage</Label>
+                      <Input
+                        id="household_size"
+                        type="number"
+                        min="1"
+                        value={formData.household_size}
+                        onChange={(e) => handleInputChange('household_size', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </form>
+
+        {/* Actions */}
+        <div className="flex justify-end gap-2 pt-4 border-t">
+          <Button variant="outline" onClick={onClose}>
+            Annuler
+          </Button>
           <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
+            type="submit"
+            onClick={handleSubmit}
+            disabled={loading}
+            className="flex items-center gap-2"
           >
-            <X className="h-5 w-5" />
+            {loading ? 'Sauvegarde...' : (producer ? 'Modifier' : 'Créer')}
           </Button>
         </div>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Prénom */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Prénom *
-              </label>
-              <input
-                type="text"
-                value={formData.first_name}
-                onChange={(e) => handleChange('first_name', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent ${
-                  errors.first_name ? 'border-red-300' : 'border-gray-300'
-                }`}
-                placeholder="Prénom du producteur"
-              />
-              {errors.first_name && (
-                <p className="mt-1 text-sm text-red-600">{errors.first_name}</p>
-              )}
-            </div>
-
-            {/* Nom */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nom *
-              </label>
-              <input
-                type="text"
-                value={formData.last_name}
-                onChange={(e) => handleChange('last_name', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent ${
-                  errors.last_name ? 'border-red-300' : 'border-gray-300'
-                }`}
-                placeholder="Nom du producteur"
-              />
-              {errors.last_name && (
-                <p className="mt-1 text-sm text-red-600">{errors.last_name}</p>
-              )}
-            </div>
-
-            {/* Téléphone */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Téléphone *
-              </label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => handleChange('phone', e.target.value)}
-                  className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent ${
-                    errors.phone ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  placeholder="+221 77 123 45 67"
-                />
-              </div>
-              {errors.phone && (
-                <p className="mt-1 text-sm text-red-600">{errors.phone}</p>
-              )}
-            </div>
-
-            {/* Email */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => handleChange('email', e.target.value)}
-                  className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent ${
-                    errors.email ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  placeholder="email@exemple.com"
-                />
-              </div>
-              {errors.email && (
-                <p className="mt-1 text-sm text-red-600">{errors.email}</p>
-              )}
-            </div>
-
-            {/* Région */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Région *
-              </label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  value={formData.region}
-                  onChange={(e) => handleChange('region', e.target.value)}
-                  className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent ${
-                    errors.region ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  placeholder="Région"
-                />
-              </div>
-              {errors.region && (
-                <p className="mt-1 text-sm text-red-600">{errors.region}</p>
-              )}
-            </div>
-
-            {/* Département */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Département *
-              </label>
-              <input
-                type="text"
-                value={formData.department}
-                onChange={(e) => handleChange('department', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent ${
-                  errors.department ? 'border-red-300' : 'border-gray-300'
-                }`}
-                placeholder="Département"
-              />
-              {errors.department && (
-                <p className="mt-1 text-sm text-red-600">{errors.department}</p>
-              )}
-            </div>
-
-            {/* Commune */}
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Commune *
-              </label>
-              <input
-                type="text"
-                value={formData.commune}
-                onChange={(e) => handleChange('commune', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent ${
-                  errors.commune ? 'border-red-300' : 'border-gray-300'
-                }`}
-                placeholder="Commune"
-              />
-              {errors.commune && (
-                <p className="mt-1 text-sm text-red-600">{errors.commune}</p>
-              )}
-            </div>
-
-            {/* Statut */}
-            <div className="md:col-span-2">
-              <label className="flex items-center space-x-3">
-                <input
-                  type="checkbox"
-                  checked={formData.is_active}
-                  onChange={(e) => handleChange('is_active', e.target.checked)}
-                  className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-                />
-                <span className="text-sm font-medium text-gray-700">
-                  Producteur actif
-                </span>
-              </label>
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-            >
-              Annuler
-            </Button>
-            <Button
-              type="submit"
-              className="bg-green-600 hover:bg-green-700 text-white"
-            >
-              <Save className="h-4 w-4 mr-2" />
-              {producer ? 'Modifier' : 'Créer'}
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 
