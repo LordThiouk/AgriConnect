@@ -9,6 +9,7 @@ import { useNavigation, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useAgentDashboard } from '../../hooks/useAgentDashboard';
+import ContentWithHeader from '../../components/ContentWithHeader';
 // import { LinearGradient } from 'expo-linear-gradient';
 
 export default function AgentDashboard() {
@@ -22,37 +23,6 @@ export default function AgentDashboard() {
   const today = new Date().toLocaleDateString();
   const agentName = user?.user_metadata?.display_name || 'Agent terrain';
   const agentFirstName = (agentName || '').split(' ')[0] || agentName;
-  // Titre d'entête natif riche (Bonjour + date) et actions à droite
-  const HeaderTitle = () => (
-    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-      <Ionicons name="person-circle" size={24} color="#3D944B" />
-      <View style={{ marginLeft: 8 }}>
-        <Text style={{ color: '#111827', fontWeight: '700' }}>{`Bonjour, ${agentFirstName}`}</Text>
-        <Text style={{ color: '#6b7280', fontSize: 12 }}>{today}</Text>
-      </View>
-    </View>
-  );
-
-  const HeaderRight = () => (
-    <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 8 }}>
-      <View style={styles.onlinePill}>
-        <View style={styles.dotGreen} />
-        <Text style={styles.onlineText}>En ligne</Text>
-      </View>
-      <Ionicons name="notifications-outline" size={20} color="#111827" style={{ marginLeft: 8 }} />
-    </View>
-  );
-
-  useLayoutEffect(() => {
-    navigation.setOptions?.({
-      headerTitle: () => <HeaderTitle />,
-      headerRight: () => <HeaderRight />,
-      headerStyle: { backgroundColor: '#FFFFFF' },
-      headerTitleStyle: { color: '#111827' },
-      headerTintColor: '#111827',
-      headerTitleAlign: 'left',
-    } as any);
-  }, [navigation, agentFirstName, today, HeaderTitle, HeaderRight]);
 
   // KPI basés sur les vraies données
   const kpiStats = [
@@ -97,7 +67,7 @@ export default function AgentDashboard() {
   }
 
   return (
-    <View style={styles.container}>
+    <ContentWithHeader style={styles.container}>
       <ScrollView 
         style={styles.scrollView} 
         showsVerticalScrollIndicator={false}
@@ -228,7 +198,7 @@ export default function AgentDashboard() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </View>
+    </ContentWithHeader>
   );
 }
 

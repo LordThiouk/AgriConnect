@@ -139,29 +139,57 @@ const Dashboard: React.FC = () => {
           <KPICard
             title="Total Producteurs"
             value={stats.totalProducers}
-            change={stats.producersChange}
             icon={UsersIcon}
             color="blue"
           />
           <KPICard
             title="Coopératives Actives"
-            value={stats.totalCooperatives}
-            change={stats.cooperativesChange}
+            value={stats.cooperatives.length}
             icon={Building2Icon}
             color="green"
           />
           <KPICard
             title="Parcelles Enregistrées"
             value={stats.totalPlots}
-            change={stats.plotsChange}
             icon={MapPinIcon}
             color="purple"
           />
           <KPICard
             title="Agents de Terrain"
             value={stats.totalAgents}
-            change={stats.agentsChange}
             icon={UserCheckIcon}
+            color="orange"
+          />
+        </div>
+
+        {/* KPI Cards - Secondary Row - Agent Performance */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <KPICard
+            title="Agents Actifs"
+            value={stats.activeAgents}
+            subtitle={`sur ${stats.totalAgents} agents`}
+            icon={UserCheckIcon}
+            color="green"
+          />
+          <KPICard
+            title="Total Visites"
+            value={stats.totalVisits}
+            subtitle="visites effectuées"
+            icon={MapIcon}
+            color="blue"
+          />
+          <KPICard
+            title="Visites/Agent"
+            value={stats.avgVisitsPerAgent.toFixed(1)}
+            subtitle="moyenne par agent"
+            icon={BarChart3Icon}
+            color="purple"
+          />
+          <KPICard
+            title="Qualité Données"
+            value={`${stats.dataQualityRate.toFixed(1)}%`}
+            subtitle="taux de complétude"
+            icon={WheatIcon}
             color="orange"
           />
         </div>
@@ -174,7 +202,7 @@ const Dashboard: React.FC = () => {
 
         {/* Map and Alerts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <MapPanel data={stats.regionalData} />
+          <MapPanel plotCount={stats.totalPlots} />
           <AlertsPanel alerts={stats.recentAlerts} />
         </div>
 

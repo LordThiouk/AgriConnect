@@ -15,6 +15,7 @@ import { Colors } from '../../../constants/Colors';
 import { CollecteService } from '../../../lib/services/collecte';
 import { FarmFileDisplay } from '../../../types/collecte';
 import { useAuth } from '../../../context/AuthContext';
+import ContentWithHeader from '../../../components/ContentWithHeader';
 
 type FilterStatus = 'all' | 'draft' | 'completed';
 
@@ -257,7 +258,7 @@ export default function CollecteScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <ContentWithHeader style={styles.container}>
       <FlatList
         data={filteredFarmFiles}
         renderItem={renderItem}
@@ -323,7 +324,7 @@ export default function CollecteScreen() {
         >
             <Ionicons name="add" size={24} color={Colors.white} />
         </TouchableOpacity>
-    </View>
+    </ContentWithHeader>
   );
 }
 
@@ -344,11 +345,10 @@ const StatusBadge = ({ status }: { status: string }) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  listContentContainer: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 80 },
+  listContentContainer: { paddingHorizontal: 20, paddingBottom: 40 },
   primaryButtonContainer: {
-    paddingBottom: 20,
+    paddingBottom: 10,
     paddingHorizontal: 20,
-    paddingTop:10
   },
   primaryButton: {
     flexDirection: 'row',

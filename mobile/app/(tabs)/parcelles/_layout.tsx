@@ -1,5 +1,11 @@
 import { Stack } from 'expo-router';
 
 export default function ParcellesLayout() {
-  return <Stack />;
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" />
+      <Stack.Screen name="select-fiche" />
+      <Stack.Screen name="[plotId]" />
+    </Stack>
+  );
 }

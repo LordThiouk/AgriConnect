@@ -44,6 +44,67 @@ export interface CooperativeFilters {
   is_active?: boolean;
 }
 
+// ===== AGENT TYPES =====
+export interface Agent {
+  id: string;
+  user_id: string;
+  display_name: string;
+  phone?: string;
+  region?: string;
+  department?: string;
+  commune?: string;
+  cooperative?: string;
+  is_active: boolean;
+  approval_status: 'pending' | 'approved' | 'rejected';
+  created_at: string;
+  updated_at: string;
+  // Performance metrics
+  totalVisits?: number;
+  totalProducers?: number;
+  totalPlots?: number;
+  avgVisitsPerMonth?: number;
+  dataQualityRate?: number;
+  visitsThisMonth?: number;
+}
+
+export interface AgentFilters {
+  search?: string;
+  region?: string;
+  department?: string;
+  commune?: string;
+  cooperative_id?: string;
+  is_active?: boolean;
+  approval_status?: 'pending' | 'approved' | 'rejected';
+}
+
+export interface AgentPerformance {
+  totalProducers: number;
+  totalVisits: number;
+  totalPlots: number;
+  totalOperations: number;
+  totalObservations: number;
+  visitsThisMonth: number;
+  avgVisitsPerProducer: number;
+  lastSyncDate: string | null;
+  dataCompletionRate: number;
+  photosPerPlot: number;
+  gpsAccuracyRate: number;
+  avgVisitDuration: number;
+  avgDataEntryTime: number;
+  syncSuccessRate: number;
+  avgVisitsPerMonth: number;
+  dataQualityRate: number;
+}
+
+export interface AgentStats {
+  totalAgents: number;
+  activeAgents: number;
+  totalProducers: number;
+  totalVisits: number;
+  avgVisitsPerAgent: number;
+  dataQualityRate: number;
+}
+
 // ===== PRODUCER TYPES =====
 export interface Producer {
   id: string;
@@ -94,20 +155,6 @@ export interface ProducerFilters {
   is_active?: boolean;
 }
 
-// ===== AGENT TYPES =====
-export interface Agent {
-  id: string;
-  user_id: string;
-  display_name: string;
-  phone?: string;
-  role: 'agent';
-  region?: string;
-  department?: string;
-  commune?: string;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
 
 // ===== FARM FILE TYPES =====
 export interface FarmFile {
@@ -150,6 +197,11 @@ export interface Plot {
   notes?: string;
   created_at: string;
   updated_at: string;
+  // Geographic data
+  latitude?: number;
+  longitude?: number;
+  geom?: any; // PostGIS geometry
+  center_point?: any; // PostGIS center point
   // Relations
   producer?: Producer;
   crops?: Crop[];
@@ -161,12 +213,14 @@ export interface Crop {
   plot_id: string;
   crop_type: string;
   variety?: string;
-  planting_date?: string;
+  sowing_date?: string;
   expected_harvest_date?: string;
   actual_harvest_date?: string;
   estimated_yield_kg_ha?: number;
   actual_yield_kg_ha?: number;
+  area_hectares?: number;
   status: 'planted' | 'growing' | 'harvested' | 'failed';
+  season?: string;
   notes?: string;
   created_at: string;
   updated_at: string;
@@ -402,6 +456,95 @@ export interface Notification {
   type: 'info' | 'warning' | 'error' | 'success';
   is_read: boolean;
   created_at: string;
+}
+
+// ===== VISIT TYPES =====
+export interface Visit {
+  id: string;
+  agent_id: string;
+  producer_id: string;
+  plot_id?: string;
+  cooperative_id?: string;
+  visit_date: string;
+  visit_type: 'planned' | 'follow_up' | 'emergency' | 'routine';
+  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'no_show';
+  duration_minutes?: number;
+  location_latitude?: number;
+  location_longitude?: number;
+  notes?: string;
+  weather_conditions?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateVisitData {
+  agent_id: string;
+  producer_id: string;
+  plot_id?: string;
+  cooperative_id?: string;
+  visit_date: string;
+  visit_type?: 'planned' | 'follow_up' | 'emergency' | 'routine';
+  status?: 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'no_show';
+  duration_minutes?: number;
+  location_latitude?: number;
+  location_longitude?: number;
+  notes?: string;
+  weather_conditions?: string;
+}
+
+export interface UpdateVisitData {
+  id: string;
+  visit_date?: string;
+  visit_type?: 'planned' | 'follow_up' | 'emergency' | 'routine';
+  status?: 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'no_show';
+  duration_minutes?: number;
+  location_latitude?: number;
+  location_longitude?: number;
+  notes?: string;
+  weather_conditions?: string;
+}
+
+// ===== PLOT FILTERS & STATS =====
+export interface PlotFilters {
+  search?: string;
+  producer_id?: string;
+  status?: 'active' | 'inactive' | 'abandoned';
+  soil_type?: string;
+  water_source?: string;
+  region?: string;
+  cooperative_id?: string;
+}
+
+export interface PlotStats {
+  totalPlots: number;
+  activePlots: number;
+  totalArea: number;
+  averageArea: number;
+  plotsByStatus: Record<string, number>;
+  plotsBySoilType: Record<string, number>;
+}
+
+// ===== CROP FILTERS & STATS =====
+export interface CropFilters {
+  search?: string;
+  plot_id?: string;
+  crop_type?: string;
+  status?: 'planted' | 'growing' | 'harvested' | 'failed';
+  season?: string;
+  producer_id?: string;
+  region?: string;
+  cooperative_id?: string;
+}
+
+export interface CropStats {
+  totalCrops: number;
+  activeCrops: number;
+  harvestedCrops: number;
+  failedCrops: number;
+  totalArea: number;
+  averageYield: number;
+  cropsByType: Record<string, number>;
+  cropsByStatus: Record<string, number>;
 }
 
 // ===== AUDIT TYPES =====

@@ -18,6 +18,8 @@ import {
   InputDisplay,
   CollecteFilters,
   CollecteSort,
+  GlobalObservationDisplay,
+  GeneralNotificationDisplay,
   calculateCompletionStatus,
   calculateCompletionPercent,
   getSyncStatus,
@@ -30,10 +32,9 @@ import {
   Operation,
   OperationInsert,
   Input,
-  InputInsert
+  InputInsert,
+  ObservationDisplay
 } from '../../types/collecte';
-import { ObservationDisplay } from '../../types/collecte';
-import { ObservationSeverity } from '../../types/observation';
 
 export class CollecteService {
   static supabase: SupabaseClient<Database> = supabase;
@@ -46,7 +47,7 @@ export class CollecteService {
       console.log('📋 Récupération des fiches d\'exploitation via RPC pour l\'agent:', agentId);
 
       // Appel de la fonction RPC
-      const { data, error } = await this.supabase
+      const { data, error } = await (this.supabase as any)
         .rpc('get_farm_files', { p_agent_id: agentId });
 
       if (error) {
@@ -358,7 +359,7 @@ export class CollecteService {
       console.log('🌾 Récupération des parcelles via RPC pour l\'agent:', agentId, 'avec filtres:', filters);
 
       // Utiliser la fonction RPC pour récupérer les parcelles
-      const { data: plots, error: rpcError } = await this.supabase
+      const { data: plots, error: rpcError } = await (this.supabase as any)
         .rpc('get_agent_plots', { agent_auth_id: agentId });
 
       if (rpcError) {
@@ -471,7 +472,7 @@ export class CollecteService {
   static async getLatestOperations(plotId: string): Promise<OperationDisplay[]> {
     try {
       console.log('🚜 RPC: Récupération des dernières opérations pour la parcelle:', plotId);
-      const { data, error } = await this.supabase
+      const { data, error } = await (this.supabase as any)
         .rpc('get_operations_for_plot', { p_plot_id: plotId });
 
       if (error) {
@@ -500,7 +501,7 @@ export class CollecteService {
    */
   static async getLatestObservations(plotId: string): Promise<ObservationDisplay[]> {
     try {
-      const { data, error } = await this.supabase
+      const { data, error } = await (this.supabase as any)
         .rpc('get_observations_for_plot', { p_plot_id: plotId });
 
       if (error) {
@@ -513,7 +514,7 @@ export class CollecteService {
         id: obs.id,
         title: obs.observation_type ?? 'Observation',
         date: new Date(obs.observation_date).toLocaleDateString('fr-FR'),
-        severity: (obs.severity || 1) as ObservationSeverity,
+        severity: (obs.severity || 1) as 1 | 2 | 3 | 4 | 5,
         author: obs.author_name,
       }));
     } catch (err) {
@@ -635,7 +636,7 @@ export class CollecteService {
    */
   static async getObservationsByPlotId(plotId: string): Promise<ObservationDisplay[]> {
     try {
-      const { data, error } = await this.supabase
+      const { data, error } = await (this.supabase as any)
         .rpc('get_observations_for_plot', { p_plot_id: plotId });
 
       if (error) {
@@ -650,7 +651,7 @@ export class CollecteService {
         date: new Date(obs.observation_date).toLocaleDateString('fr-FR'),
         author: obs.author_name,
         type: obs.observation_type,
-        severity: (obs.severity || 1) as ObservationSeverity,
+        severity: (obs.severity || 1) as 1 | 2 | 3 | 4 | 5,
         description: obs.description,
       }));
     } catch (err) {
@@ -672,7 +673,7 @@ export class CollecteService {
       }
 
       // Utiliser la fonction RPC pour récupérer la parcelle
-      const { data: plots, error: rpcError } = await this.supabase
+      const { data: plots, error: rpcError } = await (this.supabase as any)
         .rpc('get_plot_by_id', { 
           p_plot_id: plotId, 
           p_agent_auth_id: agentId 
@@ -953,7 +954,7 @@ export class CollecteService {
   static async getOperationsByPlotId(plotId: string): Promise<OperationDisplay[]> {
     try {
       console.log('🚜 RPC: Récupération des opérations pour la parcelle:', plotId);
-      const { data, error } = await this.supabase
+      const { data, error } = await (this.supabase as any)
         .rpc('get_operations_for_plot', { p_plot_id: plotId });
 
       if (error) {
@@ -1147,6 +1148,39 @@ export class CollecteService {
   }
 
   /**
+   * Récupère toutes les cultures d'une parcelle
+   */
+  static async getCropsByPlotId(plotId: string, agentId?: string): Promise<Crop[]> {
+    try {
+      console.log('🌾 Récupération de toutes les cultures pour la parcelle:', plotId);
+      
+      if (!agentId) {
+        console.warn('⚠️ Agent ID manquant, impossible de récupérer les cultures');
+        return [];
+      }
+
+      // Utiliser la fonction RPC pour récupérer les cultures
+      const { data, error } = await (this.supabase as any)
+        .rpc('get_crops_by_plot_id', {
+          p_plot_id: plotId,
+          p_agent_auth_id: agentId
+        });
+
+      if (error) {
+        console.error('❌ Erreur lors de la récupération des cultures via RPC:', error);
+        throw error;
+      }
+
+      console.log(`✅ ${data?.length || 0} culture(s) trouvée(s) pour la parcelle ${plotId}`);
+      return data || [];
+
+    } catch (err) {
+      console.error('❌ Exception in getCropsByPlotId:', err);
+      return [];
+    }
+  }
+
+  /**
    * Crée un nouvel intrant (input)
    */
   static async createInput(inputData: InputInsert): Promise<Input> {
@@ -1198,7 +1232,7 @@ export class CollecteService {
     }
   }
 
-  static async createCrop(cropData: Omit<Crop, 'id' | 'created_at' | 'updated_at'>, agentId?: string): Promise<Crop> {
+  static async createCrop(cropData: { plot_id: string; season_id: string; crop_type: string; variety: string; sowing_date: string; status: string; created_by: string | null; }, agentId?: string): Promise<Crop> {
     try {
       console.log('🌱 Création d\'une nouvelle culture via RPC:', cropData, 'pour agent:', agentId);
 
@@ -1208,7 +1242,7 @@ export class CollecteService {
       }
 
       // Utiliser la fonction RPC pour créer la culture
-      const { data: cropId, error: rpcError } = await this.supabase
+      const { data: cropId, error: rpcError } = await (this.supabase as any)
         .rpc('create_crop_for_agent', {
           p_plot_id: cropData.plot_id,
           p_crop_type: cropData.crop_type || 'Maize',
@@ -1228,7 +1262,7 @@ export class CollecteService {
       }
 
       // Récupérer la culture créée via fonction RPC
-      const { data: crops, error: fetchError } = await this.supabase
+      const { data: crops, error: fetchError } = await (this.supabase as any)
         .rpc('get_crop_by_id', {
           p_crop_id: cropId,
           p_agent_auth_id: agentId
@@ -1280,6 +1314,79 @@ export class CollecteService {
       return { id: data.id, name: data.label };
     } catch (err) {
       console.error('❌ Exception in getCurrentSeason:', err);
+      throw err;
+    }
+  }
+
+  /**
+   * Met à jour une culture existante
+   */
+  static async updateCrop(cropId: string, cropData: {
+    crop_type: string;
+    variety: string;
+    sowing_date: string;
+    status: string;
+  }, agentId: string): Promise<boolean> {
+    try {
+      console.log('🔄 Mise à jour de la culture:', cropId, cropData);
+
+      if (!agentId) {
+        console.warn('⚠️ Agent ID manquant, impossible de mettre à jour la culture');
+        throw new Error('Agent ID manquant');
+      }
+
+      // Utiliser la fonction RPC pour mettre à jour la culture
+      const { data, error } = await (this.supabase as any)
+        .rpc('update_crop_for_agent', {
+          p_crop_id: cropId,
+          p_crop_type: cropData.crop_type,
+          p_variety: cropData.variety,
+          p_sowing_date: cropData.sowing_date,
+          p_status: cropData.status,
+          p_agent_auth_id: agentId
+        });
+
+      if (error) {
+        console.error('❌ Erreur lors de la mise à jour de la culture via RPC:', error);
+        throw error;
+      }
+
+      console.log('✅ Culture mise à jour avec succès:', data);
+      return true;
+    } catch (err) {
+      console.error('❌ Exception in updateCrop:', err);
+      throw err;
+    }
+  }
+
+  /**
+   * Supprime une culture
+   */
+  static async deleteCrop(cropId: string, agentId: string): Promise<boolean> {
+    try {
+      console.log('🗑️ Suppression de la culture:', cropId);
+
+      if (!agentId) {
+        console.warn('⚠️ Agent ID manquant, impossible de supprimer la culture');
+        throw new Error('Agent ID manquant');
+      }
+
+      // Utiliser la fonction RPC pour supprimer la culture
+      const { data, error } = await (this.supabase as any)
+        .rpc('delete_crop_for_agent', {
+          p_crop_id: cropId,
+          p_agent_auth_id: agentId
+        });
+
+      if (error) {
+        console.error('❌ Erreur lors de la suppression de la culture via RPC:', error);
+        throw error;
+      }
+
+      console.log('✅ Culture supprimée avec succès:', data);
+      return data;
+    } catch (err) {
+      console.error('❌ Exception in deleteCrop:', err);
       throw err;
     }
   }
@@ -1448,6 +1555,125 @@ export class CollecteService {
     } catch (err) {
       console.error('❌ Exception in addObservation:', err);
       throw err;
+    }
+  }
+
+  /**
+   * Récupère toutes les observations des producteurs assignés à l'agent
+   */
+  static async getObservationsForAgent(
+    agentId: string,
+    limit: number = 50,
+    offset: number = 0,
+    observationTypeFilter?: string,
+    severityFilter?: number
+  ): Promise<GlobalObservationDisplay[]> {
+    try {
+      console.log('🔍 Récupération des observations pour l\'agent:', agentId);
+      
+      const { data, error } = await (this.supabase as any).rpc('get_observations_for_agent', {
+        p_agent_id: agentId,
+        p_limit_count: limit,
+        p_offset_count: offset,
+        p_observation_type_filter: observationTypeFilter || null,
+        p_severity_filter: severityFilter || null
+      });
+
+      if (error) {
+        console.error("❌ Erreur lors de la récupération des observations:", error);
+        throw error;
+      }
+
+      if (!data) {
+        console.log('📋 Aucune observation trouvée pour l\'agent');
+        return [];
+      }
+
+      console.log(`✅ ${data.length} observation(s) récupérée(s) pour l'agent`);
+
+      // Transformer les données en format d'affichage
+      return data.map((obs: any) => {
+        const type = this.mapObservationType(obs.observation_type);
+        const { color, icon } = this.getObservationStyle(type, obs.severity);
+        
+        return {
+          id: obs.id,
+          title: this.getObservationTitle(obs.observation_type, obs.pest_disease_name),
+          type,
+          plotName: obs.plot_name,
+          cropType: obs.crop_type || 'N/A',
+          description: obs.description || obs.recommendations || 'Aucune description',
+          severity: obs.severity || 1,
+          status: obs.status || 'new',
+          timestamp: obs.observation_date,
+          isCritical: obs.is_critical,
+          color,
+          icon,
+          pestDiseaseName: obs.pest_disease_name,
+          emergencePercent: obs.emergence_percent,
+          affectedAreaPercent: obs.affected_area_percent,
+          recommendations: obs.recommendations,
+          producerName: obs.producer_name,
+          observedBy: obs.observed_by
+        };
+      });
+    } catch (err) {
+      console.error('❌ Exception in getObservationsForAgent:', err);
+      throw err;
+    }
+  }
+
+  /**
+   * Mappe le type d'observation de la base vers le type d'affichage
+   */
+  private static mapObservationType(observationType: string): 'fertilization' | 'disease' | 'irrigation' | 'harvest' | 'other' {
+    switch (observationType.toLowerCase()) {
+      case 'pest_disease':
+        return 'disease';
+      case 'emergence':
+        return 'fertilization';
+      case 'phenology':
+        return 'harvest';
+      default:
+        return 'other';
+    }
+  }
+
+  /**
+   * Génère le titre de l'observation basé sur le type et les détails
+   */
+  private static getObservationTitle(observationType: string, pestDiseaseName?: string): string {
+    switch (observationType.toLowerCase()) {
+      case 'pest_disease':
+        return pestDiseaseName ? `Traitement ${pestDiseaseName}` : 'Traitement fongicide urgent';
+      case 'emergence':
+        return 'Fertilisation azotée';
+      case 'phenology':
+        return 'Récolte optimale';
+      default:
+        return 'Observation terrain';
+    }
+  }
+
+  /**
+   * Détermine le style (couleur et icône) basé sur le type et la sévérité
+   */
+  private static getObservationStyle(type: string, severity: number): { color: string; icon: string } {
+    if (severity >= 4) {
+      return { color: '#ef4444', icon: 'alert-triangle' }; // Rouge pour critique
+    }
+
+    switch (type) {
+      case 'fertilization':
+        return { color: '#3b82f6', icon: 'leaf' }; // Bleu pour fertilisation
+      case 'disease':
+        return { color: '#ef4444', icon: 'bug' }; // Rouge pour maladies
+      case 'irrigation':
+        return { color: '#3b82f6', icon: 'droplet' }; // Bleu pour irrigation
+      case 'harvest':
+        return { color: '#10b981', icon: 'scissors' }; // Vert pour récolte
+      default:
+        return { color: '#6b7280', icon: 'info' }; // Gris pour autre
     }
   }
 

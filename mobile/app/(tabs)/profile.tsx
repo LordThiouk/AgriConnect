@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Switch } f
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import ContentWithHeader from '../../components/ContentWithHeader';
 
 const ProfileScreen: React.FC = () => {
   const { user, signOut, isAuthenticated } = useAuth();
@@ -95,7 +96,8 @@ const ProfileScreen: React.FC = () => {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ContentWithHeader>
+      <ScrollView style={styles.container}>
       {/* En-tête du profil */}
       <View style={styles.header}>
         <View style={styles.avatarContainer}>
@@ -167,7 +169,8 @@ const ProfileScreen: React.FC = () => {
         <Text style={styles.appInfoText}>AgriConnect v1.0.0</Text>
         <Text style={styles.appInfoText}>© 2025 AgriConnect</Text>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </ContentWithHeader>
   );
 };
 

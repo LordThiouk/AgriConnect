@@ -10,20 +10,17 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#10b981',
+        tabBarActiveTintColor: '#3D944B',
         tabBarInactiveTintColor: '#6b7280',
         tabBarStyle: {
           backgroundColor: '#ffffff',
           borderTopWidth: 1,
           borderTopColor: '#e5e7eb',
+          height: 60,
+          paddingBottom: 8,
+          paddingTop: 8,
         },
-        headerStyle: {
-          backgroundColor: '#10b981',
-        },
-        headerTintColor: '#ffffff',
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
+        headerShown: false, // Désactiver tous les headers par défaut
       }}>
       
       {/* Tableaux de bord spécifiques par rôle - Mobile uniquement */}
@@ -70,7 +67,6 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="add-circle" size={size} color={color} />
           ),
-          headerShown: false, // Désactiver le header des tabs pour permettre le header personnalisé
         }}
       />
 
@@ -79,7 +75,6 @@ export default function TabLayout() {
         name="parcelles" // Correction: pointe vers le répertoire
         options={{
           title: 'Parcelles',
-          headerShown: false, // Le Stack interne gère son propre header
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="pricetag" size={size} color={color} />
           ),

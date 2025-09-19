@@ -5,6 +5,7 @@ import { CollecteService } from '../../../../lib/services/collecte';
 import { PlotDisplay, ParticipantDisplay, RecommendationDisplay, OperationDisplay, InputDisplay, ObservationDisplay, Crop } from '../../../../types/collecte';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../../../../context/AuthContext';
+import ContentWithHeader from '../../../../components/ContentWithHeader';
 
 const InfoCard = ({ plot }: { plot: PlotDisplay | null }) => {
   const statusConfig = {
@@ -60,7 +61,7 @@ const IntervenantsCard = ({ plotId, router }: { plotId: string; router: any }) =
   const [participants, setParticipants] = useState<ParticipantDisplay[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchParticipants = async () => {
+  const fetchParticipants = React.useCallback(async () => {
     try {
       setLoading(true);
       const data = await CollecteService.getParticipantsByPlotId(plotId);
@@ -70,16 +71,16 @@ const IntervenantsCard = ({ plotId, router }: { plotId: string; router: any }) =
     } finally {
       setLoading(false);
     }
-  };
+  }, [plotId]);
 
   useEffect(() => {
     fetchParticipants();
-  }, [plotId]);
+  }, [fetchParticipants]);
 
   useFocusEffect(
     React.useCallback(() => {
       fetchParticipants();
-    }, [plotId])
+    }, [fetchParticipants])
   );
 
   const getTagStyle = (tag: string) => {
@@ -241,7 +242,7 @@ const LatestOperationsCard = ({ plotId, onSeeAll }: { plotId: string; onSeeAll: 
   const [operations, setOperations] = useState<OperationDisplay[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchOps = async () => {
+  const fetchOps = React.useCallback(async () => {
     try {
       setLoading(true);
       const data = await CollecteService.getLatestOperations(plotId);
@@ -251,16 +252,16 @@ const LatestOperationsCard = ({ plotId, onSeeAll }: { plotId: string; onSeeAll: 
     } finally {
       setLoading(false);
     }
-  };
+  }, [plotId]);
 
   useEffect(() => {
     fetchOps();
-  }, [plotId]);
+  }, [fetchOps]);
 
   useFocusEffect(
     React.useCallback(() => {
       fetchOps();
-    }, [plotId])
+    }, [fetchOps])
   );
 
   const renderItem = ({ item }: { item: OperationDisplay }) => {
@@ -302,11 +303,11 @@ const LatestOperationsCard = ({ plotId, onSeeAll }: { plotId: string; onSeeAll: 
   );
 };
 
-const LatestObservationsCard = ({ plotId, onSeeAll }: { plotId: string; onSeeAll: () => void }) => {
+const LatestObservationsCard = ({ plotId, router }: { plotId: string; router: any }) => {
   const [observations, setObservations] = useState<ObservationDisplay[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchObs = async () => {
+  const fetchObs = React.useCallback(async () => {
     try {
       setLoading(true);
       const data = await CollecteService.getLatestObservations(plotId);
@@ -316,16 +317,16 @@ const LatestObservationsCard = ({ plotId, onSeeAll }: { plotId: string; onSeeAll
     } finally {
       setLoading(false);
     }
-  };
+  }, [plotId]);
 
   useEffect(() => {
     fetchObs();
-  }, [plotId]);
+  }, [fetchObs]);
 
   useFocusEffect(
     React.useCallback(() => {
       fetchObs();
-    }, [plotId])
+    }, [fetchObs])
   );
 
   const renderItem = ({ item }: { item: ObservationDisplay }) => (
@@ -343,8 +344,8 @@ const LatestObservationsCard = ({ plotId, onSeeAll }: { plotId: string; onSeeAll
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <Text style={styles.cardTitle}>Dernières Observations</Text>
-        <TouchableOpacity onPress={onSeeAll}>
-          <Text style={styles.seeAllButton}>Voir tout</Text>
+        <TouchableOpacity onPress={() => router.push(`/(tabs)/parcelles/${plotId}/observations/add`)}>
+          <Feather name="plus-circle" size={24} color="#3D944B" />
         </TouchableOpacity>
       </View>
       {loading ? (
@@ -393,11 +394,126 @@ const ActiveCropCard = ({ crop }: { crop: Crop | null }) => {
   );
 };
 
+const CulturesCard = ({ plotId, router, agentId }: { plotId: string; router: any; agentId?: string }) => {
+  const [crops, setCrops] = useState<Crop[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchCrops = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await CollecteService.getCropsByPlotId(plotId, agentId);
+      setCrops(data);
+    } catch (error) {
+      console.error("Failed to fetch crops:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [plotId, agentId]);
+
+  useEffect(() => {
+    fetchCrops();
+  }, [fetchCrops]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchCrops();
+    }, [fetchCrops])
+  );
+
+  const getStatusStyle = (status: string | null) => {
+    switch (status) {
+      case 'en_cours':
+      case 'active':
+        return { backgroundColor: '#dcfce7', color: '#16a34a' };
+      case 'completed':
+      case 'terminé':
+        return { backgroundColor: '#e0f2fe', color: '#0284c7' };
+      case 'abandoned':
+      case 'abandonné':
+        return { backgroundColor: '#fef2f2', color: '#dc2626' };
+      default:
+        return { backgroundColor: '#f3f4f6', color: '#6b7280' };
+    }
+  };
+
+  const handleEditCrop = (cropId: string) => {
+    router.push(`/(tabs)/parcelles/${plotId}/cultures/edit?cropId=${cropId}`);
+  };
+
+  const handleDeleteCrop = async (cropId: string) => {
+    try {
+      await CollecteService.deleteCrop(cropId, agentId || '');
+      fetchCrops(); // Rafraîchir la liste
+    } catch (error) {
+      console.error('Erreur lors de la suppression:', error);
+    }
+  };
+
+  const renderCropItem = ({ item }: { item: Crop }) => {
+    const statusStyle = getStatusStyle(item.status);
+    return (
+      <View style={styles.cropItem}>
+        <View style={styles.cropInfo}>
+          <Text style={styles.cropType}>{item.crop_type}</Text>
+          <Text style={styles.cropVariety}>{item.variety}</Text>
+          <Text style={styles.cropDate}>
+            Semis: {new Date(item.sowing_date).toLocaleDateString('fr-FR')}
+          </Text>
+        </View>
+        <View style={styles.cropActions}>
+          <View style={[styles.cropStatus, statusStyle]}>
+            <Text style={[styles.cropStatusText, { color: statusStyle.color }]}>
+              {item.status}
+            </Text>
+          </View>
+          <View style={styles.actionButtons}>
+            <TouchableOpacity 
+              onPress={() => handleEditCrop(item.id)} 
+              style={styles.actionButton}
+            >
+              <Feather name="edit" size={16} color="#3D944B" />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={() => handleDeleteCrop(item.id)} 
+              style={styles.actionButton}
+            >
+              <Feather name="trash-2" size={16} color="#ef4444" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  return (
+    <View style={styles.card}>
+      <View style={styles.cardHeader}>
+        <Text style={styles.cardTitle}>Cultures</Text>
+        <TouchableOpacity onPress={() => router.push(`/(tabs)/parcelles/${plotId}/cultures/add`)}>
+          <Feather name="plus-circle" size={24} color="#3D944B" />
+        </TouchableOpacity>
+      </View>
+      {loading ? (
+        <ActivityIndicator color="#3D944B" style={{ marginVertical: 20 }} />
+      ) : crops.length === 0 ? (
+        <Text style={styles.emptyText}>Aucune culture enregistrée pour cette parcelle.</Text>
+      ) : (
+        <FlatList
+          data={crops}
+          renderItem={renderCropItem}
+          keyExtractor={(item) => item.id}
+          scrollEnabled={false}
+        />
+      )}
+    </View>
+  );
+};
+
 const LatestIntrantsCard = ({ plotId, onSeeAll }: { plotId: string; onSeeAll: () => void }) => {
   const [inputs, setInputs] = useState<InputDisplay[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchInputs = async () => {
+  const fetchInputs = React.useCallback(async () => {
     try {
       setLoading(true);
       const data = await CollecteService.getLatestInputs(plotId);
@@ -407,16 +523,16 @@ const LatestIntrantsCard = ({ plotId, onSeeAll }: { plotId: string; onSeeAll: ()
     } finally {
       setLoading(false);
     }
-  };
+  }, [plotId]);
 
   useEffect(() => {
     fetchInputs();
-  }, [plotId]);
+  }, [fetchInputs]);
 
   useFocusEffect(
     React.useCallback(() => {
       fetchInputs();
-    }, [plotId])
+    }, [fetchInputs])
   );
 
   const renderItem = ({ item }: { item: InputDisplay }) => {
@@ -637,7 +753,7 @@ const ParcelleDashboardScreen: React.FC = () => {
                 variety: 'Default Variety',
                 sowing_date: new Date().toISOString(),
                 status: 'en_cours',
-                created_by: plotData?.createdBy || undefined,
+                created_by: plotData?.createdBy || null,
               }, user?.id);
               cropData = newCrop;
             } else {
@@ -655,7 +771,7 @@ const ParcelleDashboardScreen: React.FC = () => {
       };
       loadData();
     }
-  }, [plotId]);
+  }, [plotId, user?.id]);
 
   const TabButton = ({ title, isActive, onPress }: { title: string; isActive: boolean; onPress: () => void }) => (
     <TouchableOpacity onPress={onPress} style={[styles.tab, isActive && styles.activeTab]}>
@@ -668,7 +784,7 @@ const ParcelleDashboardScreen: React.FC = () => {
   }
 
   return (
-    <View style={{flex: 1}}>
+    <ContentWithHeader style={{flex: 1}}>
       <ScrollView style={styles.container}>
         <View style={styles.headerImageContainer}>
           <Image 
@@ -685,6 +801,7 @@ const ParcelleDashboardScreen: React.FC = () => {
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabBar}>
           <TabButton title="Infos" isActive={activeTab === 'Infos'} onPress={() => setActiveTab('Infos')} />
+          <TabButton title="Cultures" isActive={activeTab === 'Cultures'} onPress={() => setActiveTab('Cultures')} />
           <TabButton title="Intrants" isActive={activeTab === 'Intrants'} onPress={() => setActiveTab('Intrants')} />
           <TabButton title="Opérations" isActive={activeTab === 'Opérations'} onPress={() => setActiveTab('Opérations')} />
           <TabButton title="Observations" isActive={activeTab === 'Observations'} onPress={() => setActiveTab('Observations')} />
@@ -698,8 +815,13 @@ const ParcelleDashboardScreen: React.FC = () => {
             {plot && <IntervenantsCard plotId={plot.id} router={router} />}
             {plot && <LatestIntrantsCard plotId={plot.id} onSeeAll={() => setActiveTab('Intrants')} />}
             {plot && <LatestOperationsCard plotId={plot.id} onSeeAll={() => setActiveTab('Opérations')} />}
-            {plot && <LatestObservationsCard plotId={plot.id} onSeeAll={() => setActiveTab('Observations')} />}
+            {plot && <LatestObservationsCard plotId={plot.id} router={router} />}
             {plot && <LatestConseilsCard plotId={plot.id} onSeeAll={() => setActiveTab('Conseils')} />}
+          </View>
+        )}
+        {activeTab === 'Cultures' && (
+          <View style={styles.contentContainer}>
+            {plot && <CulturesCard plotId={plot.id} router={router} agentId={user?.id} />}
           </View>
         )}
         {activeTab === 'Conseils' && (
@@ -714,7 +836,7 @@ const ParcelleDashboardScreen: React.FC = () => {
         )}
         {activeTab === 'Observations' && (
           <View style={styles.contentContainer}>
-            {plot && <LatestObservationsCard plotId={plot.id} onSeeAll={() => setActiveTab('Observations')} />}
+            {plot && <LatestObservationsCard plotId={plot.id} router={router} />}
           </View>
         )}
         {activeTab === 'Intrants' && (
@@ -727,7 +849,7 @@ const ParcelleDashboardScreen: React.FC = () => {
       <TouchableOpacity style={styles.fab}>
         <Feather name="plus" size={24} color="#fff" />
       </TouchableOpacity>
-    </View>
+    </ContentWithHeader>
   );
 };
 
@@ -1025,6 +1147,57 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#374151',
     lineHeight: 20,
+  },
+  cropItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  cropInfo: {
+    flex: 1,
+  },
+  cropActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  actionButton: {
+    padding: 4,
+    borderRadius: 4,
+    backgroundColor: '#f3f4f6',
+  },
+  cropType: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1f2937',
+    textTransform: 'capitalize',
+  },
+  cropVariety: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+  cropDate: {
+    fontSize: 12,
+    color: '#9ca3af',
+    marginTop: 4,
+  },
+  cropStatus: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  cropStatusText: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'capitalize',
   },
 });
 

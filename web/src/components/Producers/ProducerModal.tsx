@@ -227,48 +227,48 @@ const ProducerModal: React.FC<ProducerModalProps> = ({
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
+            <div>
                       <Label htmlFor="first_name">Prénom *</Label>
                       <Input
                         id="first_name"
-                        value={formData.first_name}
+                value={formData.first_name}
                         onChange={(e) => handleInputChange('first_name', e.target.value)}
                         required
                       />
-                    </div>
-                    <div>
+            </div>
+            <div>
                       <Label htmlFor="last_name">Nom *</Label>
                       <Input
                         id="last_name"
-                        value={formData.last_name}
+                value={formData.last_name}
                         onChange={(e) => handleInputChange('last_name', e.target.value)}
                         required
                       />
                     </div>
-                  </div>
+            </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
+            <div>
                       <Label htmlFor="phone">Téléphone *</Label>
                       <Input
                         id="phone"
-                        value={formData.phone}
+                  value={formData.phone}
                         onChange={(e) => handleInputChange('phone', e.target.value)}
                         required
-                      />
-                    </div>
-                    <div>
+                />
+              </div>
+            <div>
                       <Label htmlFor="email">Email</Label>
                       <Input
                         id="email"
-                        type="email"
-                        value={formData.email}
+                  type="email"
+                  value={formData.email}
                         onChange={(e) => handleInputChange('email', e.target.value)}
-                      />
-                    </div>
-                  </div>
+                />
+              </div>
+            </div>
 
-                  <div>
+            <div>
                     <Label htmlFor="cooperative_id">Coopérative *</Label>
                     <Select
                       value={formData.cooperative_id}
@@ -290,7 +290,7 @@ const ProducerModal: React.FC<ProducerModalProps> = ({
                   </div>
 
                   <div className="flex items-center space-x-2">
-                    <input
+                <input
                       type="checkbox"
                       id="is_active"
                       checked={formData.is_active}
@@ -313,7 +313,7 @@ const ProducerModal: React.FC<ProducerModalProps> = ({
                     <div>
                       <Label htmlFor="region">Région *</Label>
                       <Select
-                        value={formData.region}
+                  value={formData.region}
                         onValueChange={(value) => handleInputChange('region', value)}
                       >
                         <SelectTrigger>
@@ -369,8 +369,8 @@ const ProducerModal: React.FC<ProducerModalProps> = ({
                             ))}
                         </SelectContent>
                       </Select>
-                    </div>
-                  </div>
+              </div>
+            </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -381,7 +381,7 @@ const ProducerModal: React.FC<ProducerModalProps> = ({
                         onChange={(e) => handleInputChange('village', e.target.value)}
                       />
                     </div>
-                    <div>
+            <div>
                       <Label htmlFor="address">Adresse</Label>
                       <Input
                         id="address"
@@ -389,7 +389,7 @@ const ProducerModal: React.FC<ProducerModalProps> = ({
                         onChange={(e) => handleInputChange('address', e.target.value)}
                       />
                     </div>
-                  </div>
+            </div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -429,7 +429,7 @@ const ProducerModal: React.FC<ProducerModalProps> = ({
                         </SelectContent>
                       </Select>
                     </div>
-                  </div>
+            </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -467,8 +467,8 @@ const ProducerModal: React.FC<ProducerModalProps> = ({
                           ))}
                         </SelectContent>
                       </Select>
-                    </div>
-                  </div>
+            </div>
+          </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -498,20 +498,20 @@ const ProducerModal: React.FC<ProducerModalProps> = ({
           </Tabs>
         </form>
 
-        {/* Actions */}
+          {/* Actions */}
         <div className="flex justify-end gap-2 pt-4 border-t">
           <Button variant="outline" onClick={onClose}>
-            Annuler
-          </Button>
-          <Button
-            type="submit"
+              Annuler
+            </Button>
+            <Button
+              type="submit"
             onClick={handleSubmit}
             disabled={loading}
             className="flex items-center gap-2"
-          >
+            >
             {loading ? 'Sauvegarde...' : (producer ? 'Modifier' : 'Créer')}
-          </Button>
-        </div>
+            </Button>
+          </div>
       </DialogContent>
     </Dialog>
   );

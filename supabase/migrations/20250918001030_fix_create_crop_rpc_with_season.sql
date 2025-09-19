@@ -50,7 +50,7 @@ BEGIN
   -- Créer la culture
   INSERT INTO crops (
     id,
-    plot_id,
+    farm_file_plot_id,
     season_id,
     crop_type,
     variety,

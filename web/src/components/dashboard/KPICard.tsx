@@ -69,7 +69,7 @@ const KPICard: React.FC<KPICardProps> = ({
             )}
           </div>
           <div className={`p-3 rounded-lg bg-white/20`}>
-            <icon className={`h-8 w-8 ${iconColorClasses[color]}`} />
+            {React.createElement(icon, { className: `h-8 w-8 ${iconColorClasses[color]}` })}
           </div>
         </div>
       </CardContent>

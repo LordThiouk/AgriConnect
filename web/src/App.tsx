@@ -16,6 +16,8 @@ import TestSupabase from './pages/TestSupabase';
 import DataSeeder from './components/test/DataSeeder';
 import CampaignsPage from './pages/Campaigns';
 import CooperativesPage from './pages/cooperatives';
+import AgentsPage from './pages/agents';
+import PlotsPage from './pages/plots';
 import Debug from './pages/Debug';
 import './App.css';
 
@@ -64,6 +66,22 @@ function App() {
               element={
                 <ProtectedRoute>
                   <CooperativesPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/agents" 
+              element={
+                <ProtectedRoute>
+                  <AgentsPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/plots" 
+              element={
+                <ProtectedRoute>
+                  <PlotsPage />
                 </ProtectedRoute>
               } 
             />

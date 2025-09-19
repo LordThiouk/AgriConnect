@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native
 import { useRouter } from 'expo-router';
 import { CollecteService } from '../../../lib/services/collecte';
 import { useAuth } from '../../../context/AuthContext';
+import ContentWithHeader from '../../../components/ContentWithHeader';
 
 export default function SelectFicheScreen() {
   const router = useRouter();
@@ -19,7 +20,7 @@ export default function SelectFicheScreen() {
   }, [user]);
 
   return (
-    <View style={styles.container}>
+    <ContentWithHeader style={styles.container}>
       <View style={styles.header}><Text style={styles.title}>Sélectionner une fiche</Text></View>
       <FlatList
         data={items}
@@ -32,7 +33,7 @@ export default function SelectFicheScreen() {
         )}
         contentContainerStyle={{ padding: 16 }}
       />
-    </View>
+    </ContentWithHeader>
   );
 }
 

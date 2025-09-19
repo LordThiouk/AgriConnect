@@ -36,7 +36,7 @@ const ParcellesListScreen: React.FC = () => {
   const renderItem = ({ item }: { item: Parcelle }) => (
     <TouchableOpacity
       style={styles.card}
-      onPress={() => router.push(`/(tabs)/parcelles/${item.id}/dashboard`)}
+      onPress={() => router.push(`/(tabs)/parcelles/${item.id}`)}
     >
       <View style={styles.cardHeader}>
         <Text style={styles.cardTitle}>Parcelle {item.code}</Text>

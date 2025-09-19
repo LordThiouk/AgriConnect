@@ -52,6 +52,43 @@ export type ObservationType = 'pest_disease' | 'emergence' | 'phenology' | 'othe
 export type ObservationSeverity = 1 | 2 | 3 | 4 | 5;
 
 /**
+ * Représente une observation globale formatée pour l'affichage dans l'écran principal
+ */
+export interface GlobalObservationDisplay {
+  id: string;
+  title: string;
+  type: 'fertilization' | 'disease' | 'irrigation' | 'harvest' | 'other';
+  plotName: string;
+  cropType: string;
+  description: string;
+  severity: ObservationSeverity;
+  status: 'new' | 'read' | 'executed' | 'critical';
+  timestamp: string;
+  isCritical: boolean;
+  color: string;
+  icon: string;
+  pestDiseaseName?: string;
+  emergencePercent?: number;
+  affectedAreaPercent?: number;
+  recommendations?: string;
+  producerName: string;
+  observedBy: string;
+}
+
+/**
+ * Représente une notification générale (réunions, alertes météo, etc.)
+ */
+export interface GeneralNotificationDisplay {
+  id: string;
+  title: string;
+  description: string;
+  timestamp: string;
+  type: 'meeting' | 'weather' | 'cooperative' | 'system';
+  icon: string;
+  color: string;
+}
+
+/**
  * Représente une observation formatée pour l'affichage
  */
 export interface ObservationDisplay {

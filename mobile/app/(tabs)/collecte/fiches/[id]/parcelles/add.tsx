@@ -34,7 +34,7 @@ const AddParcelleScreen: React.FC = () => {
           {
             text: 'OK',
             onPress: () => {
-              router.replace(`/(tabs)/parcelles/${farmFilePlotId}/dashboard`);
+              router.replace(`/(tabs)/parcelles/${farmFilePlotId}`);
             },
           },
         ]);

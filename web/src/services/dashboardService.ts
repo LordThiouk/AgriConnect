@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { AgentsService } from './agentsService';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -16,7 +17,11 @@ export interface DashboardStats {
   totalRecommendations: number;
   activeRecommendations: number;
   totalArea: number;
+  totalAgents: number;
   activeAgents: number;
+  totalVisits: number;
+  avgVisitsPerAgent: number;
+  dataQualityRate: number;
   cooperatives: Array<{
     id: string;
     name: string;
@@ -108,13 +113,13 @@ export class DashboardService {
   static async getDashboardStats(): Promise<DashboardStats> {
     try {
       // Récupérer toutes les données en parallèle
-      const [cooperativesResult, producersResult, plotsResult, cropsResult, recommendationsResult, profilesResult] = await Promise.all([
+      const [cooperativesResult, producersResult, plotsResult, cropsResult, recommendationsResult, agentsStatsResult] = await Promise.all([
         supabase.from('cooperatives').select('*'),
         supabase.from('producers').select('*'),
         supabase.from('plots').select('*'),
         supabase.from('crops').select('*'),
         supabase.from('recommendations').select('*'),
-        supabase.from('profiles').select('*').eq('role', 'agent')
+        AgentsService.getAgentsStats()
       ]);
 
       // Vérifier les erreurs
@@ -123,14 +128,13 @@ export class DashboardService {
       if (plotsResult.error) throw plotsResult.error;
       if (cropsResult.error) throw cropsResult.error;
       if (recommendationsResult.error) throw recommendationsResult.error;
-      if (profilesResult.error) throw profilesResult.error;
 
       const cooperatives = cooperativesResult.data as Cooperative[];
       const producers = producersResult.data as Producer[];
       const plots = plotsResult.data as Plot[];
       const crops = cropsResult.data as Crop[];
       const recommendations = recommendationsResult.data as Recommendation[];
-      const agents = profilesResult.data as any[];
+      const agentsStats = agentsStatsResult;
 
       // Calculer les statistiques par coopérative
       const cooperativesStats = cooperatives.map(coop => {
@@ -224,7 +228,11 @@ export class DashboardService {
         totalArea: Math.round(plots.reduce((sum, plot) => 
           sum + (plot.area_hectares || 0), 0
         )),
-        activeAgents: agents.length,
+        totalAgents: agentsStats.totalAgents,
+        activeAgents: agentsStats.activeAgents,
+        totalVisits: agentsStats.totalVisits,
+        avgVisitsPerAgent: agentsStats.avgVisitsPerAgent,
+        dataQualityRate: agentsStats.dataQualityRate,
         cooperatives: cooperativesStats,
         evolutionData,
         cultureDistribution,
