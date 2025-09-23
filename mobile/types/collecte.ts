@@ -58,6 +58,7 @@ export interface GlobalObservationDisplay {
   id: string;
   title: string;
   type: 'fertilization' | 'disease' | 'irrigation' | 'harvest' | 'other';
+  plotId: string;
   plotName: string;
   cropType: string;
   description: string;

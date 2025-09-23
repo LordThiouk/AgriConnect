@@ -171,11 +171,42 @@ export class CollecteService {
   }
 
   /**
+   * Récupère les producteurs pour un agent (version avec user_id)
+   */
+  static async getProducersByUserId(userId: string): Promise<ProducerDisplay[]> {
+    try {
+      console.log('👥 Récupération des producteurs pour l\'user_id:', userId);
+
+      // D'abord récupérer le profile.id de l'agent
+      const { data: profile, error: profileError } = await this.supabase
+        .from('profiles')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('role', 'agent')
+        .single();
+
+      if (profileError || !profile) {
+        console.error('❌ Profil agent non trouvé:', profileError);
+        return [];
+      }
+
+      console.log('✅ Profil agent trouvé:', profile.id);
+      return await this.getProducers(profile.id);
+
+    } catch (error) {
+      console.error('❌ Erreur générale dans getProducersByUserId:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Récupère les producteurs pour un agent
    */
   static async getProducers(agentId: string): Promise<ProducerDisplay[]> {
     try {
       console.log('👥 Récupération des producteurs pour l\'agent:', agentId);
+      console.log('🔍 Type de agentId:', typeof agentId);
+      console.log('🔍 Longueur de agentId:', agentId?.length);
 
       // Récupérer les producteurs assignés à l'agent
       const { data: assignments, error: assignErr } = await this.supabase
@@ -188,7 +219,12 @@ export class CollecteService {
         throw assignErr;
       }
 
+      console.log('📊 Assignments récupérées:', assignments?.length || 0);
+      console.log('📋 Premières assignations:', assignments?.slice(0, 3));
+
       const producerIds = (assignments || []).map(a => a.producer_id);
+      console.log('🔍 Producer IDs extraits:', producerIds.slice(0, 5));
+      
       if (producerIds.length === 0) {
         console.warn('⚠️ Aucun producteur assigné, retour liste vide');
         return [];
@@ -200,9 +236,6 @@ export class CollecteService {
           *,
           cooperatives!producers_cooperative_id_fkey (
             name
-          ),
-          plots (
-            id
           )
         `)
         .in('id', producerIds)
@@ -212,6 +245,9 @@ export class CollecteService {
         console.error('❌ Erreur lors de la récupération des producteurs:', error);
         throw error;
       }
+
+      console.log('📊 Producteurs récupérés de la base:', data?.length || 0);
+      console.log('📋 Premiers producteurs:', data?.slice(0, 3));
 
       const producersDisplay: ProducerDisplay[] = (data || []).map(producer => ({
         id: producer.id,
@@ -229,6 +265,35 @@ export class CollecteService {
 
     } catch (error) {
       console.error('❌ Erreur générale dans getProducers:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Récupère les parcelles pour un agent (version avec user_id)
+   */
+  static async getPlotsByUserId(userId: string): Promise<PlotDisplay[]> {
+    try {
+      console.log('🏞️ Récupération des parcelles pour l\'user_id:', userId);
+
+      // D'abord récupérer le profile.id de l'agent
+      const { data: profile, error: profileError } = await this.supabase
+        .from('profiles')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('role', 'agent')
+        .single();
+
+      if (profileError || !profile) {
+        console.error('❌ Profil agent non trouvé:', profileError);
+        return [];
+      }
+
+      console.log('✅ Profil agent trouvé:', profile.id);
+      return await this.getPlots(profile.id);
+
+    } catch (error) {
+      console.error('❌ Erreur générale dans getPlotsByUserId:', error);
       throw error;
     }
   }
@@ -252,6 +317,8 @@ export class CollecteService {
       }
 
       const producerIds = (assignments || []).map(a => a.producer_id);
+      console.log('🔍 Producer IDs pour la requête farm_files:', producerIds.slice(0, 5));
+      
       if (producerIds.length === 0) {
         console.warn('⚠️ Aucun producteur assigné, retour liste vide');
         return [];
@@ -268,14 +335,7 @@ export class CollecteService {
           water_source,
           status,
           center_point,
-          farm_files!fk_plots_farm_file (
-            commune,
-            village
-          ),
-          producers!plots_producer_id_fkey (
-            first_name,
-            last_name
-          )
+          producer_id
         `)
         .in('producer_id', producerIds)
         .order('name_season_snapshot', { ascending: true });
@@ -283,6 +343,33 @@ export class CollecteService {
       if (error) {
         console.error('❌ Erreur lors de la récupération des parcelles:', error);
         throw error;
+      }
+
+      console.log('📊 Parcelles récupérées de la base:', data?.length || 0);
+      console.log('📋 Premières parcelles:', data?.slice(0, 3));
+
+      if (!data || data.length === 0) {
+        console.warn('⚠️ Aucune parcelle trouvée');
+        return [];
+      }
+
+      // Récupérer les informations des producteurs séparément
+      const { data: producersData, error: producersError } = await this.supabase
+        .from('producers')
+        .select('id, first_name, last_name')
+        .in('id', producerIds);
+
+      if (producersError) {
+        console.error('❌ Erreur lors de la récupération des producteurs:', producersError);
+        // Continuer sans les noms des producteurs
+      }
+
+      // Créer un map des producteurs pour un accès rapide
+      const producersMap = new Map();
+      if (producersData) {
+        producersData.forEach(producer => {
+          producersMap.set(producer.id, producer);
+        });
       }
 
       const plotsDisplay: PlotDisplay[] = (data as any[] | null || []).map((row: any) => {
@@ -298,16 +385,14 @@ export class CollecteService {
           } catch {}
         }
 
-        const village = row.farm_files?.village || '';
-        const commune = row.farm_files?.commune || '';
-
+        const producer = producersMap.get(row.producer_id);
         return {
           id: row.id,
           name: row.name_season_snapshot,
           area: row.area_hectares,
-          producerName: row.producers ? formatProducerName(row.producers.first_name, row.producers.last_name) : 'Non assigné',
+          producerName: producer ? formatProducerName(producer.first_name, producer.last_name) : 'Non assigné',
           variety: row.cotton_variety || undefined,
-          location: [commune, village].filter(Boolean).join(', ') || undefined,
+          location: undefined, // Pas de commune/village dans farm_file_plots
           soilType: row.soil_type || undefined,
           waterSource: row.water_source || undefined,
           status: (row.status as 'preparation' | 'cultivated' | 'fallow') || 'preparation',
@@ -1600,6 +1685,7 @@ export class CollecteService {
           id: obs.id,
           title: this.getObservationTitle(obs.observation_type, obs.pest_disease_name),
           type,
+          plotId: obs.plot_id,
           plotName: obs.plot_name,
           cropType: obs.crop_type || 'N/A',
           description: obs.description || obs.recommendations || 'Aucune description',
@@ -1628,12 +1714,16 @@ export class CollecteService {
    */
   private static mapObservationType(observationType: string): 'fertilization' | 'disease' | 'irrigation' | 'harvest' | 'other' {
     switch (observationType.toLowerCase()) {
-      case 'pest_disease':
+      case 'ravageur':
+      case 'maladie':
         return 'disease';
-      case 'emergence':
+      case 'levée':
+      case 'développement':
         return 'fertilization';
-      case 'phenology':
-        return 'harvest';
+      case 'stress_hydrique':
+        return 'irrigation';
+      case 'stress_nutritionnel':
+        return 'fertilization';
       default:
         return 'other';
     }
@@ -1644,12 +1734,18 @@ export class CollecteService {
    */
   private static getObservationTitle(observationType: string, pestDiseaseName?: string): string {
     switch (observationType.toLowerCase()) {
-      case 'pest_disease':
-        return pestDiseaseName ? `Traitement ${pestDiseaseName}` : 'Traitement fongicide urgent';
-      case 'emergence':
-        return 'Fertilisation azotée';
-      case 'phenology':
-        return 'Récolte optimale';
+      case 'ravageur':
+        return pestDiseaseName ? `Alerte ${pestDiseaseName}` : 'Alerte ravageur';
+      case 'maladie':
+        return pestDiseaseName ? `Alerte ${pestDiseaseName}` : 'Alerte maladie';
+      case 'levée':
+        return 'Problème de levée';
+      case 'développement':
+        return 'Suivi développement';
+      case 'stress_hydrique':
+        return 'Stress hydrique';
+      case 'stress_nutritionnel':
+        return 'Stress nutritionnel';
       default:
         return 'Observation terrain';
     }
@@ -1665,9 +1761,9 @@ export class CollecteService {
 
     switch (type) {
       case 'fertilization':
-        return { color: '#3b82f6', icon: 'leaf' }; // Bleu pour fertilisation
+        return { color: '#3b82f6', icon: 'trending-up' }; // Bleu pour fertilisation
       case 'disease':
-        return { color: '#ef4444', icon: 'bug' }; // Rouge pour maladies
+        return { color: '#ef4444', icon: 'alert-triangle' }; // Rouge pour maladies
       case 'irrigation':
         return { color: '#3b82f6', icon: 'droplet' }; // Bleu pour irrigation
       case 'harvest':

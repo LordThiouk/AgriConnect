@@ -14,8 +14,8 @@ export class ObservationsRpcService {
 
       const offset = (pagination.page - 1) * pagination.limit;
 
-      // Use RPC function to get observations with details
-      const { data, error } = await supabase.rpc('get_observations_with_details', {
+      // Use RPC function to get observations with details (V3 - WITH AGENT INFO)
+      const { data, error } = await supabase.rpc('get_observations_with_details_v3', {
         producer_uuid: producerId || null,
         limit_count: pagination.limit,
         offset_count: offset,
@@ -28,8 +28,8 @@ export class ObservationsRpcService {
         throw error;
       }
 
-      // Get total count using RPC function
-      const { data: countData, error: countError } = await supabase.rpc('count_observations_for_producer', {
+      // Get total count using RPC function (V3 - WITH AGENT INFO)
+      const { data: countData, error: countError } = await supabase.rpc('count_observations_for_producer_v3', {
         producer_uuid: producerId || null,
         search_term: filters.search || null,
         observation_type_filter: filters.observation_type || null

@@ -8,14 +8,17 @@ interface SubHeaderProps {
   children?: React.ReactNode; // Pour les filtres ou autres éléments
   style?: ViewStyle;
   showBackButton?: boolean;
+  onBackPress?: () => void; // Navigation personnalisée
 }
 
-const SubHeader: React.FC<SubHeaderProps> = ({ title, children, style, showBackButton = false }) => {
+const SubHeader: React.FC<SubHeaderProps> = ({ title, children, style, showBackButton = false, onBackPress }) => {
   const router = useRouter();
   const { height: screenHeight } = Dimensions.get('window');
 
   const handleBack = () => {
-    if (router.canGoBack()) {
+    if (onBackPress) {
+      onBackPress();
+    } else if (router.canGoBack()) {
       router.back();
     }
   };

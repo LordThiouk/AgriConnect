@@ -1,15 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
-import { mockProducers } from '../data/mockProducers';
-import { APP_CONFIG } from '../config/appConfig';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Use configuration to determine data source
-const useMockData = APP_CONFIG.USE_MOCK_DATA;
-
 let supabase: any = null;
-if (!useMockData && supabaseUrl && supabaseAnonKey) {
+if (supabaseUrl && supabaseAnonKey) {
   supabase = createClient(supabaseUrl, supabaseAnonKey);
 }
 
@@ -53,40 +48,17 @@ export interface Producer {
   farm_files?: {
     id: string;
     name: string;
-    status: string;
-    completion_percent: number;
-    plot_count: number;
-    created_at: string;
   }[];
-  plots?: {
-    id: string;
-    name: string;
-    area_hectares: number;
-    status: string;
-    created_at: string;
-  }[];
-  recent_operations?: {
-    id: string;
-    operation_type: string;
-    operation_date: string;
-    description: string;
-    performer_id: string;
-  }[];
-  recent_observations?: {
-    id: string;
-    observation_type: string;
-    observation_date: string;
-    description: string;
-    severity: number;
-    observed_by: string;
-  }[];
+  plots?: any[];
+  recent_operations?: any[];
+  recent_observations?: any[];
 }
 
 export interface ProducerFilters {
   search?: string;
   region?: string;
-  culture?: string;
-  status?: string;
+  status?: 'active' | 'inactive';
+  cooperative_id?: string;
 }
 
 export interface PaginationParams {
@@ -105,27 +77,23 @@ export interface ProducersResponse {
 export class ProducersService {
   static async getFilterOptions(): Promise<{ regions: string[]; cultures: string[] }> {
     try {
-      if (useMockData) {
-        // Extract unique regions and cultures from mock data
-        const regions = [...new Set(mockProducers.map(p => p.region))];
-        const cultures = ['Maïs', 'Riz', 'Arachide', 'Millet', 'Sorgho']; // Mock cultures
-        return { regions, cultures };
-      }
-
       if (!supabase) {
         throw new Error('Supabase client not initialized');
       }
 
       // Get unique regions
-      const { data: regionsData } = await supabase
+      const { data: regionsData, error: regionsError } = await supabase
         .from('producers')
         .select('region')
         .not('region', 'is', null);
 
-      const regions = [...new Set(regionsData?.map(r => r.region) || [])];
+      if (regionsError) {
+        console.error('❌ Erreur lors de la récupération des régions:', regionsError);
+        throw regionsError;
+      }
 
-      // Mock cultures for now
-      const cultures = ['Maïs', 'Riz', 'Arachide', 'Millet', 'Sorgho'];
+      const regions = [...new Set(regionsData?.map((item: any) => item.region))] as string[];
+      const cultures = ['Maïs', 'Riz', 'Arachide', 'Millet', 'Sorgho']; // Mock cultures for now
 
       return { regions, cultures };
     } catch (error) {
@@ -139,48 +107,7 @@ export class ProducersService {
     pagination: PaginationParams = { page: 1, limit: 10 }
   ): Promise<ProducersResponse> {
     try {
-      if (useMockData) {
-        // Use mock data
-        let filteredData = [...mockProducers];
-
-        // Apply filters
-        if (filters.search) {
-          const searchLower = filters.search.toLowerCase();
-          filteredData = filteredData.filter(producer => 
-            producer.first_name.toLowerCase().includes(searchLower) ||
-            producer.last_name.toLowerCase().includes(searchLower) ||
-            producer.phone.includes(searchLower)
-          );
-        }
-
-        if (filters.region) {
-          filteredData = filteredData.filter(producer => producer.region === filters.region);
-        }
-
-        if (filters.status) {
-          const isActive = filters.status === 'active';
-          filteredData = filteredData.filter(producer => producer.is_active === isActive);
-        }
-
-        // Apply pagination
-        const total = filteredData.length;
-        const from = (pagination.page - 1) * pagination.limit;
-        const to = from + pagination.limit;
-        const paginatedData = filteredData.slice(from, to);
-
-        const totalPages = Math.ceil(total / pagination.limit);
-
-        return {
-          data: paginatedData,
-          total,
-          page: pagination.page,
-          limit: pagination.limit,
-          totalPages
-        };
-      }
-
-      // Original Supabase logic
-      console.log('🔍 Utilisation de Supabase pour récupérer les producteurs');
+      console.log('🔍 Utilisation de Supabase pour récupérer les producteurs (v3)');
       
       // First, get total count with filters applied
       let countQuery = supabase
@@ -256,11 +183,49 @@ export class ProducersService {
         } catch (error) {
           console.error('Error loading assigned agents:', error);
         }
+
+        // Load plots statistics
+        let plotsCount = 0;
+        let totalArea = 0;
+        try {
+          const { data: plotsData } = await supabase
+            .from('farm_file_plots')
+            .select('area_hectares')
+            .eq('producer_id', producer.id);
+          
+          plotsCount = plotsData?.length || 0;
+          totalArea = plotsData?.reduce((sum, plot) => sum + (plot.area_hectares || 0), 0) || 0;
+          console.log(`📊 Statistiques parcelles pour ${producer.first_name}: ${plotsCount} parcelles, ${totalArea} ha`);
+          console.log(`📊 Données parcelles brutes:`, plotsData);
+        } catch (error) {
+          console.error('Error loading plots statistics:', error);
+        }
+
+        // Load farm files count
+        let farmFilesCount = 0;
+        try {
+          console.log(`🔍 Recherche fiches pour producer.id: ${producer.id}`);
+          const { data: farmFilesData, error: farmFilesError } = await supabase
+            .from('farm_files')
+            .select('id')
+            .eq('responsible_producer_id', producer.id);
+          
+          if (farmFilesError) {
+            console.error(`❌ Erreur requête fiches:`, farmFilesError);
+          } else {
+            farmFilesCount = farmFilesData?.length || 0;
+            console.log(`📁 Fiches fermes pour ${producer.first_name}: ${farmFilesCount}`);
+            console.log(`📁 Données fiches brutes:`, farmFilesData);
+          }
+        } catch (error) {
+          console.error('Error loading farm files count:', error);
+        }
         
-        return {
+        const transformedProducer = {
           ...producer,
-          plots_count: 0, // This would need to be calculated from plots data
-          total_area: 0, // This would need to be calculated from plots data
+          plots_count: plotsCount,
+          total_area: totalArea,
+          farm_files_count: farmFilesCount,
           last_visit: producer.updated_at, // This would need to be calculated from visits
           status: producer.is_active ? 'active' : 'inactive',
           cooperative: producer.cooperative_id ? {
@@ -274,11 +239,22 @@ export class ProducersService {
             phone: agent.phone,
             assigned_at: agent.assigned_at
           })),
-          farm_files: [], // This would need to be fetched from farm_files table
+          farm_files: Array(farmFilesCount).fill(null).map((_, index) => ({
+            id: `farm-file-${index}`,
+            name: `Fiche ${index + 1}`
+          })),
           plots: [], // This would need to be fetched from plots table
           recent_operations: [], // This would need to be fetched from operations table
           recent_observations: [] // This would need to be fetched from observations table
         };
+        
+        console.log(`✅ Producteur transformé ${producer.first_name}:`, {
+          plots_count: transformedProducer.plots_count,
+          total_area: transformedProducer.total_area,
+          farm_files_count: transformedProducer.farm_files?.length
+        });
+        
+        return transformedProducer;
       }));
 
       const totalPages = Math.ceil((count || 0) / pagination.limit);
@@ -298,11 +274,6 @@ export class ProducersService {
 
   static async getRegions(): Promise<string[]> {
     try {
-      if (useMockData) {
-        const regions = [...new Set(mockProducers.map(producer => producer.region))];
-        return regions.sort();
-      }
-
       console.log('🔍 Récupération des régions depuis Supabase');
       
       const { data, error } = await supabase
@@ -315,8 +286,9 @@ export class ProducersService {
         throw error;
       }
 
-      const regions = [...new Set(data?.map(item => item.region) || [])];
-      console.log(`📍 Régions trouvées: ${regions.length}`);
+      const regions = [...new Set(data?.map((item: any) => item.region))] as string[];
+      console.log(`📊 Régions trouvées: ${regions.join(', ')}`);
+      
       return regions.sort();
     } catch (error) {
       console.error('Error fetching regions:', error);
@@ -324,105 +296,8 @@ export class ProducersService {
     }
   }
 
-  static async getCultures(): Promise<string[]> {
-    try {
-      if (useMockData) {
-        return ['Maïs', 'Riz', 'Arachide', 'Millet', 'Sorgho', 'Coton'];
-      }
-
-      const { data, error } = await supabase
-        .from('crops')
-        .select('crop_type')
-        .not('crop_type', 'is', null);
-
-      if (error) throw error;
-
-      const cultures = [...new Set(data?.map(item => item.crop_type) || [])];
-      return cultures.sort();
-    } catch (error) {
-      console.error('Error fetching cultures:', error);
-      throw error;
-    }
-  }
-
-  static async getAvailableAgents(): Promise<Array<{id: string, display_name: string, phone: string}>> {
-    try {
-      // Utiliser la fonction RPC pour récupérer les agents avec leur téléphone
-      const { data, error } = await supabase
-        .rpc('get_available_agents');
-
-      if (error) throw error;
-      
-      return data || [];
-    } catch (error) {
-      console.error('Error fetching available agents:', error);
-      throw error;
-    }
-  }
-
-  static async assignAgentToProducer(producerId: string, agentId: string): Promise<void> {
-    try {
-      const { data, error } = await supabase
-        .rpc('assign_agent_to_producer', {
-          producer_uuid: producerId,
-          agent_uuid: agentId
-        });
-
-      if (error) throw error;
-      
-      if (!data) {
-        throw new Error('Agent déjà assigné à ce producteur');
-      }
-    } catch (error) {
-      console.error('Error assigning agent to producer:', error);
-      throw error;
-    }
-  }
-
-  static async unassignAgentFromProducer(producerId: string, agentId: string): Promise<void> {
-    try {
-      const { data, error } = await supabase
-        .rpc('unassign_agent_from_producer', {
-          producer_uuid: producerId,
-          agent_uuid: agentId
-        });
-
-      if (error) throw error;
-      
-      if (!data) {
-        throw new Error('Agent non trouvé dans les assignations');
-      }
-    } catch (error) {
-      console.error('Error unassigning agent from producer:', error);
-      throw error;
-    }
-  }
-
   static async getProducerById(id: string): Promise<Producer | null> {
     try {
-      if (useMockData) {
-        const producer = mockProducers.find(p => p.id === id);
-        if (!producer) return null;
-        
-        return {
-          ...producer,
-          plots_count: 0,
-          total_area: 0,
-          last_visit: producer.updated_at,
-          status: producer.is_active ? 'active' : 'inactive',
-          cooperative: {
-            id: producer.cooperative_id,
-            name: 'Coopérative Mock',
-            region: producer.region
-          },
-          assigned_agents: [],
-          farm_files: [],
-          plots: [],
-          recent_operations: [],
-          recent_observations: []
-        };
-      }
-
       // Simplified query to avoid complex joins
       const { data, error } = await supabase
         .from('producers')
@@ -430,88 +305,102 @@ export class ProducersService {
         .eq('id', id)
         .single();
 
-      if (error) {
-        console.error('Error fetching producer:', error);
-        throw error;
-      }
-
+      if (error) throw error;
       if (!data) return null;
 
-      // Get cooperative info separately
-      let cooperative = null;
-      if (data.cooperative_id) {
-        const { data: coopData } = await supabase
-          .from('cooperatives')
-          .select('id, name, region')
-          .eq('id', data.cooperative_id)
-          .single();
-        cooperative = coopData;
+      // Load additional data
+      let assignedAgents: any[] = [];
+      let plotsCount = 0;
+      let totalArea = 0;
+      let farmFilesCount = 0;
+
+      try {
+        // Load assigned agents
+        const { data: agentsData } = await supabase
+          .rpc('get_producer_assigned_agents', { producer_uuid: id });
+        assignedAgents = agentsData || [];
+
+        // Load plots statistics
+        const { data: plotsData } = await supabase
+          .from('farm_file_plots')
+          .select('area_hectares')
+          .eq('producer_id', id);
+        
+        plotsCount = plotsData?.length || 0;
+        totalArea = plotsData?.reduce((sum, plot) => sum + (plot.area_hectares || 0), 0) || 0;
+
+        // Load farm files count
+        const { data: farmFilesData } = await supabase
+          .from('farm_files')
+          .select('id')
+          .eq('responsible_producer_id', id);
+        
+        farmFilesCount = farmFilesData?.length || 0;
+      } catch (error) {
+        console.error('Error loading additional data:', error);
       }
 
-      // Get assigned agents using RPC function
-      const { data: agentsData } = await supabase
-        .rpc('get_producer_assigned_agents', { producer_uuid: id });
-
-      // Get farm files separately
-      const { data: farmFilesData } = await supabase
-        .from('farm_files')
-        .select('id, name, status, created_at')
-        .eq('responsible_producer_id', id);
-
-      // Get plots separately
-      const { data: plotsData } = await supabase
-        .from('plots')
-        .select('id, name, created_at')
-        .eq('producer_id', id);
+      // Load cooperative info
+      let cooperative = null;
+      if (data.cooperative_id) {
+        try {
+          const { data: cooperativeData } = await supabase
+            .from('cooperatives')
+            .select('id, name, region')
+            .eq('id', data.cooperative_id)
+            .single();
+          
+          cooperative = cooperativeData;
+        } catch (error) {
+          console.error('Error loading cooperative:', error);
+        }
+      }
 
       return {
         ...data,
-        plots_count: plotsData?.length || 0,
-        total_area: 0, // This would need to be calculated from plots
+        plots_count: plotsCount,
+        total_area: totalArea,
+        farm_files_count: farmFilesCount,
         last_visit: data.updated_at,
         status: data.is_active ? 'active' : 'inactive',
-        cooperative: cooperative ? {
-          id: cooperative.id,
-          name: cooperative.name,
-          region: cooperative.region
-        } : null,
-            assigned_agents: agentsData?.map(agent => ({
-              id: agent.agent_id,
-              display_name: agent.display_name,
-              phone: agent.phone,
-              assigned_at: agent.assigned_at
-            })) || [],
-        farm_files: farmFilesData?.map(file => ({
-          id: file.id,
-          name: file.name,
-          status: file.status,
-          completion_percent: 0, // This would need to be calculated
-          plot_count: 0, // This would need to be calculated
-          created_at: file.created_at
-        })) || [],
-        plots: plotsData?.map(plot => ({
-          id: plot.id,
-          name: plot.name,
-          area_hectares: 0, // This would need to be calculated
-          status: 'active',
-          created_at: plot.created_at
-        })) || [],
-        recent_operations: [], // Simplified for now
-        recent_observations: [] // Simplified for now
+        cooperative,
+        assigned_agents: assignedAgents.map(agent => ({
+          id: agent.agent_id,
+          display_name: agent.display_name,
+          phone: agent.phone,
+          assigned_at: agent.assigned_at
+        })),
+        farm_files: Array(farmFilesCount).fill(null).map((_, index) => ({
+          id: `farm-file-${index}`,
+          name: `Fiche ${index + 1}`
+        })),
+        plots: [],
+        recent_operations: [],
+        recent_observations: []
       };
     } catch (error) {
-      console.error('Error fetching producer:', error);
+      console.error('Error fetching producer by ID:', error);
       throw error;
     }
   }
 
   static async updateProducer(id: string, updates: Partial<Producer>): Promise<Producer> {
     try {
-      // Filter out computed fields that don't exist in the database
-      const { status, plots_count, total_area, last_visit, cooperative, assigned_agents, farm_files, plots, recent_operations, recent_observations, ...dbUpdates } = updates;
+      console.log(`🔄 Mise à jour du producteur ${id}:`, updates);
 
-      console.log('Updating producer with data:', dbUpdates);
-      console.log('Producer ID:', id);
+      // Separate database fields from calculated fields
+      const dbUpdates = {
+        ...updates,
+        plots_count: undefined,
+        total_area: undefined,
+        last_visit: undefined,
+        cooperative: undefined,
+        assigned_agents: undefined,
+        farm_files: undefined,
+        plots: undefined,
+        recent_operations: undefined,
+        recent_observations: undefined
+      };
 
       const { data, error } = await supabase
         .from('producers')
@@ -520,23 +409,10 @@ export class ProducersService {
         .select()
         .single();
 
-      if (error) {
-        console.error('Supabase update error details:', {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint
-        });
-        throw error;
-      }
+      if (error) throw error;
 
-      return {
-        ...data,
-        plots_count: 0,
-        total_area: 0,
-        last_visit: data.updated_at,
-        status: data.is_active ? 'active' : 'inactive'
-      };
+      // Return updated producer with calculated fields
+      return await this.getProducerById(id) as Producer;
     } catch (error) {
       console.error('Error updating producer:', error);
       throw error;
@@ -545,27 +421,32 @@ export class ProducersService {
 
   static async createProducer(producerData: Partial<Producer>): Promise<Producer> {
     try {
-      // Filter out computed fields that don't exist in the database
-      const { status, plots_count, total_area, last_visit, cooperative, assigned_agents, farm_files, plots, recent_operations, recent_observations, ...dbData } = producerData;
+      console.log('➕ Création d\'un nouveau producteur:', producerData);
+
+      // Separate database fields from calculated fields
+      const dbData = {
+        ...producerData,
+        plots_count: undefined,
+        total_area: undefined,
+        last_visit: undefined,
+        cooperative: undefined,
+        assigned_agents: undefined,
+        farm_files: undefined,
+        plots: undefined,
+        recent_operations: undefined,
+        recent_observations: undefined
+      };
 
       const { data, error } = await supabase
         .from('producers')
-        .insert([dbData])
+        .insert(dbData)
         .select()
         .single();
 
-      if (error) {
-        console.error('Supabase create error:', error);
-        throw error;
-      }
+      if (error) throw error;
 
-      return {
-        ...data,
-        plots_count: 0,
-        total_area: 0,
-        last_visit: data.updated_at,
-        status: data.is_active ? 'active' : 'inactive'
-      };
+      // Return created producer with calculated fields
+      return await this.getProducerById(data.id) as Producer;
     } catch (error) {
       console.error('Error creating producer:', error);
       throw error;
@@ -574,34 +455,16 @@ export class ProducersService {
 
   static async deleteProducer(id: string): Promise<void> {
     try {
-      console.log('Attempting to delete producer with ID:', id);
-      
-      // First, check if the producer exists and get their details
-      const { data: producer, error: fetchError } = await supabase
-        .from('producers')
-        .select('id, first_name, last_name, profile_id')
-        .eq('id', id)
-        .single();
+      console.log(`🗑️ Suppression du producteur ${id}`);
 
-      if (fetchError) {
-        console.error('Error fetching producer:', fetchError);
-        throw new Error(`Producteur non trouvé: ${fetchError.message}`);
-      }
-
-      console.log('Producer found:', producer);
-      
-      // Try to delete the producer
       const { error } = await supabase
         .from('producers')
         .delete()
         .eq('id', id);
 
-      if (error) {
-        console.error('Supabase delete error:', error);
-        throw new Error(`Erreur lors de la suppression: ${error.message}`);
-      }
-      
-      console.log('Producer deleted successfully');
+      if (error) throw error;
+
+      console.log(`✅ Producteur ${id} supprimé avec succès`);
     } catch (error) {
       console.error('Error deleting producer:', error);
       throw error;

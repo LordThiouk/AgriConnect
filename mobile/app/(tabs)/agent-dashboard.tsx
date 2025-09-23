@@ -17,8 +17,8 @@ export default function AgentDashboard() {
   const navigation = useNavigation();
   const router = useRouter();
   
-  // Utiliser le hook pour récupérer les vraies données (avec ID de test par défaut)
-  const { stats, visits, alerts, loading, error, refresh } = useAgentDashboard(user?.id || 'test-agent-123');
+  // Utiliser le hook pour récupérer les vraies données
+  const { stats, visits, alerts, loading, error, refresh } = useAgentDashboard(user?.id || null);
 
   const today = new Date().toLocaleDateString();
   const agentName = user?.user_metadata?.display_name || 'Agent terrain';
@@ -188,11 +188,11 @@ export default function AgentDashboard() {
 
         {/* Actions de fin de page */}
         <View style={styles.footerActions}>
-          <TouchableOpacity style={styles.primaryTile} onPress={() => router.push('/(tabs)/collecte')}>
+          <TouchableOpacity style={styles.primaryTile} onPress={() => router.push('/(tabs)/visite-form')}>
             <Ionicons name="add" size={28} color="#FFFFFF" />
             <Text style={styles.primaryTileText}>Nouvelle visite</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryTile} onPress={() => router.push('/(tabs)/map')}>
+          <TouchableOpacity style={styles.secondaryTile} onPress={() => router.push('/(tabs)/parcelles')}>
             <Ionicons name="map" size={28} color="#111827" />
             <Text style={styles.secondaryTileText}>Carte</Text>
           </TouchableOpacity>

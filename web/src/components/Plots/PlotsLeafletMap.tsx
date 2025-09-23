@@ -193,7 +193,7 @@ export default function PlotsLeafletMap({
             const isSelected = selectedPlot?.id === plot.id;
             return (
               <MarkerComponent
-                key={plot.id}
+                key={plot.farm_file_plot_id || plot.id}
                 position={[plot.latitude!, plot.longitude!]}
                 eventHandlers={{
                   click: () => onPlotSelect(plot),

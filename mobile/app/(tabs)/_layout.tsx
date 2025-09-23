@@ -93,6 +93,7 @@ export default function TabLayout() {
         }}
       />
 
+
       {/* Profil - Gestion du compte */}
       <Tabs.Screen
         name="profile"
@@ -106,6 +107,9 @@ export default function TabLayout() {
 
       {/* Debug - hors des onglets */}
       <Tabs.Screen name="debug" options={{ href: null }} />
+      
+      {/* Visite Form - accessible via navigation programmatique */}
+      <Tabs.Screen name="visite-form" options={{ href: null }} />
     </Tabs>
   );
 }

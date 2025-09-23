@@ -323,7 +323,7 @@ const Plots: React.FC = () => {
                     <p className="text-2xl font-bold text-gray-900">{stats.activePlots}</p>
                   </div>
                   <div className="flex-shrink-0">
-                    <Activity className="h-8 w-8 text-green-600" />
+                    <ActivityIcon className="h-8 w-8 text-green-600" />
                   </div>
                 </div>
               </CardContent>
@@ -337,7 +337,7 @@ const Plots: React.FC = () => {
                     <p className="text-2xl font-bold text-gray-900">{stats.totalArea} ha</p>
                   </div>
                   <div className="flex-shrink-0">
-                    <TrendingUp className="h-8 w-8 text-purple-600" />
+                    <TrendingUpIcon className="h-8 w-8 text-purple-600" />
                   </div>
                 </div>
               </CardContent>
@@ -351,7 +351,7 @@ const Plots: React.FC = () => {
                     <p className="text-2xl font-bold text-gray-900">{stats.averageArea} ha</p>
                   </div>
                   <div className="flex-shrink-0">
-                    <BarChart3 className="h-8 w-8 text-orange-600" />
+                    <BarChart3Icon className="h-8 w-8 text-orange-600" />
                   </div>
                 </div>
               </CardContent>
@@ -490,7 +490,7 @@ const Plots: React.FC = () => {
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {plots.map((plot) => (
-                        <tr key={plot.id} className="hover:bg-gray-50">
+                        <tr key={plot.farm_file_plot_id || plot.id} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
                               <div className="flex-shrink-0 h-10 w-10">

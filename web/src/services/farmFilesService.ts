@@ -48,6 +48,7 @@ export interface FarmFileFilters {
   search?: string;
   region?: string;
   status?: string;
+  responsible_producer_id?: string;
   cooperative_id?: string;
 }
 
@@ -130,6 +131,10 @@ export class FarmFilesService {
         countQuery = countQuery.eq('cooperative_id', filters.cooperative_id);
       }
 
+      if (filters.responsible_producer_id) {
+        countQuery = countQuery.eq('responsible_producer_id', filters.responsible_producer_id);
+      }
+
       const { count, error: countError } = await countQuery;
       
       if (countError) {
@@ -137,48 +142,45 @@ export class FarmFilesService {
         throw countError;
       }
 
-      // Get the actual data with pagination
-      let dataQuery = supabase
-        .from('farm_files')
-        .select(`
-          *,
-          cooperative:cooperatives(id, name, region),
-          responsible_producer:producers(id, first_name, last_name, phone)
-        `);
-
-      // Apply same filters to data query
-      if (filters.search) {
-        dataQuery = dataQuery.or(`name.ilike.%${filters.search}%,village.ilike.%${filters.search}%,sector.ilike.%${filters.search}%`);
-      }
-
-      if (filters.region) {
-        dataQuery = dataQuery.eq('region', filters.region);
-      }
-
-      if (filters.status) {
-        dataQuery = dataQuery.eq('status', filters.status);
-      }
-
-      if (filters.cooperative_id) {
-        dataQuery = dataQuery.eq('cooperative_id', filters.cooperative_id);
-      }
-
-      // Apply pagination
-      const from = (pagination.page - 1) * pagination.limit;
-      const to = from + pagination.limit - 1;
+      // Use RPC function for all queries to get statistics
+      console.log(`📊 Utilisation de la fonction RPC pour récupérer les fiches avec statistiques`);
       
-      dataQuery = dataQuery.range(from, to).order('created_at', { ascending: false });
+      const { data: rpcData, error: rpcError } = await supabase
+        .rpc('get_farm_files_with_stats', {
+          p_search: filters.search || null,
+          p_region: filters.region || null,
+          p_status: filters.status || null,
+          p_responsible_producer_id: filters.responsible_producer_id || null,
+          p_cooperative_id: filters.cooperative_id || null,
+          p_limit: pagination.limit,
+          p_offset: (pagination.page - 1) * pagination.limit
+        });
 
-      const { data, error } = await dataQuery;
+      if (rpcError) {
+        console.error('Error fetching farm files via RPC:', rpcError);
+        throw rpcError;
+      }
 
-      if (error) throw error;
-
-      // Transform data to include calculated fields
-      const transformedData: FarmFile[] = (data || []).map(farmFile => ({
-        ...farmFile,
-        plots_count: 0, // This would need to be calculated from farm_file_plots
-        completion_percentage: 0 // This would need to be calculated based on completion status
+      // Transform RPC data to match expected format
+      const data = (rpcData || []).map((file: any) => ({
+        ...file,
+        plots_count: file.plot_count,
+        completion_percentage: file.completion_percentage,
+        cooperative: file.cooperative_id ? {
+          id: file.cooperative_id,
+          name: file.cooperative_name,
+          region: file.region
+        } : null,
+        responsible_producer: file.responsible_producer_id ? {
+          id: file.responsible_producer_id,
+          first_name: file.producer_name?.split(' ')[0] || '',
+          last_name: file.producer_name?.split(' ').slice(1).join(' ') || '',
+          phone: null // Not available in RPC
+        } : null
       }));
+
+      // Data is already processed with statistics from RPC, no additional transformation needed
+      const transformedData: FarmFile[] = data;
 
       const totalPages = Math.ceil((count || 0) / pagination.limit);
 

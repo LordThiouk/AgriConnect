@@ -38,7 +38,7 @@ export class DashboardService {
       console.log('📊 Appel de la fonction RPC get_agent_dashboard_stats pour l\'agent:', agentId);
 
       const { data, error } = await DashboardService.supabase.rpc('get_agent_dashboard_stats', {
-        p_agent_id: agentId,
+        p_user_id: agentId,
       });
 
       if (error) {
@@ -65,7 +65,7 @@ export class DashboardService {
       console.log('📊 Appel de la fonction RPC get_agent_today_visits pour l\'agent:', agentId);
 
       const { data, error } = await DashboardService.supabase.rpc('get_agent_today_visits', {
-        p_agent_id: agentId,
+        p_user_id: agentId,
       });
 
       if (error) {
@@ -90,7 +90,7 @@ export class DashboardService {
       console.log('📊 Appel de la fonction RPC get_agent_terrain_alerts pour l\'agent:', agentId);
 
       const { data, error } = await DashboardService.supabase.rpc('get_agent_terrain_alerts', {
-        p_agent_id: agentId,
+        p_user_id: agentId,
       });
 
       if (error) {

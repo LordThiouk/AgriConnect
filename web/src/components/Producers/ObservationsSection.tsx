@@ -261,12 +261,15 @@ const ObservationsSection: React.FC<ObservationsSectionProps> = ({ producerId, p
                   </div>
                 )}
 
-                {observation.observed_by && (
+                {(observation as any).agent_name && (
                   <div className="mt-3 pt-3 border-t border-gray-100">
                     <div className="flex items-center gap-2 text-sm">
                       <UserIcon className="h-3 w-3 text-gray-500" />
                       <span className="text-gray-500">Observé par:</span>
-                      <span>Agent ID: {observation.observed_by}</span>
+                      <span className="font-medium">{(observation as any).agent_name}</span>
+                      {(observation as any).agent_phone && (
+                        <span className="text-gray-500">- {(observation as any).agent_phone}</span>
+                      )}
                     </div>
                   </div>
                 )}

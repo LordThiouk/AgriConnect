@@ -182,7 +182,7 @@ const ProducersTable: React.FC<ProducersTableProps> = ({
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     <div className="flex items-center gap-1">
                       <FileTextIcon className="h-4 w-4 text-gray-400" />
-                      <span>{producer.farm_files?.length || 0}</span>
+                      <span>{producer.farm_files_count || 0}</span>
                     </div>
                     {producer.farm_files && producer.farm_files.length > 0 && (
                       <div className="text-xs text-gray-500 mt-1">
@@ -347,7 +347,7 @@ const ProducersTable: React.FC<ProducersTableProps> = ({
                       <span className="text-xs text-gray-500">Fiches</span>
                     </div>
                     <p className="text-lg font-semibold text-gray-900">
-                      {producer.farm_files?.length || 0}
+                      {producer.farm_files_count || 0}
                     </p>
                     {producer.farm_files && producer.farm_files.length > 0 && (
                       <p className="text-xs text-gray-500 truncate">

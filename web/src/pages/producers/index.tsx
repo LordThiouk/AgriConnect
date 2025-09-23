@@ -40,8 +40,7 @@ const Producers: React.FC = () => {
   const [filters, setFilters] = useState<ProducerFilters>({
     search: '',
     region: '',
-    culture: '',
-    status: ''
+    status: 'active' as 'active' | 'inactive'
   });
   
   // Pagination state
@@ -52,7 +51,6 @@ const Producers: React.FC = () => {
   
   // Filter options
   const [regions, setRegions] = useState<string[]>([]);
-  const [cultures, setCultures] = useState<string[]>([]);
   const [cooperativesCount, setCooperativesCount] = useState<number>(0);
   const statusOptions = ['active', 'inactive'];
 
@@ -74,7 +72,10 @@ const Producers: React.FC = () => {
     } catch (err) {
       console.error('Error fetching producers:', err);
       setError(err instanceof Error ? err.message : 'Erreur lors du chargement des producteurs');
-      showToast('Erreur lors du chargement des producteurs', 'error');
+      showToast({
+        type: 'error',
+        title: 'Erreur lors du chargement des producteurs'
+      });
     } finally {
       setLoading(false);
     }
@@ -84,7 +85,6 @@ const Producers: React.FC = () => {
     try {
       const options = await ProducersService.getFilterOptions();
       setRegions(options.regions);
-      setCultures(options.cultures);
     } catch (err) {
       console.error('Error fetching filter options:', err);
     }
@@ -120,87 +120,53 @@ const Producers: React.FC = () => {
       setIsDetailsModalOpen(true);
     } catch (error) {
       console.error('Error loading producer details:', error);
-      showToast('Erreur lors du chargement des détails', 'error');
+      showToast({
+        type: 'error',
+        title: 'Erreur lors du chargement des détails'
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleManageAgents = async (producer: Producer) => {
-    console.log('Manage agents clicked for producer:', producer);
-    console.log('Producer ID:', producer?.id);
-    
-    if (!producer || !producer.id) {
-      console.error('Producer ID is undefined for manage agents:', producer);
-      showToast('Erreur: ID du producteur manquant', 'error');
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      const fullProducer = await ProducersService.getProducerById(producer.id);
-      setSelectedProducer(fullProducer);
-      setIsAgentModalOpen(true);
-    } catch (error) {
-      console.error('Error loading producer details:', error);
-      showToast('Erreur lors du chargement des détails', 'error');
-    } finally {
-      setLoading(false);
-    }
+  const handleManageAgents = (producer: Producer) => {
+    setSelectedProducer(producer);
+    setIsAgentModalOpen(true);
+  };
+
+  const handleAgentAssigned = () => {
+    setIsAgentModalOpen(false);
+    fetchProducers();
+    showToast({
+      type: 'success',
+      title: 'Agent assigné avec succès'
+    });
   };
 
   const handleSaveProducer = () => {
     setIsAddModalOpen(false);
     setIsEditModalOpen(false);
     fetchProducers();
-    showToast('Producteur sauvegardé avec succès', 'success');
+    showToast({
+      type: 'success',
+      title: 'Producteur sauvegardé avec succès'
+    });
   };
 
-  const handleDeleteProducer = async (producer: Producer) => {
-    console.log('Delete button clicked for producer:', producer);
-    console.log('Producer type:', typeof producer);
-    console.log('Producer keys:', Object.keys(producer || {}));
-    console.log('Producer ID value:', producer?.id);
-    
-    // Validate producer ID
-    if (!producer || !producer.id) {
-      console.error('Producer ID is undefined:', producer);
-      showToast('Erreur: ID du producteur manquant', 'error');
-      return;
-    }
-    
-    if (window.confirm(`Êtes-vous sûr de vouloir supprimer le producteur ${producer.first_name} ${producer.last_name} ?`)) {
-      console.log('User confirmed deletion');
-      try {
-        setLoading(true);
-        
-        // Optimistic update: remove producer from list immediately
-        setProducers(prevProducers => prevProducers.filter(p => p.id !== producer.id));
-        setTotalItems(prevTotal => prevTotal - 1);
-        
-        console.log('Calling ProducersService.deleteProducer with ID:', producer.id);
-        await ProducersService.deleteProducer(producer.id);
-        console.log('Producer deleted successfully');
-        
-        // Refresh the list to ensure consistency
-        await fetchProducers();
-        showToast('Producteur supprimé avec succès', 'success');
-      } catch (error) {
-        console.error('Error deleting producer:', error);
-        // Revert optimistic update on error
-        await fetchProducers();
-        showToast(`Erreur lors de la suppression: ${error instanceof Error ? error.message : 'Erreur inconnue'}`, 'error');
-      } finally {
-        setLoading(false);
-      }
-    } else {
-      console.log('User cancelled deletion');
-    }
+  const handleDeleteProducer = () => {
+    fetchProducers();
+    showToast({
+      type: 'success',
+      title: 'Producteur supprimé avec succès'
+    });
   };
 
   const handleRefresh = () => {
     fetchProducers();
-    showToast('Données actualisées', 'success');
+    showToast({
+      type: 'success',
+      title: 'Données actualisées'
+    });
   };
 
   const handleFilterChange = (field: keyof ProducerFilters, value: string) => {
@@ -293,7 +259,7 @@ const Producers: React.FC = () => {
               <BarChart3Icon className="h-8 w-8 text-orange-600" />
               <div className="ml-3">
                 <p className="text-sm font-medium text-gray-600">Cultures</p>
-                <p className="text-2xl font-bold text-gray-900">{cultures.length}</p>
+                <p className="text-2xl font-bold text-gray-900">0</p>
               </div>
             </div>
           </CardContent>
@@ -320,13 +286,6 @@ const Producers: React.FC = () => {
                 placeholder="Toutes les régions"
               />
               <FilterDropdown
-                label="Culture"
-                value={filters.culture || 'all'}
-                options={cultures}
-                onChange={(value) => handleFilterChange('culture', value)}
-                placeholder="Toutes les cultures"
-              />
-              <FilterDropdown
                 label="Statut"
                 value={filters.status || 'all'}
                 options={statusOptions}
@@ -347,7 +306,6 @@ const Producers: React.FC = () => {
             onView={handleViewProducer}
             onEdit={handleEditProducer}
             onDownload={() => {}}
-            onDelete={handleDeleteProducer}
             onManageAgents={handleManageAgents}
           />
         </CardContent>
@@ -396,13 +354,7 @@ const Producers: React.FC = () => {
         onClose={() => setIsAgentModalOpen(false)}
         producerId={selectedProducer?.id || ''}
         producerName={selectedProducer ? `${selectedProducer.first_name} ${selectedProducer.last_name}` : ''}
-        assignedAgents={selectedProducer?.assigned_agents || []}
-        onAgentAssigned={() => {
-          // Refresh the producer details
-          if (selectedProducer) {
-            handleViewProducer(selectedProducer);
-          }
-        }}
+        onAgentAssigned={handleAgentAssigned}
       />
     </Layout>
   );

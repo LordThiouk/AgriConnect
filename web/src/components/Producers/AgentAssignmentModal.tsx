@@ -4,26 +4,20 @@ import { Button } from '../ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Badge } from '../ui/badge';
 import { X, UserPlus, UserMinus } from 'lucide-react';
-import { ProducersService } from '../../services/producersService';
+import { AgentsService } from '../../services/agentsService';
 import { useToast } from '../../context/ToastContext';
+import { Agent } from '../../types';
 
 // Type assertions for Lucide React icons
 const UserPlusIcon = UserPlus as any;
 const UserMinusIcon = UserMinus as any;
 const XIcon = X as any;
 
-interface Agent {
-  id: string;
-  display_name: string;
-  phone: string;
-}
-
 interface AgentAssignmentModalProps {
   isOpen: boolean;
   onClose: () => void;
   producerId: string;
   producerName: string;
-  assignedAgents: Agent[];
   onAgentAssigned: () => void;
 }
 
@@ -32,48 +26,75 @@ const AgentAssignmentModal: React.FC<AgentAssignmentModalProps> = ({
   onClose,
   producerId,
   producerName,
-  assignedAgents,
   onAgentAssigned
 }) => {
   const { showToast } = useToast();
   const [availableAgents, setAvailableAgents] = useState<Agent[]>([]);
+  const [assignedAgents, setAssignedAgents] = useState<Agent[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       fetchAvailableAgents();
+      fetchAssignedAgents();
     }
-  }, [isOpen]);
+  }, [isOpen, producerId]);
 
   const fetchAvailableAgents = async () => {
     try {
       setLoading(true);
-      const agents = await ProducersService.getAvailableAgents();
+      const agents = await AgentsService.getAvailableAgents();
       setAvailableAgents(agents);
     } catch (error) {
       console.error('Error fetching available agents:', error);
-      showToast('Erreur lors du chargement des agents', 'error');
+      showToast({
+        type: 'error',
+        title: 'Erreur lors du chargement des agents'
+      });
     } finally {
       setLoading(false);
     }
   };
 
+  const fetchAssignedAgents = async () => {
+    try {
+      const agents = await AgentsService.getAssignedAgentsForProducer(producerId);
+      setAssignedAgents(agents);
+    } catch (error) {
+      console.error('Error fetching assigned agents:', error);
+      showToast({
+        type: 'error',
+        title: 'Erreur lors du chargement des agents assignés'
+      });
+    }
+  };
+
   const handleAssignAgent = async () => {
     if (!selectedAgentId) {
-      showToast('Veuillez sélectionner un agent', 'error');
+      showToast({
+        type: 'error',
+        title: 'Veuillez sélectionner un agent'
+      });
       return;
     }
 
     try {
       setLoading(true);
-      await ProducersService.assignAgentToProducer(producerId, selectedAgentId);
-      showToast('Agent attribué avec succès', 'success');
+      await AgentsService.assignProducerToAgent(producerId, selectedAgentId);
+      showToast({
+        type: 'success',
+        title: 'Agent attribué avec succès'
+      });
       setSelectedAgentId('');
+      await fetchAssignedAgents(); // Recharger les agents assignés
       onAgentAssigned();
     } catch (error) {
       console.error('Error assigning agent:', error);
-      showToast('Erreur lors de l\'attribution de l\'agent', 'error');
+      showToast({
+        type: 'error',
+        title: 'Erreur lors de l\'attribution de l\'agent'
+      });
     } finally {
       setLoading(false);
     }
@@ -82,12 +103,19 @@ const AgentAssignmentModal: React.FC<AgentAssignmentModalProps> = ({
   const handleUnassignAgent = async (agentId: string) => {
     try {
       setLoading(true);
-      await ProducersService.unassignAgentFromProducer(producerId, agentId);
-      showToast('Agent retiré avec succès', 'success');
+      await AgentsService.unassignProducerFromAgent(producerId, agentId);
+      showToast({
+        type: 'success',
+        title: 'Agent retiré avec succès'
+      });
+      await fetchAssignedAgents(); // Recharger les agents assignés
       onAgentAssigned();
     } catch (error) {
       console.error('Error unassigning agent:', error);
-      showToast('Erreur lors du retrait de l\'agent', 'error');
+      showToast({
+        type: 'error',
+        title: 'Erreur lors du retrait de l\'agent'
+      });
     } finally {
       setLoading(false);
     }

@@ -5,10 +5,8 @@ import { Plot, Crop, Operation, Producer } from '../types';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-const useMockData = APP_CONFIG.USE_MOCK_DATA;
-
 let supabase: any = null;
-if (!useMockData && supabaseUrl && supabaseAnonKey) {
+if (supabaseUrl && supabaseAnonKey) {
   supabase = createClient(supabaseUrl, supabaseAnonKey);
 }
 
@@ -25,6 +23,7 @@ export interface PlotFilters {
 export interface CropFilters {
   search?: string;
   plot_id?: string;
+  farm_file_plot_id?: string;  // Ajout pour supporter farm_file_plots
   crop_type?: string;
   status?: 'planted' | 'growing' | 'harvested' | 'failed';
   season?: string;
@@ -68,73 +67,6 @@ export class PlotsService {
     pagination: PaginationParams = { page: 1, limit: 20 }
   ): Promise<PlotsResponse> {
     try {
-      if (useMockData) {
-        const mockPlots: Plot[] = [
-          {
-            id: 'plot-1',
-            producer_id: 'prod-1',
-            name: 'Parcelle Nord',
-            area_hectares: 2.5,
-            soil_type: 'loam',
-            soil_ph: 6.8,
-            water_source: 'irrigation',
-            irrigation_type: 'drip',
-            slope_percent: 2,
-            elevation_meters: 45,
-            status: 'active',
-            notes: 'Parcelle principale pour le maïs',
-            created_at: '2024-01-15T10:00:00Z',
-            updated_at: '2024-01-15T10:00:00Z',
-            producer: {
-              id: 'prod-1',
-              profile_id: 'profile-1',
-              first_name: 'Amadou',
-              last_name: 'Diop',
-              phone: '+221771234567',
-              gender: 'M',
-              is_active: true,
-              created_at: '2024-01-01T00:00:00Z',
-              updated_at: '2024-01-01T00:00:00Z'
-            } as Producer
-          },
-          {
-            id: 'plot-2',
-            producer_id: 'prod-1',
-            name: 'Parcelle Sud',
-            area_hectares: 1.8,
-            soil_type: 'clay',
-            soil_ph: 7.2,
-            water_source: 'rain',
-            irrigation_type: 'none',
-            slope_percent: 5,
-            elevation_meters: 42,
-            status: 'active',
-            notes: 'Parcelle pour les légumes',
-            created_at: '2024-01-20T14:30:00Z',
-            updated_at: '2024-01-20T14:30:00Z',
-            producer: {
-              id: 'prod-1',
-              profile_id: 'profile-1',
-              first_name: 'Amadou',
-              last_name: 'Diop',
-              phone: '+221771234567',
-              gender: 'M',
-              is_active: true,
-              created_at: '2024-01-01T00:00:00Z',
-              updated_at: '2024-01-01T00:00:00Z'
-            } as Producer
-          }
-        ];
-
-        return {
-          data: mockPlots,
-          total: mockPlots.length,
-          page: pagination.page,
-          limit: pagination.limit,
-          totalPages: 1
-        };
-      }
-
       if (!supabase) {
         throw new Error('Supabase client not initialized');
       }
@@ -175,6 +107,7 @@ export class PlotsService {
            // Transform RPC response to match Plot interface
            const transformedData = (data || []).map((plot: any) => ({
              id: plot.id,
+             farm_file_plot_id: plot.farm_file_plot_id, // Add farm_file_plot_id for crops/operations
              producer_id: plot.producer_id,
              name: plot.name,
              area_hectares: plot.area_hectares ? parseFloat(plot.area_hectares) : undefined,
@@ -224,42 +157,12 @@ export class PlotsService {
 
   static async getPlotById(id: string): Promise<Plot> {
     try {
-      if (useMockData) {
-        return {
-          id,
-          producer_id: 'prod-1',
-          name: 'Parcelle Nord',
-          area_hectares: 2.5,
-          soil_type: 'loam',
-          soil_ph: 6.8,
-          water_source: 'irrigation',
-          irrigation_type: 'drip',
-          slope_percent: 2,
-          elevation_meters: 45,
-          status: 'active',
-          notes: 'Parcelle principale pour le maïs',
-          created_at: '2024-01-15T10:00:00Z',
-          updated_at: '2024-01-15T10:00:00Z',
-          producer: {
-            id: 'prod-1',
-            profile_id: 'profile-1',
-            first_name: 'Amadou',
-            last_name: 'Diop',
-            phone: '+221771234567',
-              gender: 'M',
-            is_active: true,
-            created_at: '2024-01-01T00:00:00Z',
-            updated_at: '2024-01-01T00:00:00Z'
-          } as Producer
-        };
-      }
-
       if (!supabase) {
         throw new Error('Supabase client not initialized');
       }
 
       const { data, error } = await supabase
-        .from('plots')
+        .from('farm_file_plots')
         .select(`
           *,
           producer:producers(id, first_name, last_name, phone, region, cooperative_id)
@@ -278,15 +181,6 @@ export class PlotsService {
 
   static async createPlot(plotData: Partial<Plot>): Promise<Plot> {
     try {
-      if (useMockData) {
-        return {
-          id: 'new-plot-id',
-          ...plotData,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          status: 'active'
-        } as Plot;
-      }
 
       if (!supabase) {
         throw new Error('Supabase client not initialized');
@@ -309,13 +203,6 @@ export class PlotsService {
 
   static async updatePlot(id: string, plotData: Partial<Plot>): Promise<Plot> {
     try {
-      if (useMockData) {
-        return {
-          id,
-          ...plotData,
-          updated_at: new Date().toISOString()
-        } as Plot;
-      }
 
       if (!supabase) {
         throw new Error('Supabase client not initialized');
@@ -339,9 +226,6 @@ export class PlotsService {
 
   static async deletePlot(id: string): Promise<void> {
     try {
-      if (useMockData) {
-        return;
-      }
 
       if (!supabase) {
         throw new Error('Supabase client not initialized');
@@ -373,24 +257,6 @@ export class PlotsService {
 
   static async getPlotsStats(): Promise<PlotStats> {
     try {
-      if (useMockData) {
-        return {
-          totalPlots: 25,
-          activePlots: 20,
-          totalArea: 125.5,
-          averageArea: 5.02,
-          plotsByStatus: {
-            active: 20,
-            inactive: 3,
-            abandoned: 2
-          },
-          plotsBySoilType: {
-            loam: 12,
-            clay: 8,
-            sandy: 5
-          }
-        };
-      }
 
       if (!supabase) {
         throw new Error('Supabase client not initialized');
@@ -459,50 +325,18 @@ export class PlotsService {
     pagination: PaginationParams = { page: 1, limit: 20 }
   ): Promise<CropsResponse> {
     try {
-      if (useMockData) {
-        const mockCrops: Crop[] = [
-          {
-            id: 'crop-1',
-            plot_id: 'plot-1',
-            crop_type: 'Maïs',
-            variety: 'DMR-ESR-W',
-            sowing_date: '2024-03-15',
-            expected_harvest_date: '2024-07-15',
-            actual_harvest_date: null,
-            estimated_yield_kg_ha: 3000,
-            actual_yield_kg_ha: null,
-            status: 'growing',
-            notes: 'Variété résistante à la sécheresse',
-            created_at: '2024-03-15T08:00:00Z',
-            updated_at: '2024-03-15T08:00:00Z',
-            plot: {
-              id: 'plot-1',
-              producer_id: 'prod-1',
-              name: 'Parcelle Nord',
-              status: 'active',
-              created_at: '2024-01-01T00:00:00Z',
-              updated_at: '2024-01-01T00:00:00Z'
-            } as Plot
-          }
-        ];
-
-        return {
-          data: mockCrops,
-          total: mockCrops.length,
-          page: pagination.page,
-          limit: pagination.limit,
-          totalPages: 1
-        };
-      }
 
       if (!supabase) {
         throw new Error('Supabase client not initialized');
       }
 
       // Get count using RPC
+      // Si farm_file_plot_id est fourni, l'utiliser à la place de plot_id
+      const plotIdParam = filters.farm_file_plot_id || filters.plot_id;
+      
       const { data: countData, error: countError } = await supabase
         .rpc('get_crops_count', {
-          plot_id_param: filters.plot_id || null,
+          plot_id_param: plotIdParam || null,
           search_param: filters.search || null,
           crop_type_param: filters.crop_type || null,
           status_param: filters.status || null,
@@ -520,7 +354,7 @@ export class PlotsService {
       // Get data using RPC
       const { data, error } = await supabase
         .rpc('get_crops_with_plot_info', {
-          plot_id_param: filters.plot_id || null,
+          plot_id_param: plotIdParam || null,
           search_param: filters.search || null,
           crop_type_param: filters.crop_type || null,
           status_param: filters.status || null,
@@ -577,31 +411,6 @@ export class PlotsService {
 
   static async getCropById(id: string): Promise<Crop> {
     try {
-      if (useMockData) {
-        return {
-          id,
-          plot_id: 'plot-1',
-          crop_type: 'Maïs',
-          variety: 'DMR-ESR-W',
-            sowing_date: '2024-03-15',
-          expected_harvest_date: '2024-07-15',
-          actual_harvest_date: null,
-          estimated_yield_kg_ha: 3000,
-          actual_yield_kg_ha: null,
-          status: 'growing',
-          notes: 'Variété résistante à la sécheresse',
-          created_at: '2024-03-15T08:00:00Z',
-          updated_at: '2024-03-15T08:00:00Z',
-          plot: {
-            id: 'plot-1',
-            producer_id: 'prod-1',
-            name: 'Parcelle Nord',
-            status: 'active',
-            created_at: '2024-01-01T00:00:00Z',
-            updated_at: '2024-01-01T00:00:00Z'
-          } as Plot
-        };
-      }
 
       if (!supabase) {
         throw new Error('Supabase client not initialized');
@@ -655,15 +464,6 @@ export class PlotsService {
 
   static async createCrop(cropData: Partial<Crop>): Promise<Crop> {
     try {
-      if (useMockData) {
-        return {
-          id: 'new-crop-id',
-          ...cropData,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          status: 'planted'
-        } as Crop;
-      }
 
       if (!supabase) {
         throw new Error('Supabase client not initialized');
@@ -686,13 +486,6 @@ export class PlotsService {
 
   static async updateCrop(id: string, cropData: Partial<Crop>): Promise<Crop> {
     try {
-      if (useMockData) {
-        return {
-          id,
-          ...cropData,
-          updated_at: new Date().toISOString()
-        } as Crop;
-      }
 
       if (!supabase) {
         throw new Error('Supabase client not initialized');
@@ -716,9 +509,6 @@ export class PlotsService {
 
   static async deleteCrop(id: string): Promise<void> {
     try {
-      if (useMockData) {
-        return;
-      }
 
       if (!supabase) {
         throw new Error('Supabase client not initialized');
@@ -740,25 +530,6 @@ export class PlotsService {
 
   static async getPlotStats(): Promise<PlotStats> {
     try {
-      if (useMockData) {
-        return {
-          totalPlots: 150,
-          activePlots: 120,
-          totalArea: 450.5,
-          averageArea: 3.0,
-          plotsByStatus: {
-            active: 120,
-            inactive: 20,
-            abandoned: 10
-          },
-          plotsBySoilType: {
-            loam: 60,
-            clay: 45,
-            sandy: 30,
-            silt: 15
-          }
-        };
-      }
 
       if (!supabase) {
         throw new Error('Supabase client not initialized');
@@ -825,19 +596,6 @@ export class PlotsService {
     cooperatives: { id: string; name: string }[];
   }> {
     try {
-      if (useMockData) {
-        return {
-          soilTypes: ['sandy', 'clay', 'loam', 'silt', 'organic', 'other'],
-          waterSources: ['rain', 'irrigation', 'well', 'river', 'other'],
-          irrigationTypes: ['none', 'drip', 'sprinkler', 'flood', 'other'],
-          cropTypes: ['Maïs', 'Riz', 'Millet', 'Sorgho', 'Arachide', 'Niébé', 'Tomate', 'Oignon'],
-          regions: ['Kaolack', 'Thiès', 'Dakar', 'Saint-Louis'],
-          cooperatives: [
-            { id: 'coop-1', name: 'Coopérative de Kaolack' },
-            { id: 'coop-2', name: 'Coopérative de Thiès' }
-          ]
-        };
-      }
 
       if (!supabase) {
         throw new Error('Supabase client not initialized');

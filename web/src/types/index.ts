@@ -184,6 +184,7 @@ export interface EquipmentItem {
 // ===== PLOT TYPES =====
 export interface Plot {
   id: string;
+  farm_file_plot_id?: string; // ID from farm_file_plots table (for crops/operations)
   producer_id: string;
   name: string;
   area_hectares?: number;
@@ -557,4 +558,112 @@ export interface AuditLog {
   new_values?: any;
   user_id: string;
   created_at: string;
+}
+
+// ===== ALERTS & RECOMMENDATIONS TYPES =====
+export interface Recommendation {
+  id: string;
+  crop_id?: string;
+  plot_id?: string;
+  producer_id?: string;
+  rule_code?: string;
+  title: string;
+  message: string;
+  recommendation_type: 'fertilisation' | 'irrigation' | 'pest_control' | 'harvest' | 'other';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  status: 'pending' | 'sent' | 'acknowledged' | 'completed' | 'dismissed';
+  sent_at?: string;
+  acknowledged_at?: string;
+  completed_at?: string;
+  created_at: string;
+  updated_at: string;
+  // Relations
+  producer?: Producer;
+  plot?: Plot;
+  crop?: Crop;
+}
+
+export interface AgriRule {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  condition_sql: string;
+  action_type: 'notification' | 'recommendation' | 'alert' | 'reminder';
+  action_message: string;
+  severity: 'info' | 'warning' | 'critical';
+  is_active: boolean;
+  applicable_crops?: string[];
+  applicable_regions?: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Notification {
+  id: string;
+  profile_id: string;
+  title: string;
+  body: string;
+  channel: 'sms' | 'whatsapp' | 'push' | 'email' | 'inapp';
+  provider?: string;
+  status: 'pending' | 'sent' | 'delivered' | 'failed';
+  sent_at?: string;
+  delivered_at?: string;
+  error_message?: string;
+  metadata?: any;
+  created_at: string;
+  updated_at: string;
+  // Relations
+  profile?: User;
+}
+
+// ===== FILTERS & STATS FOR ALERTS =====
+export interface RecommendationFilters {
+  search?: string;
+  recommendation_type?: 'fertilisation' | 'irrigation' | 'pest_control' | 'harvest' | 'other';
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
+  status?: 'pending' | 'sent' | 'acknowledged' | 'completed' | 'dismissed';
+  producer_id?: string;
+  region?: string;
+  cooperative_id?: string;
+  created_from?: string;
+  created_to?: string;
+}
+
+export interface RecommendationStats {
+  totalRecommendations: number;
+  pendingRecommendations: number;
+  completedRecommendations: number;
+  criticalRecommendations: number;
+  recommendationsByType: Record<string, number>;
+  recommendationsByPriority: Record<string, number>;
+  recommendationsByStatus: Record<string, number>;
+}
+
+export interface AgriRuleFilters {
+  search?: string;
+  action_type?: 'notification' | 'recommendation' | 'alert' | 'reminder';
+  severity?: 'info' | 'warning' | 'critical';
+  is_active?: boolean;
+  applicable_crops?: string[];
+  applicable_regions?: string[];
+}
+
+export interface NotificationFilters {
+  search?: string;
+  channel?: 'sms' | 'whatsapp' | 'push' | 'email' | 'inapp';
+  status?: 'pending' | 'sent' | 'delivered' | 'failed';
+  profile_id?: string;
+  sent_from?: string;
+  sent_to?: string;
+}
+
+export interface NotificationStats {
+  totalNotifications: number;
+  pendingNotifications: number;
+  deliveredNotifications: number;
+  failedNotifications: number;
+  notificationsByChannel: Record<string, number>;
+  notificationsByStatus: Record<string, number>;
+  deliveryRate: number;
 }

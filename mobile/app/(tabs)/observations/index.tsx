@@ -10,9 +10,10 @@ import {
   Alert,
   RefreshControl
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useAuth } from '../../../context/AuthContext';
 import { CollecteService } from '../../../lib/services/collecte';
-import { GlobalObservationDisplay, GeneralNotificationDisplay } from '../../../types/collecte';
+import { GlobalObservationDisplay } from '../../../types/collecte';
 import ContentWithHeader from '../../../components/ContentWithHeader';
 import { Feather } from '@expo/vector-icons';
 
@@ -22,6 +23,7 @@ type FilterType = 'all' | 'fertilization' | 'disease' | 'irrigation' | 'harvest'
 
 export default function ObservationsScreen() {
   const { user } = useAuth();
+  const router = useRouter();
   const [observations, setObservations] = useState<GlobalObservationDisplay[]>([]);
   const [filteredObservations, setFilteredObservations] = useState<GlobalObservationDisplay[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,6 +94,11 @@ export default function ObservationsScreen() {
     }
   };
 
+  const handleObservationPress = (observation: GlobalObservationDisplay) => {
+    // Naviguer vers le détail de la parcelle
+    router.push(`/(tabs)/parcelles/${observation.plotId}`);
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'new': return '#3b82f6';
@@ -147,7 +154,11 @@ export default function ObservationsScreen() {
   );
 
   const ObservationCard = ({ item }: { item: GlobalObservationDisplay }) => (
-    <View style={styles.observationCard}>
+    <TouchableOpacity 
+      style={styles.observationCard}
+      onPress={() => handleObservationPress(item)}
+      activeOpacity={0.7}
+    >
       <View style={[styles.colorBar, { backgroundColor: item.color }]} />
       <View style={styles.cardContent}>
         <View style={styles.cardHeader}>
@@ -156,8 +167,12 @@ export default function ObservationsScreen() {
           </View>
           <View style={styles.cardInfo}>
             <Text style={styles.cardTitle}>{item.title}</Text>
-            <Text style={styles.cardSubtitle}>
-              {item.plotName} - {item.cropType}
+            <View style={styles.plotInfo}>
+              <Feather name="map-pin" size={14} color="#3D944B" />
+              <Text style={styles.plotName}>{item.plotName}</Text>
+            </View>
+            <Text style={styles.cropInfo}>
+              {item.cropType} • {item.producerName}
             </Text>
             <Text style={styles.cardDescription} numberOfLines={2}>
               {item.description}
@@ -186,7 +201,10 @@ export default function ObservationsScreen() {
           {item.status === 'new' && (
             <TouchableOpacity 
               style={styles.actionButton}
-              onPress={() => handleMarkAsRead(item.id)}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleMarkAsRead(item.id);
+              }}
             >
               <Text style={styles.actionButtonText}>Marquer lu</Text>
             </TouchableOpacity>
@@ -194,17 +212,21 @@ export default function ObservationsScreen() {
           {item.status === 'read' && (
             <TouchableOpacity 
               style={[styles.actionButton, styles.executedButton]}
-              onPress={() => handleMarkAsExecuted(item.id)}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleMarkAsExecuted(item.id);
+              }}
             >
               <Text style={[styles.actionButtonText, styles.executedButtonText]}>Exécuté</Text>
             </TouchableOpacity>
           )}
-          <TouchableOpacity style={styles.detailsButton}>
-            <Text style={styles.detailsButtonText}>Détails</Text>
-          </TouchableOpacity>
+          <View style={styles.detailsButton}>
+            <Text style={styles.detailsButtonText}>Voir parcelle</Text>
+            <Feather name="chevron-right" size={16} color="#3b82f6" />
+          </View>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
 
@@ -400,8 +422,19 @@ const styles = StyleSheet.create({
     color: '#111827',
     marginBottom: 4,
   },
-  cardSubtitle: {
+  plotInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  plotName: {
     fontSize: 14,
+    fontWeight: '600',
+    color: '#3D944B',
+    marginLeft: 4,
+  },
+  cropInfo: {
+    fontSize: 13,
     color: '#6b7280',
     marginBottom: 8,
   },
@@ -463,6 +496,8 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   detailsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
@@ -470,6 +505,7 @@ const styles = StyleSheet.create({
     color: '#3b82f6',
     fontSize: 14,
     fontWeight: '500',
+    marginRight: 4,
   },
   emptyContainer: {
     alignItems: 'center',

@@ -23,8 +23,13 @@ export function useAgentDashboard(agentId: string | null): UseAgentDashboardRetu
   const [error, setError] = useState<string | null>(null);
 
   const loadData = async () => {
-    // ID de l'agent fourni par l'utilisateur
-    const currentAgentId = agentId || 'd6daff9e-c1af-4a96-ab51-bd8925813890';
+    // Utiliser l'ID de l'agent fourni ou ne pas charger si null
+    if (!agentId) {
+      setLoading(false);
+      return;
+    }
+    
+    const currentAgentId = agentId;
     
     try {
       setLoading(true);

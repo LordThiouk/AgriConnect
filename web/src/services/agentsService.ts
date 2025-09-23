@@ -201,8 +201,8 @@ export class AgentsService {
       }
 
       // If cooperative assignment was provided, handle it separately
-      if (updateData.cooperative && updateData.cooperative !== 'none') {
-        await this.assignAgentToCooperative(id, updateData.cooperative);
+      if (updateData.cooperative_id && updateData.cooperative_id !== 'none') {
+        await this.assignAgentToCooperative(id, updateData.cooperative_id);
       }
 
       return updatedAgent[0] as unknown as Agent;
@@ -213,32 +213,19 @@ export class AgentsService {
   }
 
   /**
-   * Assigne un agent à une coopérative
+   * Assigne un agent à une coopérative (en mettant à jour le cooperative_id dans profiles)
    */
   static async assignAgentToCooperative(agentId: string, cooperativeId: string): Promise<void> {
     try {
-      // Check if assignment already exists
-      const { data: existingAssignment } = await supabase
-        .from('agent_producer_assignments')
-        .select('id')
-        .eq('agent_id', agentId)
-        .eq('cooperative_id', cooperativeId)
-        .single();
+      const { error } = await supabase
+        .from('profiles')
+        .update({ cooperative: cooperativeId })
+        .eq('id', agentId)
+        .eq('role', 'agent');
 
-      if (!existingAssignment) {
-        // Create new assignment
-        const { error } = await supabase
-          .from('agent_producer_assignments')
-          .insert({
-            agent_id: agentId,
-            cooperative_id: cooperativeId,
-            assigned_at: new Date().toISOString()
-          });
-
-        if (error) {
-          console.error('Error assigning agent to cooperative:', error);
-          throw new Error(`Erreur lors de l'assignation à la coopérative: ${error.message}`);
-        }
+      if (error) {
+        console.error('Error assigning agent to cooperative:', error);
+        throw new Error(`Erreur lors de l'assignation à la coopérative: ${error.message}`);
       }
     } catch (error) {
       console.error('AgentsService.assignAgentToCooperative error:', error);
@@ -488,6 +475,30 @@ export class AgentsService {
   }
 
   /**
+   * Récupère tous les agents disponibles
+   */
+  static async getAvailableAgents(): Promise<Agent[]> {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('role', 'agent')
+        .eq('is_active', true)
+        .order('display_name');
+
+      if (error) {
+        console.error('Error fetching available agents:', error);
+        throw new Error(`Erreur lors de la récupération des agents: ${error.message}`);
+      }
+
+      return (data || []) as unknown as Agent[];
+    } catch (error) {
+      console.error('AgentsService.getAvailableAgents error:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Assigne un producteur à un agent
    */
   static async assignProducerToAgent(producerId: string, agentId: string): Promise<void> {
@@ -504,6 +515,44 @@ export class AgentsService {
       }
     } catch (error) {
       console.error('AgentsService.assignProducerToAgent error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Récupère les agents assignés à un producteur
+   */
+  static async getAssignedAgentsForProducer(producerId: string): Promise<Agent[]> {
+    try {
+      const { data, error } = await supabase
+        .from('agent_producer_assignments')
+        .select(`
+          agent_id,
+          assigned_at,
+          profiles!inner(
+            id,
+            display_name,
+            phone,
+            is_active
+          )
+        `)
+        .eq('producer_id', producerId)
+        .eq('profiles.is_active', true);
+
+      if (error) {
+        console.error('Error fetching assigned agents for producer:', error);
+        throw new Error(`Erreur lors de la récupération des agents assignés: ${error.message}`);
+      }
+
+      // Transform the data to match Agent interface
+      return (data || []).map((assignment: any) => ({
+        id: assignment.agent_id,
+        display_name: assignment.profiles.display_name,
+        phone: assignment.profiles.phone,
+        is_active: assignment.profiles.is_active
+      })) as Agent[];
+    } catch (error) {
+      console.error('AgentsService.getAssignedAgentsForProducer error:', error);
       throw error;
     }
   }

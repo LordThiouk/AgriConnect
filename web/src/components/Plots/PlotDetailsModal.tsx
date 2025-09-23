@@ -8,6 +8,7 @@ import { Label } from '../ui/label';
 import { useToast } from '../../context/ToastContext';
 import { Plot, Crop, Operation } from '../../types';
 import { PlotsService } from '../../services/plotsService';
+import { OperationsService } from '../../services/operationsService';
 import { 
   MapPin, 
   Droplets, 
@@ -71,7 +72,9 @@ const PlotDetailsModal: React.FC<PlotDetailsModalProps> = ({
     
     try {
       setLoading(true);
-      const details = await PlotsService.getPlotById(plot.id);
+      // Utiliser farm_file_plot_id si disponible, sinon plot.id
+      const plotId = plot.farm_file_plot_id || plot.id;
+      const details = await PlotsService.getPlotById(plotId);
       setPlotDetails(details);
     } catch (error) {
       console.error('Error fetching plot details:', error);
@@ -85,7 +88,9 @@ const PlotDetailsModal: React.FC<PlotDetailsModalProps> = ({
     if (!plot) return;
     
     try {
-      const response = await PlotsService.getCrops({ plot_id: plot.id }, { page: 1, limit: 50 });
+      // Utiliser farm_file_plot_id si disponible, sinon plot.id
+      const plotId = plot.farm_file_plot_id || plot.id;
+      const response = await PlotsService.getCrops({ plot_id: plotId }, { page: 1, limit: 50 });
       setCrops(response.data);
     } catch (error) {
       console.error('Error fetching crops:', error);
@@ -96,9 +101,13 @@ const PlotDetailsModal: React.FC<PlotDetailsModalProps> = ({
     if (!plot) return;
     
     try {
-      // Note: We'll need to implement operations by plot_id in the operations service
-      // For now, we'll use the existing operations service
-      setOperations([]);
+      // Utiliser farm_file_plot_id si disponible, sinon plot.id
+      const plotId = plot.farm_file_plot_id || plot.id;
+      const response = await OperationsService.getOperations(
+        { plot_id: plotId }, 
+        { page: 1, limit: 50 }
+      );
+      setOperations(response.data);
     } catch (error) {
       console.error('Error fetching operations:', error);
     }
@@ -338,7 +347,7 @@ const PlotDetailsModal: React.FC<PlotDetailsModalProps> = ({
                             <p className="text-gray-600">{crop.variety}</p>
                             <div className="flex items-center space-x-4 mt-2">
                               <span className="text-sm text-gray-500">
-                                Planté: {crop.planting_date ? new Date(crop.planting_date).toLocaleDateString() : 'Non défini'}
+                                Planté: {crop.sowing_date ? new Date(crop.sowing_date).toLocaleDateString() : 'Non défini'}
                               </span>
                               {crop.expected_harvest_date && (
                                 <span className="text-sm text-gray-500">

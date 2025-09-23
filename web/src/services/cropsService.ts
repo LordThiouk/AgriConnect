@@ -5,10 +5,8 @@ import { Crop, Operation } from '../types';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-const useMockData = APP_CONFIG.USE_MOCK_DATA;
-
 let supabase: any = null;
-if (!useMockData && supabaseUrl && supabaseAnonKey) {
+if (supabaseUrl && supabaseAnonKey) {
   supabase = createClient(supabaseUrl, supabaseAnonKey);
 }
 
@@ -53,108 +51,6 @@ export class CropsService {
     pagination: PaginationParams = { page: 1, limit: 20 }
   ): Promise<CropsResponse> {
     try {
-      if (useMockData) {
-        const mockCrops: Crop[] = [
-          {
-            id: 'crop-1',
-            plot_id: 'plot-1',
-            crop_type: 'Maïs',
-            variety: 'DMR-ESR-W',
-            planting_date: '2024-03-15',
-            expected_harvest_date: '2024-07-15',
-            actual_harvest_date: null,
-            estimated_yield_kg_ha: 3000,
-            actual_yield_kg_ha: null,
-            status: 'growing',
-            notes: 'Variété résistante à la sécheresse',
-            created_at: '2024-03-15T08:00:00Z',
-            updated_at: '2024-03-15T08:00:00Z',
-            plot: {
-              id: 'plot-1',
-              name: 'Parcelle Nord',
-              area_hectares: 2.5
-            }
-          },
-          {
-            id: 'crop-2',
-            plot_id: 'plot-2',
-            crop_type: 'Riz',
-            variety: 'NERICA 4',
-            planting_date: '2024-04-01',
-            expected_harvest_date: '2024-08-01',
-            actual_harvest_date: null,
-            estimated_yield_kg_ha: 2500,
-            actual_yield_kg_ha: null,
-            status: 'growing',
-            notes: 'Variété adaptée aux conditions locales',
-            created_at: '2024-04-01T09:00:00Z',
-            updated_at: '2024-04-01T09:00:00Z',
-            plot: {
-              id: 'plot-2',
-              name: 'Parcelle Sud',
-              area_hectares: 1.8
-            }
-          },
-          {
-            id: 'crop-3',
-            plot_id: 'plot-1',
-            crop_type: 'Arachide',
-            variety: '55-437',
-            planting_date: '2024-02-20',
-            expected_harvest_date: '2024-06-20',
-            actual_harvest_date: '2024-06-25',
-            estimated_yield_kg_ha: 1200,
-            actual_yield_kg_ha: 1350,
-            status: 'harvested',
-            notes: 'Récolte excellente',
-            created_at: '2024-02-20T10:00:00Z',
-            updated_at: '2024-06-25T14:00:00Z',
-            plot: {
-              id: 'plot-1',
-              name: 'Parcelle Nord',
-              area_hectares: 2.5
-            }
-          }
-        ];
-
-        // Apply filters to mock data
-        let filteredCrops = mockCrops;
-        
-        if (filters.search) {
-          const searchLower = filters.search.toLowerCase();
-          filteredCrops = filteredCrops.filter(crop => 
-            crop.crop_type.toLowerCase().includes(searchLower) ||
-            crop.variety.toLowerCase().includes(searchLower) ||
-            (crop.notes && crop.notes.toLowerCase().includes(searchLower))
-          );
-        }
-
-        if (filters.plot_id) {
-          filteredCrops = filteredCrops.filter(crop => crop.plot_id === filters.plot_id);
-        }
-
-        if (filters.crop_type) {
-          filteredCrops = filteredCrops.filter(crop => crop.crop_type === filters.crop_type);
-        }
-
-        if (filters.status) {
-          filteredCrops = filteredCrops.filter(crop => crop.status === filters.status);
-        }
-
-        // Apply pagination
-        const start = (pagination.page - 1) * pagination.limit;
-        const end = start + pagination.limit;
-        const paginatedCrops = filteredCrops.slice(start, end);
-
-        return {
-          data: paginatedCrops,
-          total: filteredCrops.length,
-          page: pagination.page,
-          limit: pagination.limit,
-          totalPages: Math.ceil(filteredCrops.length / pagination.limit)
-        };
-      }
-
       if (!supabase) {
         throw new Error('Supabase client not initialized');
       }
@@ -179,34 +75,6 @@ export class CropsService {
 
       if (filters.status) {
         countQuery = countQuery.eq('status', filters.status);
-      }
-
-      // Filter by producer/region/cooperative through plot
-      if (filters.producer_id || filters.region || filters.cooperative_id) {
-        countQuery = countQuery.select(`
-          *,
-          plot:plots!inner(
-            id,
-            producer_id,
-            producer:producers!inner(
-              id,
-              region,
-              cooperative_id
-            )
-          )
-        `);
-        
-        if (filters.producer_id) {
-          countQuery = countQuery.eq('plot.producer_id', filters.producer_id);
-        }
-        
-        if (filters.region) {
-          countQuery = countQuery.eq('plot.producer.region', filters.region);
-        }
-        
-        if (filters.cooperative_id) {
-          countQuery = countQuery.eq('plot.producer.cooperative_id', filters.cooperative_id);
-        }
       }
 
       const { count, error: countError } = await countQuery;
@@ -275,29 +143,6 @@ export class CropsService {
 
   static async getCropById(id: string): Promise<Crop> {
     try {
-      if (useMockData) {
-        return {
-          id,
-          plot_id: 'plot-1',
-          crop_type: 'Maïs',
-          variety: 'DMR-ESR-W',
-          planting_date: '2024-03-15',
-          expected_harvest_date: '2024-07-15',
-          actual_harvest_date: null,
-          estimated_yield_kg_ha: 3000,
-          actual_yield_kg_ha: null,
-          status: 'growing',
-          notes: 'Variété résistante à la sécheresse',
-          created_at: '2024-03-15T08:00:00Z',
-          updated_at: '2024-03-15T08:00:00Z',
-          plot: {
-            id: 'plot-1',
-            name: 'Parcelle Nord',
-            area_hectares: 2.5
-          }
-        };
-      }
-
       if (!supabase) {
         throw new Error('Supabase client not initialized');
       }
@@ -329,16 +174,6 @@ export class CropsService {
 
   static async createCrop(cropData: Partial<Crop>): Promise<Crop> {
     try {
-      if (useMockData) {
-        return {
-          id: 'new-crop-id',
-          ...cropData,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          status: 'planted'
-        } as Crop;
-      }
-
       if (!supabase) {
         throw new Error('Supabase client not initialized');
       }
@@ -360,14 +195,6 @@ export class CropsService {
 
   static async updateCrop(id: string, cropData: Partial<Crop>): Promise<Crop> {
     try {
-      if (useMockData) {
-        return {
-          id,
-          ...cropData,
-          updated_at: new Date().toISOString()
-        } as Crop;
-      }
-
       if (!supabase) {
         throw new Error('Supabase client not initialized');
       }
@@ -390,10 +217,6 @@ export class CropsService {
 
   static async deleteCrop(id: string): Promise<void> {
     try {
-      if (useMockData) {
-        return;
-      }
-
       if (!supabase) {
         throw new Error('Supabase client not initialized');
       }
@@ -412,30 +235,6 @@ export class CropsService {
 
   static async getCropStats(): Promise<CropStats> {
     try {
-      if (useMockData) {
-        return {
-          totalCrops: 250,
-          activeCrops: 180,
-          harvestedCrops: 60,
-          failedCrops: 10,
-          totalArea: 450.5,
-          averageYield: 2200,
-          cropsByType: {
-            'Maïs': 80,
-            'Riz': 70,
-            'Arachide': 50,
-            'Millet': 30,
-            'Sorgho': 20
-          },
-          cropsByStatus: {
-            planted: 50,
-            growing: 130,
-            harvested: 60,
-            failed: 10
-          }
-        };
-      }
-
       if (!supabase) {
         throw new Error('Supabase client not initialized');
       }
@@ -465,7 +264,7 @@ export class CropsService {
 
       // Calculate average yield
       const yields = cropsData?.map(crop => crop.actual_yield_kg_ha || crop.estimated_yield_kg_ha).filter(y => y) || [];
-      const averageYield = yields.length > 0 ? yields.reduce((sum, yield) => sum + yield, 0) / yields.length : 0;
+      const averageYield = yields.length > 0 ? yields.reduce((sum, y) => sum + y, 0) / yields.length : 0;
 
       // Group by crop type
       const cropsByType = cropsData?.reduce((acc, crop) => {
@@ -504,18 +303,6 @@ export class CropsService {
     cooperatives: { id: string; name: string }[];
   }> {
     try {
-      if (useMockData) {
-        return {
-          cropTypes: ['Maïs', 'Riz', 'Arachide', 'Millet', 'Sorgho', 'Tomate', 'Oignon', 'Niébé'],
-          statuses: ['planted', 'growing', 'harvested', 'failed'],
-          regions: ['Kaolack', 'Thiès', 'Dakar', 'Saint-Louis'],
-          cooperatives: [
-            { id: 'coop-1', name: 'Coopérative de Kaolack' },
-            { id: 'coop-2', name: 'Coopérative de Thiès' }
-          ]
-        };
-      }
-
       if (!supabase) {
         throw new Error('Supabase client not initialized');
       }
@@ -526,7 +313,7 @@ export class CropsService {
         .select('crop_type')
         .not('crop_type', 'is', null);
 
-      const cropTypes = [...new Set(cropTypesData?.map(c => c.crop_type) || [])];
+      const cropTypes = [...new Set(cropTypesData?.map(c => c.crop_type as string) || [])] as string[];
 
       // Get regions from plots -> producers
       const { data: regionsData } = await supabase
@@ -538,8 +325,8 @@ export class CropsService {
         `);
 
       const regions = [...new Set(
-        regionsData?.map(c => c.plot?.producer?.region).filter(r => r) || []
-      )];
+        regionsData?.map(c => c.plot?.producer?.region as string).filter(r => r) || []
+      )] as string[];
 
       // Get cooperatives
       const { data: cooperativesData } = await supabase

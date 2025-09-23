@@ -18,6 +18,7 @@ import CampaignsPage from './pages/Campaigns';
 import CooperativesPage from './pages/cooperatives';
 import AgentsPage from './pages/agents';
 import PlotsPage from './pages/plots';
+import AlertsPage from './pages/alerts';
 import Debug from './pages/Debug';
 import './App.css';
 
@@ -82,6 +83,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <PlotsPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/alerts" 
+              element={
+                <ProtectedRoute>
+                  <AlertsPage />
                 </ProtectedRoute>
               } 
             />

@@ -4,11 +4,12 @@ import { View, StyleSheet } from 'react-native';
 import HeaderGlobal from '../components/HeaderGlobal';
 import SubHeader from '../components/SubHeader';
 import { useAuth } from '../context/AuthContext';
-import { usePathname } from 'expo-router';
+import { usePathname, useRouter } from 'expo-router';
 
 function RootLayout() {
   const { isAuthenticated, isLoading } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
 
   // Déterminer le titre du sous-header basé sur la route
   const getSubHeaderTitle = () => {
@@ -50,18 +51,23 @@ function RootLayout() {
       }
       return 'Collecte';
     }
-    if (pathname.includes('/observations')) return 'Observations';
+    // Observations globales (onglet principal)
+    if (pathname === '/(tabs)/observations') return 'Observations';
     if (pathname.includes('/profile')) return 'Profil';
     if (pathname.includes('/agent-dashboard')) return 'Tableau de Bord Agent';
     if (pathname.includes('/producer-dashboard')) return 'Tableau de Bord Producteur';
+    if (pathname.includes('/visite-form')) return 'Nouvelle Visite';
     return '';
   };
 
   // Déterminer si on doit afficher le bouton retour
   const shouldShowBackButton = () => {
+    // Ne pas afficher le bouton retour pour les onglets principaux
+    if (pathname === '/(tabs)/observations') return false;
+    if (pathname === '/(tabs)/parcelles') return false;
+    
     // Afficher le bouton retour pour les sous-pages
     return pathname.includes('/dashboard') || 
-           pathname.includes('/observations') || 
            pathname.includes('/operations') || 
            pathname.includes('/intrants') || 
            pathname.includes('/intervenants') || 
@@ -71,6 +77,9 @@ function RootLayout() {
            pathname.includes('/create') ||
            pathname.includes('/add') ||
            pathname.includes('/edit') ||
+           pathname.includes('/visite-form') ||
+           // Pour les observations dans les parcelles (sous-écran)
+           (pathname.includes('/parcelles') && pathname.includes('/observations')) ||
            // Pour les parcelles spécifiques (avec plotId) qui ne sont pas la page principale
            (pathname.match(/\/parcelles\/[^\/]+$/) && !pathname.endsWith('/parcelles'));
   };
@@ -85,7 +94,18 @@ function RootLayout() {
         <HeaderGlobal />
       )}
       {showSubHeader && (
-        <SubHeader title={subHeaderTitle} showBackButton={showBackButton} />
+        <SubHeader 
+          title={subHeaderTitle} 
+          showBackButton={showBackButton || false}
+          onBackPress={() => {
+            // Navigation personnalisée pour les parcelles spécifiques
+            if (pathname.match(/\/parcelles\/[^\/]+$/)) {
+              router.push('/(tabs)/parcelles');
+            } else {
+              router.back();
+            }
+          }}
+        />
       )}
       <Stack>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />

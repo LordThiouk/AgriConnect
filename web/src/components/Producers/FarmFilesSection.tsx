@@ -48,9 +48,11 @@ const FarmFilesSection: React.FC<FarmFilesSectionProps> = ({ producerId, produce
       setLoading(true);
       setError(null);
       
-      // Pour l'instant, on récupère toutes les fiches
-      // Dans une vraie implémentation, on filtrerait par producer_id
-      const result = await FarmFilesService.getFarmFiles({}, { page: 1, limit: 50 });
+      // Filtrer les fiches par producteur responsable
+      const result = await FarmFilesService.getFarmFiles(
+        { responsible_producer_id: producerId }, 
+        { page: 1, limit: 50 }
+      );
       setFarmFiles(result.data);
     } catch (err) {
       console.error('Error fetching farm files:', err);
@@ -95,12 +97,15 @@ const FarmFilesSection: React.FC<FarmFilesSectionProps> = ({ producerId, produce
   };
 
   const handleDelete = async (farmFile: FarmFile) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer cette fiche ?')) {
+    if (window.confirm(`Êtes-vous sûr de vouloir supprimer la fiche "${farmFile.name}" ?`)) {
       try {
         await FarmFilesService.deleteFarmFile(farmFile.id);
         await fetchFarmFiles();
+        // Optionnel: afficher un message de succès
+        console.log(`✅ Fiche "${farmFile.name}" supprimée avec succès`);
       } catch (error) {
         console.error('Error deleting farm file:', error);
+        setError(`Erreur lors de la suppression de la fiche "${farmFile.name}"`);
       }
     }
   };
