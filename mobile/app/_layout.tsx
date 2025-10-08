@@ -1,130 +1,51 @@
 import { Stack } from 'expo-router';
 import { AuthProvider } from '../context/AuthContext';
-import { View, StyleSheet } from 'react-native';
-import HeaderGlobal from '../components/HeaderGlobal';
-import SubHeader from '../components/SubHeader';
-import { useAuth } from '../context/AuthContext';
-import { usePathname, useRouter } from 'expo-router';
+// import { View } from 'react-native'; // Supprimé - utilisation de NativeBase
+// import HeaderGlobal from '../components/HeaderGlobal'; // Supprimé - remplacé par ScreenContainer
+// import SubHeader from '../components/SubHeader'; // Supprimé - remplacé par ScreenContainer
+import { NativeBaseProvider, Box } from 'native-base';
+import { agriconnectTheme } from '../theme/agriconnect';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useEffect } from 'react';
+import { agriConnectCache } from '../lib/services/core/cache';
 
 function RootLayout() {
-  const { isAuthenticated, isLoading } = useAuth();
-  const pathname = usePathname();
-  const router = useRouter();
+  // Layout simplifié - tous les écrans utilisent maintenant ScreenContainer
 
-  // Déterminer le titre du sous-header basé sur la route
-  const getSubHeaderTitle = () => {
-    if (pathname.includes('/parcelles')) {
-      if (pathname.includes('/cultures')) {
-        if (pathname.includes('/add')) return 'Ajouter Culture';
-        if (pathname.includes('/edit')) return 'Modifier Culture';
-        return 'Cultures';
+  // Initialiser le cache au démarrage de l'application
+  useEffect(() => {
+    const initializeCache = async () => {
+      try {
+        await agriConnectCache.initialize();
+        console.log('✅ [CACHE] Cache initialisé au démarrage de l\'application');
+      } catch (error) {
+        console.error('❌ [CACHE] Erreur lors de l\'initialisation du cache:', error);
       }
-      if (pathname.includes('/observations')) {
-        if (pathname.includes('/add')) return 'Ajouter Observation';
-        return 'Observations';
-      }
-      if (pathname.includes('/operations')) {
-        if (pathname.includes('/add')) return 'Ajouter Opération';
-        return 'Opérations';
-      }
-      if (pathname.includes('/intrants')) {
-        if (pathname.includes('/add')) return 'Ajouter Intrant';
-        return 'Intrants';
-      }
-      if (pathname.includes('/intervenants')) return 'Intervenants';
-      if (pathname.includes('/conseils')) {
-        if (pathname.includes('/add')) return 'Ajouter Conseil';
-        return 'Conseils';
-      }
-      // Si c'est une parcelle spécifique (avec plotId) mais pas un sous-répertoire
-      if (pathname.match(/\/parcelles\/[^\/]+$/)) return 'Détails Parcelle';
-      return 'Parcelles';
-    }
-    if (pathname.includes('/collecte')) {
-      if (pathname.includes('/fiches')) {
-        if (pathname.includes('/create')) return 'Créer Fiche';
-        if (pathname.includes('/parcelles')) {
-          if (pathname.includes('/add')) return 'Ajouter Parcelle';
-          return 'Parcelles de la Fiche';
-        }
-        return 'Fiches d\'Exploitation';
-      }
-      return 'Collecte';
-    }
-    // Observations globales (onglet principal)
-    if (pathname === '/(tabs)/observations') return 'Observations';
-    if (pathname.includes('/profile')) return 'Profil';
-    if (pathname.includes('/agent-dashboard')) return 'Tableau de Bord Agent';
-    if (pathname.includes('/producer-dashboard')) return 'Tableau de Bord Producteur';
-    if (pathname.includes('/visite-form')) return 'Nouvelle Visite';
-    return '';
-  };
+    };
 
-  // Déterminer si on doit afficher le bouton retour
-  const shouldShowBackButton = () => {
-    // Ne pas afficher le bouton retour pour les onglets principaux
-    if (pathname === '/(tabs)/observations') return false;
-    if (pathname === '/(tabs)/parcelles') return false;
-    
-    // Afficher le bouton retour pour les sous-pages
-    return pathname.includes('/dashboard') || 
-           pathname.includes('/operations') || 
-           pathname.includes('/intrants') || 
-           pathname.includes('/intervenants') || 
-           pathname.includes('/conseils') ||
-           pathname.includes('/cultures') ||
-           pathname.includes('/fiches') ||
-           pathname.includes('/create') ||
-           pathname.includes('/add') ||
-           pathname.includes('/edit') ||
-           pathname.includes('/visite-form') ||
-           // Pour les observations dans les parcelles (sous-écran)
-           (pathname.includes('/parcelles') && pathname.includes('/observations')) ||
-           // Pour les parcelles spécifiques (avec plotId) qui ne sont pas la page principale
-           (pathname.match(/\/parcelles\/[^\/]+$/) && !pathname.endsWith('/parcelles'));
-  };
-
-  const subHeaderTitle = getSubHeaderTitle();
-  const showSubHeader = isAuthenticated && !isLoading && subHeaderTitle !== '';
-  const showBackButton = shouldShowBackButton();
+    initializeCache();
+  }, []);
 
   return (
-    <View style={styles.container}>
-      {isAuthenticated && !isLoading && (
-        <HeaderGlobal />
-      )}
-      {showSubHeader && (
-        <SubHeader 
-          title={subHeaderTitle} 
-          showBackButton={showBackButton || false}
-          onBackPress={() => {
-            // Navigation personnalisée pour les parcelles spécifiques
-            if (pathname.match(/\/parcelles\/[^\/]+$/)) {
-              router.push('/(tabs)/parcelles');
-            } else {
-              router.back();
-            }
-          }}
-        />
-      )}
+    <Box flex={1} bg="gray.50">
       <Stack>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>
-    </View>
+    </Box>
   );
 }
 
 export default function Layout() {
   return (
-    <AuthProvider>
-      <RootLayout />
-    </AuthProvider>
+    <SafeAreaProvider>
+             <NativeBaseProvider theme={agriconnectTheme}>
+        <AuthProvider>
+          <RootLayout />
+        </AuthProvider>
+      </NativeBaseProvider>
+    </SafeAreaProvider>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-});
+// Styles supprimés - utilisation de NativeBase

@@ -4,9 +4,16 @@
  */
 
 import React, { ReactNode } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import type { UserRole } from '../../types/user';
+import type { UserRole } from '../../lib/types/core/user';
+import { 
+  Box, 
+  Text, 
+  VStack, 
+  HStack, 
+  Spinner,
+  useTheme
+} from 'native-base';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -28,14 +35,19 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     canAccessMobile, 
     error 
   } = useAuth();
+  const theme = useTheme();
 
   // Affichage du loading
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#3D944B" />
-        <Text style={styles.loadingText}>Vérification de l'authentification...</Text>
-      </View>
+      <Box flex={1} justifyContent="center" alignItems="center" bg="gray.50" p={5}>
+        <VStack space={4} alignItems="center">
+          <Spinner size="lg" color={theme.colors.primary?.[500] || '#3D944B'} />
+          <Text fontSize="md" color="gray.600" textAlign="center">
+            Vérification de l&apos;authentification...
+          </Text>
+        </VStack>
+      </Box>
     );
   }
 
@@ -47,49 +59,67 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   // Si non authentifié, afficher le fallback ou rediriger
   if (!isAuthenticated) {
     return fallback || (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorTitle}>Authentification requise</Text>
-        <Text style={styles.errorText}>
-          Vous devez être connecté pour accéder à cette page.
-        </Text>
-      </View>
+      <Box flex={1} justifyContent="center" alignItems="center" bg="gray.50" p={5}>
+        <VStack space={4} alignItems="center">
+          <Text fontSize="xl" fontWeight="bold" color={theme.colors.red?.[500] || '#D32F2F'} textAlign="center">
+            Authentification requise
+          </Text>
+          <Text fontSize="md" color="gray.600" textAlign="center" lineHeight={24}>
+            Vous devez être connecté pour accéder à cette page.
+          </Text>
+        </VStack>
+      </Box>
     );
   }
 
   // Vérifier l'accès mobile
   if (!canAccessMobile) {
     return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorTitle}>Accès refusé</Text>
-        <Text style={styles.errorText}>
-          Seuls les agents et producteurs peuvent utiliser l'application mobile.
-        </Text>
-      </View>
+      <Box flex={1} justifyContent="center" alignItems="center" bg="gray.50" p={5}>
+        <VStack space={4} alignItems="center">
+          <Text fontSize="xl" fontWeight="bold" color={theme.colors.red?.[500] || '#D32F2F'} textAlign="center">
+            Accès refusé
+          </Text>
+          <Text fontSize="md" color="gray.600" textAlign="center" lineHeight={24}>
+            Seuls les agents et producteurs peuvent utiliser l&apos;application mobile.
+          </Text>
+        </VStack>
+      </Box>
     );
   }
 
   // Vérifier les rôles autorisés
   if (allowedRoles.length > 0 && userRole && !allowedRoles.includes(userRole)) {
     return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorTitle}>Permissions insuffisantes</Text>
-        <Text style={styles.errorText}>
-          Vous n'avez pas les permissions nécessaires pour accéder à cette page.
-        </Text>
-        <Text style={styles.roleText}>
-          Rôle actuel: {userRole}
-        </Text>
-      </View>
+      <Box flex={1} justifyContent="center" alignItems="center" bg="gray.50" p={5}>
+        <VStack space={4} alignItems="center">
+          <Text fontSize="xl" fontWeight="bold" color={theme.colors.red?.[500] || '#D32F2F'} textAlign="center">
+            Permissions insuffisantes
+          </Text>
+          <Text fontSize="md" color="gray.600" textAlign="center" lineHeight={24}>
+            Vous n&apos;avez pas les permissions nécessaires pour accéder à cette page.
+          </Text>
+          <Text fontSize="sm" color="gray.500" textAlign="center" fontStyle="italic">
+            Rôle actuel: {userRole}
+          </Text>
+        </VStack>
+      </Box>
     );
   }
 
   // Afficher les erreurs d'authentification
   if (error) {
     return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorTitle}>Erreur d'authentification</Text>
-        <Text style={styles.errorText}>{error}</Text>
-      </View>
+      <Box flex={1} justifyContent="center" alignItems="center" bg="gray.50" p={5}>
+        <VStack space={4} alignItems="center">
+          <Text fontSize="xl" fontWeight="bold" color={theme.colors.red?.[500] || '#D32F2F'} textAlign="center">
+            Erreur d&apos;authentification
+          </Text>
+          <Text fontSize="md" color="gray.600" textAlign="center" lineHeight={24}>
+            {error}
+          </Text>
+        </VStack>
+      </Box>
     );
   }
 
@@ -127,47 +157,5 @@ export const MobileUserRoute: React.FC<{ children: ReactNode; fallback?: ReactNo
   </ProtectedRoute>
 );
 
-const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F6F6F6',
-    padding: 20,
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F6F6F6',
-    padding: 20,
-  },
-  errorTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#D32F2F',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 8,
-  },
-  roleText: {
-    fontSize: 14,
-    color: '#999',
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
-});
 
 export default ProtectedRoute;

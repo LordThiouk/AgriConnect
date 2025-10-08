@@ -1,0 +1,109 @@
+-- Migration: Simplifier get_visit_for_edit
+-- Description: Simplifier la logique d'accès pour ne pas dépendre du profil agent
+-- Date: 2025-01-01
+
+-- Simplifier la fonction get_visit_for_edit
+CREATE OR REPLACE FUNCTION get_visit_for_edit(p_visit_id UUID)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    result JSON;
+    current_user_id UUID;
+BEGIN
+    -- Récupérer l'ID utilisateur actuel
+    current_user_id := auth.uid();
+    
+    -- Vérifier que l'utilisateur a accès à cette visite
+    -- Soit via agent_assignments, soit via rôle superviseur/admin, soit créateur de la visite
+    IF NOT EXISTS (
+        -- Vérifier si c'est un agent assigné au producteur de cette visite
+        SELECT 1 FROM visits v
+        JOIN agent_assignments aa ON aa.assigned_to_id = v.producer_id
+        WHERE v.id = p_visit_id 
+        AND aa.agent_id = current_user_id
+        AND aa.assigned_to_type = 'producer'
+        
+        UNION
+        
+        -- Vérifier si c'est l'agent qui a créé la visite
+        SELECT 1 FROM visits v
+        WHERE v.id = p_visit_id 
+        AND v.agent_id = current_user_id
+        
+        UNION
+        
+        -- Vérifier si c'est un superviseur/admin (via profiles)
+        SELECT 1 FROM profiles 
+        WHERE user_id = current_user_id 
+        AND role IN ('supervisor', 'admin')
+    ) THEN
+        RAISE EXCEPTION 'Access denied to visit %', p_visit_id;
+    END IF;
+
+    -- Récupérer la visite avec producteur et parcelle
+    SELECT json_build_object(
+        'visit', json_build_object(
+            'id', v.id,
+            'producer_id', v.producer_id,
+            'plot_id', v.plot_id,
+            'agent_id', v.agent_id,
+            'visit_date', v.visit_date,
+            'status', v.status,
+            'notes', v.notes,
+            'duration_minutes', v.duration_minutes,
+            'created_at', v.created_at,
+            'updated_at', v.updated_at
+        ),
+        'producer', json_build_object(
+            'id', p.id,
+            'user_id', p.user_id,
+            'first_name', p.first_name,
+            'last_name', p.last_name,
+            'phone', p.phone,
+            'village', p.village,
+            'commune', p.commune,
+            'region', p.region
+        ),
+        'plot', json_build_object(
+            'id', pl.id,
+            'name', pl.name,
+            'area_hectares', pl.area_hectares,
+            'soil_type', pl.soil_type,
+            'water_source', pl.water_source,
+            'location', pl.location,
+            'coordinates', pl.coordinates
+        ),
+        'agent', CASE 
+            WHEN ag.id IS NOT NULL THEN json_build_object(
+                'id', ag.id,
+                'user_id', ag.user_id,
+                'phone', ag.phone,
+                'display_name', ag.display_name
+            )
+            ELSE json_build_object(
+                'id', NULL,
+                'user_id', v.agent_id,
+                'phone', NULL,
+                'display_name', 'Agent inconnu'
+            )
+        END
+    ) INTO result
+    FROM visits v
+    LEFT JOIN producers p ON p.id = v.producer_id
+    LEFT JOIN plots pl ON pl.id = v.plot_id
+    LEFT JOIN profiles ag ON ag.user_id = v.agent_id
+    WHERE v.id = p_visit_id;
+
+    -- Vérifier que la visite existe
+    IF result IS NULL THEN
+        RAISE EXCEPTION 'Visit % not found', p_visit_id;
+    END IF;
+
+    RETURN result;
+END;
+$$;
+
+-- Commentaire
+COMMENT ON FUNCTION get_visit_for_edit(UUID) IS 'Récupère une visite avec producteur et parcelle pour modification (simplifié)';

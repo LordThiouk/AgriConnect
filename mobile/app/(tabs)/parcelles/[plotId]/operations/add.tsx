@@ -1,199 +1,108 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, TextInput } from 'react-native';
+import React, { useState } from 'react';
+import {
+  Alert,
+} from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { CollecteService } from '../../../../../lib/services/collecte';
-import { Crop } from '../../../../../types/collecte';
-import { useAuth } from '../../../../../context/AuthContext';
-import ContentWithHeader from '../../../../../components/ContentWithHeader';
-import { Feather } from '@expo/vector-icons';
+import { useCreateOperation } from '../../../../../lib/hooks';
+import { 
+  FormContainer, 
+  FormFooter, 
+  Card, 
+  FormField, 
+  FormInput, 
+  FormSelect, 
+  FormDatePicker,
+  ScreenContainer
+} from '../../../../../components/ui';
+import PhotoPicker from '../../../../../components/PhotoPicker';
+import { ScrollView } from 'native-base';
 
-const FormField = ({ label, children, required = false }: { label: string; children: React.ReactNode; required?: boolean }) => (
-  <View style={styles.fieldContainer}>
-    <Text style={styles.fieldLabel}>
-      {label}
-      {required && <Text style={styles.required}> *</Text>}
-    </Text>
-    {children}
-  </View>
-);
+interface OperationFormData {
+  operation_type: string;
+  product: string;
+  quantity: string;
+  unit: string;
+  operation_date: string;
+  description: string;
+  cost: string;
+}
 
-const Dropdown = ({ 
-  value, 
-  onSelect, 
-  options, 
-  placeholder, 
-  showDropdown, 
-  onToggle 
-}: {
-  value: string;
-  onSelect: (value: string) => void;
-  options: { id: string; label: string }[];
-  placeholder: string;
-  showDropdown: boolean;
-  onToggle: () => void;
-}) => {
-  const [searchText, setSearchText] = useState('');
-
-  const filteredOptions = options.filter(option =>
-    option.label.toLowerCase().includes(searchText.toLowerCase())
-  );
-
-  return (
-    <View style={styles.dropdownContainer}>
-      <TouchableOpacity style={styles.dropdownText} onPress={onToggle}>
-        <Text style={[styles.dropdownTextContent, !value && styles.placeholder]}>
-          {value || placeholder}
-        </Text>
-        <Feather name="chevron-down" size={20} color="#666" />
-      </TouchableOpacity>
-
-      {showDropdown && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.dropdownModal}>
-            <View style={styles.dropdownHeader}>
-              <Text style={styles.dropdownTitle}>Sélectionner {placeholder}</Text>
-              <TouchableOpacity onPress={onToggle}>
-                <Feather name="x" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.searchContainer}>
-              <Feather name="search" size={20} color="#666" style={styles.searchIcon} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Rechercher..."
-                value={searchText}
-                onChangeText={setSearchText}
-              />
-            </View>
-
-            <ScrollView style={styles.dropdownList} showsVerticalScrollIndicator={false}>
-              {filteredOptions.map((option, index) => (
-                <TouchableOpacity
-                  key={option.id}
-                  style={[
-                    styles.dropdownItem,
-                    index === 0 && styles.dropdownItemFirst,
-                    value === option.id && styles.dropdownItemSelected
-                  ]}
-                  onPress={() => {
-                    onSelect(option.id);
-                    onToggle();
-                    setSearchText('');
-                  }}
-                >
-                  <Text style={[
-                    styles.dropdownItemText,
-                    value === option.id && styles.dropdownItemTextSelected
-                  ]}>
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-              {filteredOptions.length === 0 && (
-                <View style={styles.emptySearchContainer}>
-                  <Text style={styles.emptySearchText}>Aucun résultat trouvé</Text>
-                </View>
-              )}
-            </ScrollView>
-          </View>
-        </View>
-      )}
-    </View>
-  );
-};
-
-const AddOperationScreen: React.FC = () => {
+export default function AddOperationScreen() {
   const { plotId } = useLocalSearchParams<{ plotId: string }>();
   const router = useRouter();
-  const { user } = useAuth();
+  const [photos, setPhotos] = useState<any[]>([]);
 
-  const [loading, setLoading] = useState(false);
-  const [crops, setCrops] = useState<Crop[]>([]);
-  const [formData, setFormData] = useState({
-    crop_id: '',
+  console.log('🚜 [ADD_OPERATION] Écran d\'ajout d\'opération initialisé:', { plotId });
+
+  // Utiliser le hook pour créer une opération
+  const { createOperation, loading, error } = useCreateOperation();
+
+  console.log('🚜 [ADD_OPERATION] État du hook:', { loading, error: error?.message });
+
+  const [formData, setFormData] = useState<OperationFormData>({
     operation_type: '',
+    product: '',
+    quantity: '',
+    unit: '',
     operation_date: new Date().toISOString().split('T')[0],
     description: '',
-    product_used: '',
-    dose_per_hectare: '',
-    total_dose: '',
-    unit: 'kg',
-    cost_per_hectare: '',
-    total_cost: '',
-    notes: ''
+    cost: '',
   });
 
-  const [showCropDropdown, setShowCropDropdown] = useState(false);
-  const [showTypeDropdown, setShowTypeDropdown] = useState(false);
-  const [showUnitDropdown, setShowUnitDropdown] = useState(false);
-
   const operationTypes = [
-    { id: 'semis', label: 'Semis' },
-    { id: 'fertilisation', label: 'Fertilisation' },
-    { id: 'irrigation', label: 'Irrigation' },
-    { id: 'desherbage', label: 'Désherbage' },
-    { id: 'phytosanitaire', label: 'Phytosanitaire' },
-    { id: 'recolte', label: 'Récolte' },
-    { id: 'labour', label: 'Labour' },
-    { id: 'reconnaissance', label: 'Reconnaissance' }
+    { label: 'Semis', value: 'semis' },
+    { label: 'Fertilisation', value: 'fertilisation' },
+    { label: 'Irrigation', value: 'irrigation' },
+    { label: 'Désherbage', value: 'desherbage' },
+    { label: 'Traitement phytosanitaire', value: 'traitement_phytosanitaire' },
+    { label: 'Récolte', value: 'recolte' },
+    { label: 'Labour', value: 'labour' },
+    { label: 'Autre', value: 'autre' },
   ];
 
   const units = [
-    { id: 'kg', label: 'Kilogrammes (kg)' },
-    { id: 'l', label: 'Litres (l)' },
-    { id: 'pieces', label: 'Pièces' },
-    { id: 'sacs', label: 'Sacs' },
-    { id: 'tonnes', label: 'Tonnes' }
+    { id: 'kg', label: 'Kilogramme (kg)' },
+    { id: 'g', label: 'Gramme (g)' },
+    { id: 'l', label: 'Litre (l)' },
+    { id: 'ml', label: 'Millilitre (ml)' },
+    { id: 'sac', label: 'Sac' },
+    { id: 'boite', label: 'Boîte' },
+    { id: 'autre', label: 'Autre' },
   ];
 
-  const loadCrops = useCallback(async () => {
-    try {
-      const data = await CollecteService.getCropsByPlotId(plotId, user?.id || '');
-      setCrops(data);
-    } catch (error) {
-      console.error('Erreur lors du chargement des cultures:', error);
-    }
-  }, [plotId, user?.id]);
-
-  useEffect(() => {
-    if (plotId && user?.id) {
-      loadCrops();
-    }
-  }, [plotId, user?.id, loadCrops]);
+  const handleInputChange = (field: keyof OperationFormData, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
 
   const handleSave = async () => {
-    if (!formData.crop_id) {
-      Alert.alert('Erreur', 'Veuillez sélectionner une culture');
+    if (!formData.operation_type) {
+      Alert.alert('Erreur', 'Veuillez sélectionner un type d\'opération');
       return;
     }
 
-    if (!formData.operation_type || !formData.operation_date) {
-      Alert.alert('Erreur', 'Veuillez remplir tous les champs obligatoires');
+    if (!formData.product.trim()) {
+      Alert.alert('Erreur', 'Veuillez saisir le nom du produit');
       return;
     }
 
     try {
-      setLoading(true);
-      
       const operationData = {
-        crop_id: formData.crop_id,
         plot_id: plotId!,
         operation_type: formData.operation_type,
+        product: formData.product,
+        quantity: formData.quantity ? parseFloat(formData.quantity) : null,
+        unit: formData.unit || null,
         operation_date: formData.operation_date,
         description: formData.description || null,
-        product_used: formData.product_used || null,
-        dose_per_hectare: formData.dose_per_hectare ? parseFloat(formData.dose_per_hectare) : null,
-        total_dose: formData.total_dose ? parseFloat(formData.total_dose) : null,
-        unit: formData.unit || null,
-        cost_per_hectare: formData.cost_per_hectare ? parseFloat(formData.cost_per_hectare) : null,
-        total_cost: formData.total_cost ? parseFloat(formData.total_cost) : null,
-        performer_id: user?.id || null,
-        performer_type: 'agent',
-        notes: formData.notes || null
+        cost: formData.cost ? parseFloat(formData.cost) : null,
       };
 
-      await CollecteService.addOperation(operationData);
+      console.log('🚜 [ADD_OPERATION] Données de l\'opération:', operationData);
+      const newOperation = await createOperation(operationData);
+      console.log('✅ [ADD_OPERATION] Opération ajoutée:', newOperation);
       
       Alert.alert(
         'Succès', 
@@ -203,364 +112,106 @@ const AddOperationScreen: React.FC = () => {
     } catch (error) {
       console.error('Erreur lors de l\'ajout de l\'opération:', error);
       Alert.alert('Erreur', 'Impossible d\'ajouter l\'opération');
-    } finally {
-      setLoading(false);
     }
   };
 
   return (
-    <ContentWithHeader style={{ flex: 1 }}>
-      <ScrollView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Feather name="arrow-left" size={24} color="#3D944B" />
-          </TouchableOpacity>
-          <Text style={styles.title}>Ajouter une opération</Text>
-        </View>
+    <ScreenContainer 
+      title=""
+      subtitle=""
+      showSubHeader={false}
+      showBackButton={false}
+      animationEnabled={false}
+    >
+      <FormContainer 
+        title="Nouvelle Opération" 
+        subtitle="Ajouter une opération à cette parcelle"
+      >
+        <ScrollView 
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Card>
+            <FormField label="Type d'opération" required>
+              <FormSelect
+                value={formData.operation_type}
+                onValueChange={(value) => handleInputChange('operation_type', value)}
+                options={operationTypes.map(opt => ({ value: opt.value, label: opt.label }))}
+                placeholder="Sélectionner un type"
+              />
+            </FormField>
 
-        <View style={styles.form}>
-          <FormField label="Culture" required>
-            <Dropdown
-              value={formData.crop_id}
-              onSelect={(value) => setFormData(prev => ({ ...prev, crop_id: value }))}
-              options={crops.map(crop => ({ id: crop.id, label: `${crop.crop_type} - ${crop.variety} (${crop.status})` }))}
-              placeholder="Sélectionner une culture"
-              showDropdown={showCropDropdown}
-              onToggle={() => setShowCropDropdown(!showCropDropdown)}
-            />
-          </FormField>
+            <FormField label="Produit" required>
+              <FormInput
+                value={formData.product}
+                onChangeText={(value) => handleInputChange('product', value)}
+                placeholder="Nom du produit utilisé"
+              />
+            </FormField>
 
-          <FormField label="Type d'opération" required>
-            <Dropdown
-              value={formData.operation_type}
-              onSelect={(value) => setFormData(prev => ({ ...prev, operation_type: value }))}
-              options={operationTypes}
-              placeholder="Sélectionner le type"
-              showDropdown={showTypeDropdown}
-              onToggle={() => setShowTypeDropdown(!showTypeDropdown)}
-            />
-          </FormField>
+            <FormField label="Quantité">
+              <FormInput
+                value={formData.quantity}
+                onChangeText={(value) => handleInputChange('quantity', value)}
+                placeholder="0"
+                keyboardType="numeric"
+              />
+            </FormField>
 
-          <FormField label="Date d'opération" required>
-            <TextInput
-              style={styles.input}
-              value={formData.operation_date}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, operation_date: text }))}
-              placeholder="YYYY-MM-DD"
-            />
-          </FormField>
+            <FormField label="Unité">
+              <FormSelect
+                value={formData.unit}
+                onValueChange={(value) => handleInputChange('unit', value)}
+                options={units.map(opt => ({ value: opt.id, label: opt.label }))}
+                placeholder="Sélectionner une unité"
+              />
+            </FormField>
 
-          <FormField label="Description">
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              value={formData.description}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, description: text }))}
-              placeholder="Description de l'opération..."
-              multiline
-              numberOfLines={3}
-            />
-          </FormField>
+            <FormField label="Date d'opération">
+              <FormDatePicker
+                value={formData.operation_date}
+                onChange={(value: string) => handleInputChange('operation_date', value)}
+              />
+            </FormField>
 
-          <FormField label="Produit utilisé">
-            <TextInput
-              style={styles.input}
-              value={formData.product_used}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, product_used: text }))}
-              placeholder="Nom du produit"
-            />
-          </FormField>
+            <FormField label="Coût (FCFA)">
+              <FormInput
+                value={formData.cost}
+                onChangeText={(value) => handleInputChange('cost', value)}
+                placeholder="0"
+                keyboardType="numeric"
+              />
+            </FormField>
 
-          <View style={styles.row}>
-            <View style={styles.halfField}>
-              <FormField label="Dose par hectare">
-                <TextInput
-                  style={styles.input}
-                  value={formData.dose_per_hectare}
-                  onChangeText={(text) => setFormData(prev => ({ ...prev, dose_per_hectare: text }))}
-                  placeholder="0"
-                  keyboardType="numeric"
-                />
-              </FormField>
-            </View>
-            <View style={styles.halfField}>
-              <FormField label="Dose totale">
-                <TextInput
-                  style={styles.input}
-                  value={formData.total_dose}
-                  onChangeText={(text) => setFormData(prev => ({ ...prev, total_dose: text }))}
-                  placeholder="0"
-                  keyboardType="numeric"
-                />
-              </FormField>
-            </View>
-          </View>
+            <FormField label="Description">
+              <FormInput
+                value={formData.description}
+                onChangeText={(value) => handleInputChange('description', value)}
+                placeholder="Description de l'opération..."
+                multiline
+                numberOfLines={3}
+              />
+            </FormField>
 
-          <FormField label="Unité">
-            <Dropdown
-              value={formData.unit}
-              onSelect={(value) => setFormData(prev => ({ ...prev, unit: value }))}
-              options={units}
-              placeholder="Sélectionner l'unité"
-              showDropdown={showUnitDropdown}
-              onToggle={() => setShowUnitDropdown(!showUnitDropdown)}
-            />
-          </FormField>
+            <FormField label="Photos">
+              <PhotoPicker
+                entityType="operation"
+                entityId={plotId!}
+                onPhotosChange={setPhotos}
+                existingPhotos={photos}
+                maxPhotos={5}
+                enableGPS={true}
+              />
+            </FormField>
+          </Card>
+        </ScrollView>
 
-          <View style={styles.row}>
-            <View style={styles.halfField}>
-              <FormField label="Coût par hectare (FCFA)">
-                <TextInput
-                  style={styles.input}
-                  value={formData.cost_per_hectare}
-                  onChangeText={(text) => setFormData(prev => ({ ...prev, cost_per_hectare: text }))}
-                  placeholder="0"
-                  keyboardType="numeric"
-                />
-              </FormField>
-            </View>
-            <View style={styles.halfField}>
-              <FormField label="Coût total (FCFA)">
-                <TextInput
-                  style={styles.input}
-                  value={formData.total_cost}
-                  onChangeText={(text) => setFormData(prev => ({ ...prev, total_cost: text }))}
-                  placeholder="0"
-                  keyboardType="numeric"
-                />
-              </FormField>
-            </View>
-          </View>
-
-          <FormField label="Notes">
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              value={formData.notes}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, notes: text }))}
-              placeholder="Notes supplémentaires..."
-              multiline
-              numberOfLines={3}
-            />
-          </FormField>
-        </View>
-
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={[styles.button, styles.cancelButton]}
-            onPress={() => router.back()}
-          >
-            <Text style={styles.cancelButtonText}>Annuler</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.button, styles.saveButton, loading && styles.disabledButton]}
-            onPress={handleSave}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.saveButtonText}>Enregistrer</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </ContentWithHeader>
+        <FormFooter 
+          onCancel={() => router.back()}
+          onSave={handleSave}
+          loading={loading}
+        />
+      </FormContainer>
+    </ScreenContainer>
   );
-};
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f0f4f8',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  backButton: {
-    padding: 8,
-    marginRight: 8,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1f2937',
-  },
-  form: {
-    padding: 16,
-  },
-  fieldContainer: {
-    marginBottom: 20,
-  },
-  fieldLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  required: {
-    color: '#ef4444',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: '#fff',
-  },
-  textArea: {
-    height: 80,
-    textAlignVertical: 'top',
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  halfField: {
-    flex: 1,
-  },
-  dropdownContainer: {
-    position: 'relative',
-  },
-  dropdownText: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    padding: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-  },
-  dropdownTextContent: {
-    fontSize: 16,
-    color: '#1f2937',
-  },
-  placeholder: {
-    color: '#9ca3af',
-  },
-  modalOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 1000,
-  },
-  dropdownModal: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    maxHeight: 300,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  dropdownHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  dropdownTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1f2937',
-  },
-  closeButton: {
-    padding: 4,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: '#1f2937',
-  },
-  dropdownList: {
-    maxHeight: 200,
-  },
-  dropdownItem: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  dropdownItemFirst: {
-    borderTopWidth: 0,
-  },
-  dropdownItemSelected: {
-    backgroundColor: '#f0f9ff',
-  },
-  dropdownItemText: {
-    fontSize: 16,
-    color: '#1f2937',
-  },
-  dropdownItemTextSelected: {
-    color: '#3D944B',
-    fontWeight: '600',
-  },
-  emptySearchContainer: {
-    padding: 16,
-    alignItems: 'center',
-  },
-  emptySearchText: {
-    color: '#9ca3af',
-    fontStyle: 'italic',
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    padding: 16,
-    gap: 12,
-  },
-  button: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  cancelButton: {
-    backgroundColor: '#f3f4f6',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-  },
-  cancelButtonText: {
-    color: '#374151',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  saveButton: {
-    backgroundColor: '#3D944B',
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  disabledButton: {
-    opacity: 0.6,
-  },
-});
-
-export default AddOperationScreen;
+}

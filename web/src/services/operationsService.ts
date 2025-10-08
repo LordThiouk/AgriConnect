@@ -18,8 +18,8 @@ export class OperationsService {
         plot_uuid: filters.plot_id || null,
         crop_uuid: filters.crop_id || null,
         operation_type_filter: filters.operation_type || null,
-        date_from: filters.date_from || null,
-        date_to: filters.date_to || null,
+        date_from: filters.date_from ? filters.date_from.toString() : null,
+        date_to: filters.date_to ? filters.date_to.toString() : null,
         limit_count: pagination.limit,
         offset_count: offset
       });
@@ -34,8 +34,8 @@ export class OperationsService {
         plot_uuid: filters.plot_id || null,
         crop_uuid: filters.crop_id || null,
         operation_type_filter: filters.operation_type || null,
-        date_from: filters.date_from || null,
-        date_to: filters.date_to || null
+        date_from: filters.date_from ? filters.date_from.toString() : null,
+        date_to: filters.date_to ? filters.date_to.toString() : null
       });
 
       if (countError) {

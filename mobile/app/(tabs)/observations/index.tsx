@@ -1,21 +1,25 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
-  TouchableOpacity, 
-  FlatList, 
   ActivityIndicator,
   Alert,
   RefreshControl
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../../context/AuthContext';
-import { CollecteService } from '../../../lib/services/collecte';
-import { GlobalObservationDisplay } from '../../../types/collecte';
-import ContentWithHeader from '../../../components/ContentWithHeader';
+import { useObservationsForAgent } from '../../../lib/hooks/useObservations';
+import { GlobalObservationDisplay } from '../../../lib/services/domain/observations/observations.types';
+import { ScreenContainer } from '../../../components/ui';
 import { Feather } from '@expo/vector-icons';
+import { 
+  Box, 
+  Text, 
+  ScrollView, 
+  Pressable, 
+  VStack, 
+  HStack, 
+  Badge, 
+  useTheme
+} from 'native-base';
 
 // Types pour les filtres
 type FilterType = 'all' | 'fertilization' | 'disease' | 'irrigation' | 'harvest';
@@ -24,53 +28,48 @@ type FilterType = 'all' | 'fertilization' | 'disease' | 'irrigation' | 'harvest'
 export default function ObservationsScreen() {
   const { user } = useAuth();
   const router = useRouter();
-  const [observations, setObservations] = useState<GlobalObservationDisplay[]>([]);
+  const theme = useTheme();
   const [filteredObservations, setFilteredObservations] = useState<GlobalObservationDisplay[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [criticalAlert, setCriticalAlert] = useState<GlobalObservationDisplay | null>(null);
 
-  // Charger les observations
-  const loadObservations = useCallback(async () => {
-    if (!user?.id) return;
-
-    try {
-      setLoading(true);
-      const data = await CollecteService.getObservationsForAgent(user.id);
-      setObservations(data);
-      
-      // Trouver l'alerte critique (severity >= 4)
-      const critical = data.find(obs => obs.isCritical);
-      setCriticalAlert(critical || null);
-      
-    } catch (error) {
-      console.error('Erreur lors du chargement des observations:', error);
-      Alert.alert('Erreur', 'Impossible de charger les observations');
-    } finally {
-      setLoading(false);
+  // Utiliser le hook pour récupérer les observations
+  const { 
+    data: observations, 
+    loading, 
+    refetch 
+  } = useObservationsForAgent(
+    user?.id || '',
+    50, // limit
+    0,  // offset
+    undefined, // observationTypeFilter
+    undefined, // severityFilter
+    { 
+      refetchOnMount: true,
+      onError: (err) => console.error('Erreur lors du chargement des observations:', err),
+      onSuccess: (data) => {
+        // Trouver l'alerte critique (severity >= 4)
+        const critical = data.find(obs => obs.severity >= 4);
+        setCriticalAlert(critical as GlobalObservationDisplay || null);
+      }
     }
-  }, [user?.id]);
+  );
 
   // Appliquer les filtres
   useEffect(() => {
+    if (!observations) return;
+    
     if (activeFilter === 'all') {
-      setFilteredObservations(observations);
+      setFilteredObservations(observations as GlobalObservationDisplay[]);
     } else {
       const filtered = observations.filter(obs => obs.type === activeFilter);
-      setFilteredObservations(filtered);
+      setFilteredObservations(filtered as GlobalObservationDisplay[]);
     }
   }, [observations, activeFilter]);
 
-  useEffect(() => {
-    loadObservations();
-  }, [loadObservations]);
-
   const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await loadObservations();
-    setRefreshing(false);
-  }, [loadObservations]);
+    await refetch();
+  }, [refetch]);
 
   const handleMarkAsRead = async (observationId: string) => {
     try {
@@ -99,15 +98,6 @@ export default function ObservationsScreen() {
     router.push(`/(tabs)/parcelles/${observation.plotId}`);
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'new': return '#3b82f6';
-      case 'read': return '#6b7280';
-      case 'executed': return '#10b981';
-      case 'critical': return '#ef4444';
-      default: return '#6b7280';
-    }
-  };
 
   const getStatusText = (status: string) => {
     switch (status) {
@@ -137,131 +127,210 @@ export default function ObservationsScreen() {
     isActive: boolean;
     onPress: () => void;
   }) => (
-    <TouchableOpacity
-      style={[styles.filterButton, isActive && styles.filterButtonActive]}
+    <Pressable
       onPress={onPress}
+      bg={isActive ? 'primary.500' : 'white'}
+      borderWidth={1}
+      borderColor={isActive ? 'primary.500' : 'gray.200'}
+      borderRadius="full"
+      px={3}
+      py={2}
+      flexDirection="row"
+      alignItems="center"
+      _pressed={{ opacity: 0.8 }}
     >
       <Feather 
         name={icon as any} 
         size={16} 
-        color={isActive ? '#fff' : '#3D944B'} 
-        style={styles.filterIcon}
+        color={isActive ? 'white' : (theme.colors.primary?.[500] || '#3D944B')} 
+        style={{ marginRight: 4 }}
       />
-      <Text style={[styles.filterText, isActive && styles.filterTextActive]}>
+      <Text 
+        fontSize="sm" 
+        fontWeight="medium" 
+        color={isActive ? 'white' : (theme.colors.primary?.[500] || '#3D944B')}
+      >
         {label}
       </Text>
-    </TouchableOpacity>
+    </Pressable>
   );
 
-  const ObservationCard = ({ item }: { item: GlobalObservationDisplay }) => (
-    <TouchableOpacity 
-      style={styles.observationCard}
-      onPress={() => handleObservationPress(item)}
-      activeOpacity={0.7}
-    >
-      <View style={[styles.colorBar, { backgroundColor: item.color }]} />
-      <View style={styles.cardContent}>
-        <View style={styles.cardHeader}>
-          <View style={[styles.iconContainer, { backgroundColor: item.color + '20' }]}>
+  const ObservationCard = ({ item }: { item: GlobalObservationDisplay }) => {
+    const getStatusColorScheme = (status: string) => {
+      switch (status) {
+        case 'new': return 'info';
+        case 'read': return 'gray';
+        case 'executed': return 'success';
+        case 'critical': return 'error';
+        default: return 'gray';
+      }
+    };
+
+    return (
+      <Pressable 
+        onPress={() => handleObservationPress(item)}
+        _pressed={{ opacity: 0.7 }}
+        bg="white"
+        mx={4}
+        my={2}
+        borderRadius="lg"
+        borderLeftWidth={4}
+        borderLeftColor={item.color}
+        shadow={1}
+      >
+        <HStack alignItems="flex-start" p={4} space={3}>
+          {/* Icône avec couleur */}
+          <Box
+            w={10}
+            h={10}
+            borderRadius="lg"
+            bg={`${item.color}20`}
+            alignItems="center"
+            justifyContent="center"
+          >
             <Feather name={item.icon as any} size={20} color={item.color} />
-          </View>
-          <View style={styles.cardInfo}>
-            <Text style={styles.cardTitle}>{item.title}</Text>
-            <View style={styles.plotInfo}>
-              <Feather name="map-pin" size={14} color="#3D944B" />
-              <Text style={styles.plotName}>{item.plotName}</Text>
-            </View>
-            <Text style={styles.cropInfo}>
-              {item.cropType} • {item.producerName}
-            </Text>
-            <Text style={styles.cardDescription} numberOfLines={2}>
-              {item.description}
-            </Text>
-            {item.pestDiseaseName && (
-              <Text style={styles.pestDisease}>
-                Maladie/Ravageur: {item.pestDiseaseName}
-              </Text>
-            )}
-            {item.emergencePercent !== undefined && (
-              <Text style={styles.emergenceInfo}>
-                Levée: {item.emergencePercent}%
-              </Text>
-            )}
-          </View>
-          <View style={styles.cardRight}>
-            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}>
-              <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-                {getStatusText(item.status)}
-              </Text>
-            </View>
-            <Text style={styles.timestamp}>{formatTimestamp(item.timestamp)}</Text>
-          </View>
-        </View>
-        <View style={styles.cardActions}>
-          {item.status === 'new' && (
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={(e) => {
-                e.stopPropagation();
-                handleMarkAsRead(item.id);
-              }}
-            >
-              <Text style={styles.actionButtonText}>Marquer lu</Text>
-            </TouchableOpacity>
-          )}
-          {item.status === 'read' && (
-            <TouchableOpacity 
-              style={[styles.actionButton, styles.executedButton]}
-              onPress={(e) => {
-                e.stopPropagation();
-                handleMarkAsExecuted(item.id);
-              }}
-            >
-              <Text style={[styles.actionButtonText, styles.executedButtonText]}>Exécuté</Text>
-            </TouchableOpacity>
-          )}
-          <View style={styles.detailsButton}>
-            <Text style={styles.detailsButtonText}>Voir parcelle</Text>
-            <Feather name="chevron-right" size={16} color="#3b82f6" />
-          </View>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+          </Box>
+
+          {/* Contenu principal */}
+          <VStack flex={1} space={2}>
+            <HStack justifyContent="space-between" alignItems="flex-start">
+              <VStack flex={1} space={1}>
+                <Text fontSize="md" fontWeight="semibold" color="gray.800" numberOfLines={1}>
+                  {item.title}
+                </Text>
+                <HStack alignItems="center" space={1}>
+                  <Feather name="map-pin" size={14} color={theme.colors.primary?.[500] || '#3D944B'} />
+                  <Text fontSize="sm" fontWeight="medium" color="primary.500">
+                    {item.plotName}
+                  </Text>
+                </HStack>
+                <Text fontSize="sm" color="gray.600">
+                  {item.cropType} • {item.producerName}
+                </Text>
+                <Text fontSize="sm" color="gray.700" numberOfLines={2}>
+                  {item.description}
+                </Text>
+                {item.pestDiseaseName && (
+                  <Text fontSize="sm" color="error.600" fontStyle="italic">
+                    Maladie/Ravageur: {item.pestDiseaseName}
+                  </Text>
+                )}
+                {item.emergencePercent !== undefined && (
+                  <Text fontSize="sm" color="success.600" fontWeight="medium">
+                    Levée: {item.emergencePercent}%
+                  </Text>
+                )}
+              </VStack>
+
+              {/* Statut et timestamp */}
+              <VStack alignItems="flex-end" space={1}>
+                <Badge colorScheme={getStatusColorScheme(item.status)} borderRadius="full" px={2} py={1}>
+                  <Text fontSize="xs" fontWeight="medium" color="white">
+                    {getStatusText(item.status)}
+                  </Text>
+                </Badge>
+                <Text fontSize="xs" color="gray.500">
+                  {formatTimestamp(item.timestamp)}
+                </Text>
+              </VStack>
+            </HStack>
+
+            {/* Actions */}
+            <HStack justifyContent="space-between" alignItems="center" mt={2}>
+              <HStack space={2}>
+                {item.status === 'new' && (
+                  <Pressable
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      handleMarkAsRead(item.id);
+                    }}
+                    bg="primary.500"
+                    px={4}
+                    py={2}
+                    borderRadius="md"
+                    _pressed={{ opacity: 0.8 }}
+                  >
+                    <Text fontSize="sm" fontWeight="medium" color="white">
+                      Marquer lu
+                    </Text>
+                  </Pressable>
+                )}
+                {item.status === 'read' && (
+                  <Pressable
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      handleMarkAsExecuted(item.id);
+                    }}
+                    bg="success.500"
+                    px={4}
+                    py={2}
+                    borderRadius="md"
+                    _pressed={{ opacity: 0.8 }}
+                  >
+                    <Text fontSize="sm" fontWeight="medium" color="white">
+                      Exécuté
+                    </Text>
+                  </Pressable>
+                )}
+              </HStack>
+
+              <HStack alignItems="center" space={1}>
+                <Text fontSize="sm" fontWeight="medium" color="blue.500">
+                  Voir parcelle
+                </Text>
+                <Feather name="chevron-right" size={16} color={theme.colors.blue?.[500] || '#3B82F6'} />
+              </HStack>
+            </HStack>
+          </VStack>
+        </HStack>
+      </Pressable>
+    );
+  };
 
 
   if (loading) {
     return (
-      <ContentWithHeader style={{ flex: 1 }}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3D944B" />
-          <Text style={styles.loadingText}>Chargement des observations...</Text>
-        </View>
-      </ContentWithHeader>
+      <ScreenContainer title="Observations">
+        <Box flex={1} justifyContent="center" alignItems="center" p={5}>
+          <ActivityIndicator size="large" color={theme.colors.primary?.[500] || '#3D944B'} />
+          <Text mt={4} fontSize="md" color="gray.600">Chargement des observations...</Text>
+        </Box>
+      </ScreenContainer>
     );
   }
 
   return (
-    <ContentWithHeader style={{ flex: 1 }}>
+    <ScreenContainer title="Observations">
       <ScrollView 
-        style={styles.container}
+        flex={1}
+        bg="gray.50"
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          <RefreshControl refreshing={loading} onRefresh={handleRefresh} />
         }
       >
         {/* Bannière d'alerte critique */}
         {criticalAlert && (
-          <View style={styles.criticalAlert}>
-            <Feather name="alert-triangle" size={20} color="#fff" />
-            <Text style={styles.criticalAlertText}>
+          <Pressable
+            onPress={() => handleObservationPress(criticalAlert)}
+            bg="error.500"
+            mx={4}
+            my={4}
+            p={4}
+            borderRadius="lg"
+            flexDirection="row"
+            alignItems="center"
+            _pressed={{ opacity: 0.8 }}
+          >
+            <Feather name="alert-triangle" size={20} color="white" />
+            <Text flex={1} color="white" fontSize="md" fontWeight="semibold" ml={2}>
               Alerte critique - {criticalAlert.title} sur {criticalAlert.plotName}
             </Text>
-            <Feather name="chevron-right" size={20} color="#fff" />
-          </View>
+            <Feather name="chevron-right" size={20} color="white" />
+          </Pressable>
         )}
 
         {/* Filtres */}
-        <View style={styles.filtersContainer}>
+        <HStack space={2} px={4} py={2} flexWrap="wrap">
           <FilterButton
             type="all"
             label="Tous"
@@ -272,14 +341,14 @@ export default function ObservationsScreen() {
           <FilterButton
             type="fertilization"
             label="Fertilisation"
-            icon="leaf"
+            icon="layers"
             isActive={activeFilter === 'fertilization'}
             onPress={() => setActiveFilter('fertilization')}
           />
           <FilterButton
             type="disease"
             label="Maladies"
-            icon="bug"
+            icon="alert-triangle"
             isActive={activeFilter === 'disease'}
             onPress={() => setActiveFilter('disease')}
           />
@@ -297,223 +366,31 @@ export default function ObservationsScreen() {
             isActive={activeFilter === 'harvest'}
             onPress={() => setActiveFilter('harvest')}
           />
-        </View>
+        </HStack>
 
         {/* Liste des observations */}
-        <FlatList
-          data={filteredObservations}
-          renderItem={ObservationCard}
-          keyExtractor={(item) => item.id}
-          scrollEnabled={false}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Feather name="eye" size={48} color="#9ca3af" />
-              <Text style={styles.emptyText}>Aucune observation trouvée</Text>
-            </View>
-          }
-        />
-
+        {filteredObservations.length === 0 ? (
+          <Box flex={1} justifyContent="center" alignItems="center" py={20}>
+            <Feather name="eye" size={48} color={theme.colors.gray?.[400] || '#9CA3AF'} />
+            <Text mt={4} fontSize="lg" fontWeight="medium" color="gray.600">
+              Aucune observation trouvée
+            </Text>
+            <Text mt={2} fontSize="sm" color="gray.500" textAlign="center">
+              {activeFilter === 'all' 
+                ? 'Aucune observation enregistrée pour le moment'
+                : `Aucune observation de type "${activeFilter}" trouvée`
+              }
+            </Text>
+          </Box>
+        ) : (
+          <VStack space={2} py={4}>
+            {filteredObservations.map((item) => (
+              <ObservationCard key={item.id} item={item} />
+            ))}
+          </VStack>
+        )}
       </ScrollView>
-    </ContentWithHeader>
+    </ScreenContainer>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f9fafb',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  loadingText: {
-    marginTop: 10,
-    color: '#6b7280',
-    fontSize: 16,
-  },
-  criticalAlert: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ef4444',
-    padding: 16,
-    margin: 16,
-    borderRadius: 8,
-  },
-  criticalAlertText: {
-    flex: 1,
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  filtersContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    gap: 8,
-  },
-  filterButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  filterButtonActive: {
-    backgroundColor: '#3D944B',
-    borderColor: '#3D944B',
-  },
-  filterIcon: {
-    marginRight: 4,
-  },
-  filterText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#3D944B',
-  },
-  filterTextActive: {
-    color: '#fff',
-  },
-  observationCard: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginVertical: 4,
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  colorBar: {
-    width: 4,
-    borderTopLeftRadius: 8,
-    borderBottomLeftRadius: 8,
-  },
-  cardContent: {
-    flex: 1,
-    padding: 16,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    marginBottom: 12,
-  },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  cardInfo: {
-    flex: 1,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  plotInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  plotName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#3D944B',
-    marginLeft: 4,
-  },
-  cropInfo: {
-    fontSize: 13,
-    color: '#6b7280',
-    marginBottom: 8,
-  },
-  cardDescription: {
-    fontSize: 14,
-    color: '#4b5563',
-    lineHeight: 20,
-  },
-  pestDisease: {
-    fontSize: 13,
-    color: '#ef4444',
-    fontStyle: 'italic',
-    marginTop: 4,
-  },
-  emergenceInfo: {
-    fontSize: 13,
-    color: '#10b981',
-    fontWeight: '500',
-    marginTop: 4,
-  },
-  cardRight: {
-    alignItems: 'flex-end',
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginBottom: 4,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  },
-  timestamp: {
-    fontSize: 12,
-    color: '#9ca3af',
-  },
-  cardActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  actionButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#3D944B',
-    borderRadius: 6,
-  },
-  actionButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  executedButton: {
-    backgroundColor: '#10b981',
-  },
-  executedButtonText: {
-    color: '#fff',
-  },
-  detailsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  detailsButtonText: {
-    color: '#3b82f6',
-    fontSize: 14,
-    fontWeight: '500',
-    marginRight: 4,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#9ca3af',
-  },
-});

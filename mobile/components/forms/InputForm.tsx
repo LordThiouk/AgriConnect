@@ -1,12 +1,9 @@
 import React from 'react';
-import { View } from 'react-native';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
-import FormField from '@/components/FormField';
-import { Button } from '@/components/ui/button';
-import { ThemedText as Text } from '@/components/ThemedText';
-import CompatiblePicker from '@/components/CompatiblePicker';
+import { VStack } from 'native-base';
+import { FormField, FormInput, FormSelect } from '../ui';
 
 const inputCategories = ['Fertilizer', 'Seed', 'Pesticide', 'Herbicide', 'Other'] as const;
 const inputUnits = ['kg', 'g', 'L', 'mL', 'unit(s)', 'bag(s)'] as const;
@@ -32,101 +29,111 @@ const InputForm: React.FC<InputFormProps> = ({
   initialValues,
   isSubmitting = false,
 }) => {
-  const { control, handleSubmit, formState: { errors } } = useForm<InputFormData>({
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<InputFormData>({
     resolver: zodResolver(inputFormSchema),
-    defaultValues: initialValues,
+    defaultValues: {
+      category: initialValues?.category || 'Fertilizer',
+      label: initialValues?.label || '',
+      quantity: initialValues?.quantity || 0,
+      unit: initialValues?.unit || 'kg',
+      crop_id: initialValues?.crop_id || '',
+    },
   });
 
+  const getCategoryLabel = (category: string): string => {
+    const labels: Record<string, string> = {
+      Fertilizer: 'Engrais',
+      Seed: 'Semence',
+      Pesticide: 'Pesticide',
+      Herbicide: 'Herbicide',
+      Other: 'Autre',
+    };
+    return labels[category] || category;
+  };
+
+  const getUnitLabel = (unit: string): string => {
+    const labels: Record<string, string> = {
+      kg: 'Kilogramme',
+      g: 'Gramme',
+      L: 'Litre',
+      mL: 'Millilitre',
+      'unit(s)': 'Unité(s)',
+      'bag(s)': 'Sac(s)',
+    };
+    return labels[unit] || unit;
+  };
+
   return (
-    <View style={{ padding: 20 }}>
-      <View style={{ marginBottom: 16 }}>
-        <Text style={{ fontSize: 16, color: '#374151', marginBottom: 6 }}>Catégorie d&apos;intrant</Text>
-        <Controller
-          control={control}
-          name="category"
-          render={({ field: { onChange, value } }) => (
-            <CompatiblePicker
-              selectedValue={value}
+    <VStack space={4} p={4}>
+      <Controller
+        control={control}
+        name="category"
+        render={({ field: { onChange, value } }) => (
+          <FormField label="Catégorie" required>
+            <FormSelect
+              value={value}
               onValueChange={onChange}
-              items={inputCategories.map(c => ({ label: c, value: c }))}
+              options={inputCategories.map(cat => ({
+                value: cat,
+                label: getCategoryLabel(cat)
+              }))}
+              placeholder="Sélectionner une catégorie"
             />
-          )}
-        />
-        {errors.category && (
-          <Text style={{ color: '#dc2626', fontSize: 12, marginTop: 4 }}>
-            {errors.category.message}
-          </Text>
+          </FormField>
         )}
-      </View>
-      <Controller 
+      />
+
+      <Controller
         control={control}
         name="label"
         render={({ field: { onChange, value } }) => (
-          <FormField
-            label="Nom du produit/intrant"
-            placeholder="Ex: Urée, Coton-graines"
-            value={value}
-            onChangeText={onChange}
-            error={errors.label?.message}
-          />
+          <FormField label="Nom du produit" required>
+            <FormInput
+              value={value}
+              onChangeText={onChange}
+              placeholder="Nom du produit"
+            />
+          </FormField>
         )}
       />
+
       <Controller
         control={control}
         name="quantity"
         render={({ field: { onChange, value } }) => (
-          <FormField
-            label="Quantité"
-            placeholder="Ex: 50"
-            value={value?.toString()}
-            onChangeText={(text) => {
-              const num = parseFloat(text);
-              onChange(isNaN(num) ? undefined : num);
-            }}
-            keyboardType="numeric"
-            error={errors.quantity?.message}
-          />
+          <FormField label="Quantité" required>
+            <FormInput
+              value={value?.toString() || ''}
+              onChangeText={(text) => onChange(parseFloat(text) || 0)}
+              placeholder="0"
+              keyboardType="numeric"
+            />
+          </FormField>
         )}
       />
-      <View style={{ marginBottom: 16 }}>
-        <Text style={{ fontSize: 16, color: '#374151', marginBottom: 6 }}>Unité</Text>
-        <Controller
-          control={control}
-          name="unit"
-          render={({ field: { onChange, value } }) => (
-            <CompatiblePicker
-              selectedValue={value}
-              onValueChange={onChange}
-              items={inputUnits.map(u => ({ label: u, value: u }))}
-            />
-          )}
-        />
-        {errors.unit && (
-          <Text style={{ color: '#dc2626', fontSize: 12, marginTop: 4 }}>
-            {errors.unit.message}
-          </Text>
-        )}
-      </View>
+
       <Controller
         control={control}
-        name="crop_id"
+        name="unit"
         render={({ field: { onChange, value } }) => (
-          <FormField
-            label="ID de la culture (optionnel)"
-            placeholder="Lier à une culture spécifique"
-            value={value}
-            onChangeText={onChange}
-            error={errors.crop_id?.message}
-          />
+          <FormField label="Unité" required>
+            <FormSelect
+              value={value}
+              onValueChange={onChange}
+              options={inputUnits.map(unit => ({
+                value: unit,
+                label: getUnitLabel(unit)
+              }))}
+              placeholder="Sélectionner une unité"
+            />
+          </FormField>
         )}
       />
-      
-      <View style={{ marginTop: 20 }}>
-        <Button onPress={handleSubmit(onSubmit)} disabled={isSubmitting}>
-          <Text>{isSubmitting ? 'Enregistrement...' : 'Enregistrer'}</Text>
-        </Button>
-      </View>
-    </View>
+    </VStack>
   );
 };
 

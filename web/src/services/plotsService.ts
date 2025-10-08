@@ -23,7 +23,6 @@ export interface PlotFilters {
 export interface CropFilters {
   search?: string;
   plot_id?: string;
-  farm_file_plot_id?: string;  // Ajout pour supporter farm_file_plots
   crop_type?: string;
   status?: 'planted' | 'growing' | 'harvested' | 'failed';
   season?: string;
@@ -107,7 +106,6 @@ export class PlotsService {
            // Transform RPC response to match Plot interface
            const transformedData = (data || []).map((plot: any) => ({
              id: plot.id,
-             farm_file_plot_id: plot.farm_file_plot_id, // Add farm_file_plot_id for crops/operations
              producer_id: plot.producer_id,
              name: plot.name,
              area_hectares: plot.area_hectares ? parseFloat(plot.area_hectares) : undefined,
@@ -155,6 +153,30 @@ export class PlotsService {
     }
   }
 
+  static async getPlotsWithGeolocation(): Promise<Plot[]> {
+    if (!supabase) {
+      throw new Error('Supabase client not initialized');
+    }
+
+    try {
+      console.log('🔍 Fetching plots with geolocation...');
+      
+      // Utiliser la RPC function pour récupérer les parcelles avec géolocalisation
+      const { data, error } = await supabase.rpc('get_plots_with_geolocation');
+      
+      if (error) {
+        console.error('❌ Error fetching plots with geolocation:', error);
+        throw error;
+      }
+
+      console.log(`✅ Found ${data?.length || 0} plots with geolocation`);
+      return data || [];
+    } catch (error) {
+      console.error('❌ Error in getPlotsWithGeolocation:', error);
+      throw error;
+    }
+  }
+
   static async getPlotById(id: string): Promise<Plot> {
     try {
       if (!supabase) {
@@ -162,7 +184,7 @@ export class PlotsService {
       }
 
       const { data, error } = await supabase
-        .from('farm_file_plots')
+        .from('plots')
         .select(`
           *,
           producer:producers(id, first_name, last_name, phone, region, cooperative_id)
@@ -267,15 +289,15 @@ export class PlotsService {
         .from('plots')
         .select('*', { count: 'exact', head: true });
 
-      // Get active plots count from farm_file_plots
+      // Get active plots count
       const { count: activePlots } = await supabase
-        .from('farm_file_plots')
+        .from('plots')
         .select('*', { count: 'exact', head: true })
         .eq('status', 'active');
 
       // Get total area
       const { data: areaData } = await supabase
-        .from('farm_file_plots')
+        .from('plots')
         .select('area_hectares')
         .not('area_hectares', 'is', null);
 
@@ -284,7 +306,7 @@ export class PlotsService {
 
       // Get plots by status
       const { data: statusData } = await supabase
-        .from('farm_file_plots')
+        .from('plots')
         .select('status')
         .not('status', 'is', null);
 
@@ -295,7 +317,7 @@ export class PlotsService {
 
       // Get plots by soil type
       const { data: soilData } = await supabase
-        .from('farm_file_plots')
+        .from('plots')
         .select('soil_type')
         .not('soil_type', 'is', null);
 
@@ -331,8 +353,7 @@ export class PlotsService {
       }
 
       // Get count using RPC
-      // Si farm_file_plot_id est fourni, l'utiliser à la place de plot_id
-      const plotIdParam = filters.farm_file_plot_id || filters.plot_id;
+      const plotIdParam = filters.plot_id;
       
       const { data: countData, error: countError } = await supabase
         .rpc('get_crops_count', {
@@ -386,7 +407,7 @@ export class PlotsService {
         created_at: crop.created_at,
         updated_at: crop.updated_at,
         plot: {
-          id: crop.farm_file_plot_id,
+          id: crop.plot_id,
           name: crop.plot_name,
           producer_id: crop.plot_producer_id,
           status: 'active' as const,
@@ -447,7 +468,7 @@ export class PlotsService {
         created_at: crop.created_at,
         updated_at: crop.updated_at,
         plot: {
-          id: crop.farm_file_plot_id,
+          id: crop.plot_id,
           name: crop.plot_name,
           producer_id: crop.plot_producer_id,
           status: 'active' as const,
@@ -601,25 +622,25 @@ export class PlotsService {
         throw new Error('Supabase client not initialized');
       }
 
-      // Get unique soil types from farm_file_plots
+      // Get unique soil types
       const { data: soilTypesData } = await supabase
-        .from('farm_file_plots')
+        .from('plots')
         .select('soil_type')
         .not('soil_type', 'is', null);
 
       const soilTypes = [...new Set(soilTypesData?.map(p => p.soil_type as string) || [])] as string[];
 
-      // Get unique water sources from farm_file_plots
+      // Get unique water sources
       const { data: waterSourcesData } = await supabase
-        .from('farm_file_plots')
+        .from('plots')
         .select('water_source')
         .not('water_source', 'is', null);
 
       const waterSources = [...new Set(waterSourcesData?.map(p => p.water_source as string) || [])] as string[];
 
-      // Get unique irrigation types from farm_file_plots
+      // Get unique irrigation types
       const { data: irrigationTypesData } = await supabase
-        .from('farm_file_plots')
+        .from('plots')
         .select('irrigation_type')
         .not('irrigation_type', 'is', null);
 

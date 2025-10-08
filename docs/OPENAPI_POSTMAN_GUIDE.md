@@ -2,7 +2,7 @@
 
 ## 📋 Vue d'ensemble
 
-**Félicitations !** Nous avons découvert que Supabase expose automatiquement une **spécification OpenAPI complète** via PostgREST. Cette spécification contient **273 endpoints** et peut être importée directement dans Postman pour générer automatiquement des collections d'API !
+Supabase expose automatiquement une **spécification OpenAPI complète** via PostgREST. Cette spécification contient **273 endpoints** et peut être importée directement dans Postman pour générer automatiquement des collections d'API !
 
 ## 🔍 **Découverte OpenAPI réussie**
 

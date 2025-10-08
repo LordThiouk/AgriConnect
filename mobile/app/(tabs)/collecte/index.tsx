@@ -7,15 +7,15 @@ import {
   RefreshControl,
   Alert,
   ActivityIndicator,
-  FlatList,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useNavigation } from 'expo-router';
 import { Colors } from '../../../constants/Colors';
 import { CollecteService } from '../../../lib/services/collecte';
-import { FarmFileDisplay } from '../../../types/collecte';
+import { FarmFileDisplay } from '../../../lib/types/core/collecte';
 import { useAuth } from '../../../context/AuthContext';
-import ContentWithHeader from '../../../components/ContentWithHeader';
+import { ScreenContainer } from '../../../components/ui';
 
 type FilterStatus = 'all' | 'draft' | 'completed';
 
@@ -53,13 +53,40 @@ export default function CollecteScreen() {
 
   useEffect(() => {
     if (user) loadFarmFiles();
-  }, [user]);
+  }, [user, loadFarmFiles]);
 
   const filteredFarmFiles = useMemo(() => {
     if (activeFilter === 'all') return farmFiles;
     return farmFiles.filter(file => file.status === activeFilter);
   }, [farmFiles, activeFilter]);
 
+  // Calcul statut KPI comme dans le dashboard
+  const kpiStats = useMemo(() => [
+    {
+      title: 'Fiches',
+      value: farmFiles.length.toString(),
+      icon: 'document-text',
+      color: '#3B82F6'
+    },
+    {
+      title: 'Complétées',
+      value: farmFiles.filter(f => f.completionStatus === 'completed').length.toString(),
+      icon: 'checkmark-circle',
+      color: '#10B981'
+    },
+    {
+      title: 'En cours',
+      value: farmFiles.filter(f => f.completionStatus === 'in_progress').length.toString(),
+      icon: 'time',
+      color: '#F59E0B'
+    },
+    {
+      title: 'Brouillons',
+      value: farmFiles.filter(f => f.completionStatus === 'draft').length.toString(),
+      icon: 'create',
+      color: '#EF4444'
+    }
+  ], [farmFiles]);
 
   // Configuration du header
   const today = new Date().toLocaleDateString();
@@ -78,9 +105,9 @@ export default function CollecteScreen() {
 
   const HeaderRight = useCallback(() => (
     <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 8 }}>
-      <View style={styles.onlinePill}>
-        <View style={styles.dotGreen} />
-        <Text style={styles.onlineText}>En ligne</Text>
+      <View style={styles.onlineStatus}>
+        <View style={styles.statusDot} />
+        <Text style={styles.statusText}>En ligne</Text>
       </View>
       <Ionicons name="notifications-outline" size={20} color="#111827" style={{ marginLeft: 8 }} />
     </View>
@@ -127,107 +154,50 @@ export default function CollecteScreen() {
     }
   };
 
-  const getStatusBadgeStyle = (status: string) => {
-    switch (status) {
-      case 'synced':
-        return { backgroundColor: Colors.success.light, color: Colors.success.dark };
-      case 'pending':
-        return { backgroundColor: Colors.warning.light, color: Colors.warning.dark };
-      case 'error':
-        return { backgroundColor: Colors.error.light, color: Colors.error.dark };
-      default:
-        return { backgroundColor: Colors.gray.light, color: Colors.gray.dark };
-    }
-  };
-
-  const getCompletionBadgeStyle = (percent: number) => {
-    if (percent === 100) {
-      return { backgroundColor: Colors.success.light, color: Colors.success.dark };
-    } else if (percent >= 50) {
-      return { backgroundColor: Colors.warning.light, color: Colors.warning.dark };
-    } else {
-      return { backgroundColor: Colors.error.light, color: Colors.error.dark };
-    }
-  };
-
-  const getActionButtonStyle = (completionPercent: number) => {
-    if (completionPercent === 100) {
-      return { backgroundColor: Colors.gray.medium, color: Colors.white };
-    } else {
-      return { backgroundColor: Colors.primary, color: Colors.white };
-    }
-  };
-
-  const getActionButtonText = (completionPercent: number) => {
-    if (completionPercent === 100) {
-      return 'Terminé';
-    } else if (completionPercent > 0) {
-      return 'Continuer';
-    } else {
-      return 'Modifier';
-    }
-  };
-
-  const getSyncIcon = (status: string) => {
-    switch (status) {
-      case 'synced':
-        return 'checkmark-circle';
-      case 'pending':
-        return 'time';
-      case 'error':
-        return 'alert-circle';
-      default:
-        return 'cloud-offline';
-    }
-  };
-
-  const renderStatusBadge = (status: string) => {
-    let backgroundColor = Colors.gray.light;
-    let textColor = Colors.gray.dark;
-    let text = status.toUpperCase();
-
-    if (status === 'draft') {
-      backgroundColor = Colors.warning.light;
-      textColor = Colors.warning.dark;
-      text = 'BROUILLON';
-    } else if (status === 'completed') {
-      backgroundColor = Colors.success.light;
-      textColor = Colors.success.dark;
-      text = 'COMPLÉTÉE';
-    }
-
-    return (
-      <View style={[styles.statusBadge, { backgroundColor, marginLeft: 'auto' }]}>
-        <Text style={[styles.statusBadgeText, { color: textColor }]}>{text}</Text>
-      </View>
-    );
-  };
-
   const renderItem = ({ item }: { item: FarmFileDisplay }) => (
     <TouchableOpacity
-      style={styles.farmFileCard}
+      style={[styles.modernFarmFileCard, item.completionStatus === 'completed' && styles.completedCard]}
       onPress={() => router.push(`/(tabs)/collecte/fiches/create?farmFileId=${item.id}`)}
     >
-      <View style={styles.cardHeader}>
-        <Text style={styles.farmFileName} numberOfLines={1}>{item.producerName}</Text>
+      <View style={styles.modernCardHeader}>
+        <View style={styles.cardHeaderLeft}>
+          <View style={[styles.farmFileIconContainer, { backgroundColor: item.completionStatus === 'completed' ? '#E8F5E9' : '#FEF3E2' }]}>
+            <Ionicons 
+              name={item.completionStatus === 'completed' ? 'checkmark-circle' : 'document-text'} 
+              size={20} 
+              color={item.completionStatus === 'completed' ? '#10B981' : '#F59E0B'} 
+            />
+          </View>
+          <View style={styles.cardHeaderContent}>
+            <Text style={styles.modernFarmFileName} numberOfLines={1}>{item.producerName}</Text>
+            <Text style={styles.cardSubtitle}>{item.location}</Text>
+          </View>
+        </View>
         <StatusBadge status={item.status} />
       </View>
 
-      <View style={styles.infoRow}>
-        <Ionicons name="location-outline" size={16} color={Colors.gray.medium} />
-        <Text style={styles.infoText}>{item.location}</Text>
-      </View>
-
-      <View style={styles.infoRow}>
-        <Ionicons name="leaf-outline" size={16} color={Colors.gray.medium} />
-        <Text style={styles.infoText}>{item.plotsCount} parcelles</Text>
+      <View style={styles.modernInfoGrid}>
+        <View style={styles.infoItem}>
+          <Ionicons name="leaf-outline" size={16} color="#6B7280" />
+          <Text style={styles.infoText}>{item.plotsCount} parcelles</Text>
+        </View>
+        <View style={styles.infoItem}>
+          <Ionicons name="time-outline" size={16} color="#6B7280" />
+          <Text style={styles.infoText}>{Math.round(item.completionPercent)}% complété</Text>
+        </View>
       </View>
       
-      <View style={styles.completionContainer}>
-        <Text style={styles.completionText}>{Math.round(item.completionPercent)}% complété</Text>
-        <View style={styles.progressBar}>
-          <View style={[styles.progress, { width: `${item.completionPercent}%`, backgroundColor: item.completionPercent === 100 ? Colors.success.dark : Colors.primary }]} />
+      <View style={styles.modernProgressContainer}>
+        <View style={styles.modernProgressBar}>
+          <View style={[
+            styles.modernProgress, 
+            { 
+              width: `${item.completionPercent}%`, 
+              backgroundColor: item.completionPercent === 100 ? '#10B981' : (item.completionPercent >= 50 ? '#F59E0B' : '#EF4444')
+            } 
+          ]} />
         </View>
+        <Text style={styles.modernProgressText}>{Math.round(item.completionPercent)}%</Text>
       </View>
     </TouchableOpacity>
   );
@@ -258,73 +228,149 @@ export default function CollecteScreen() {
   }
 
   return (
-    <ContentWithHeader style={styles.container}>
-      <FlatList
-        data={filteredFarmFiles}
-        renderItem={renderItem}
-        keyExtractor={item => item.id}
-        ListHeaderComponent={
-          <>
-            <View style={styles.primaryButtonContainer}>
-              <TouchableOpacity
-                style={styles.primaryButton}
-                onPress={() => router.push('/(tabs)/collecte/fiches/create')}
-              >
-                <Ionicons name="add" size={20} color={Colors.white} />
-                <Text style={styles.primaryButtonText}>Nouvelle Fiche Exploitation</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.quickActionsContainer}>
-              <TouchableOpacity
-                style={styles.quickActionButton}
-                onPress={() => handleQuickAction('add_plot')}
-              >
-                <Ionicons name="location" size={24} color={Colors.primary} />
-                <Text style={styles.quickActionText}>Ajouter Parcelle</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.quickActionButton}
-                onPress={() => handleQuickAction('new_visit')}
-              >
-                <Ionicons name="calendar" size={24} color={Colors.primary} />
-                <Text style={styles.quickActionText}>Nouvelle Visite</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.quickActionButton}
-                onPress={() => handleQuickAction('add_observation')}
-              >
-                <Ionicons name="camera" size={24} color={Colors.primary} />
-                <Text style={styles.quickActionText}>Observation</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.header}>
-              <Text style={styles.headerTitle}>Fiches Existantes</Text>
-            </View>
-            <FilterComponent />
-          </>
+    <ScreenContainer title="Collecte">
+      <ScrollView 
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#3D944B']}
+            tintColor="#3D944B"
+          />
         }
-        ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Ionicons name="document-text-outline" size={50} color={Colors.gray.medium} />
-              <Text style={styles.emptyStateText}>Aucune fiche trouvée</Text>
-              <Text style={styles.emptyStateSubText}>
-                {activeFilter !== 'all' ? `Aucune fiche avec le statut "${activeFilter}".` : "Créez une nouvelle fiche pour commencer."}
-              </Text>
+      >
+        {/* En-tête spécifique collecte */}
+        <View style={styles.modernHeaderCard}>
+          <View style={styles.modernHeaderContent}>
+            <View style={styles.headerLeft}>
+              <View style={styles.headerIconBox}>
+                <Ionicons name="leaf" size={24} color="#3D944B" />
+              </View>
+              <View style={styles.headerTextContainer}>
+                <Text style={styles.headerTitle}>Collecte Terrain</Text>
+                <Text style={styles.headerSubtitle}>Saisissez les données des exploitations</Text>
+              </View>
             </View>
-          }
-          contentContainerStyle={styles.listContentContainer}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        />
-        <TouchableOpacity
-            style={styles.floatingButton}
+            <View style={styles.headerMeta}>
+              <View style={styles.onlineStatus}>
+                <View style={styles.statusDot} />
+                <Text style={styles.statusText}>En ligne</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Statistiques de collecte */}
+        <View style={styles.modernStatsContainer}>
+          <Text style={styles.modernSectionTitle}>Statistiques</Text>
+          <View style={styles.modernStatsGrid}>
+            {kpiStats.map((stat, index) => (
+              <View key={index} style={styles.modernStatCard}>
+                <View style={[styles.modernKpiIcon, { backgroundColor: stat.color }]}>
+                  <Ionicons name={stat.icon as any} size={18} color="#ffffff" />
+                </View>
+                <Text style={styles.modernStatValue}>{stat.value}</Text>
+                <Text style={styles.modernStatLabel}>{stat.title}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Actions de collecte */}
+        <View style={styles.modernQuickActionsContainer}>
+          <TouchableOpacity
+            style={styles.modernPrimaryButton}
             onPress={() => router.push('/(tabs)/collecte/fiches/create')}
-        >
-            <Ionicons name="add" size={24} color={Colors.white} />
-        </TouchableOpacity>
-    </ContentWithHeader>
+          >
+            <Ionicons name="add-circle-outline" size={24} color={Colors.white} />
+            <Text style={styles.modernPrimaryButtonText}>Nouvelle Fiche</Text>
+          </TouchableOpacity>
+          
+          <View style={styles.modernQuickActionsRow}>
+            <TouchableOpacity
+              style={styles.modernQuickActionButton}
+              onPress={() => handleQuickAction('add_plot')}
+            >
+              <Ionicons name="location" size={20} color="#3B82F6" />
+              <Text style={styles.modernQuickActionText}>Parcelle</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.modernQuickActionButton}
+              onPress={() => handleQuickAction('new_visit')}
+            >
+              <Ionicons name="calendar" size={20} color="#10B981" />
+              <Text style={styles.modernQuickActionText}>Visite</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.modernQuickActionButton}
+              onPress={() => handleQuickAction('add_observation')}
+            >
+              <Ionicons name="camera" size={20} color="#F59E0B" />
+              <Text style={styles.modernQuickActionText}>Observation</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Fiches d'exploitation */}
+        <View style={styles.modernFichesSection}>
+          <View style={styles.modernSectionHeader}>
+            <View style={styles.sectionHeaderLeft}>
+              <Text style={styles.modernFichesTitle}>Fiches d&apos;exploitation</Text>
+              <Text style={styles.modernFichesSubtitle}>{filteredFarmFiles.length} fiches au total</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.modernAddButton}
+              onPress={() => router.push('/(tabs)/collecte/fiches/create')}
+            >
+              <Ionicons name="add" size={24} color={Colors.white} />
+            </TouchableOpacity>
+          </View>
+
+          <FilterComponent />
+
+          {/* Liste des fiches en mode moderne */}
+          <View style={styles.modernFarmFilesList}>
+            {filteredFarmFiles.length > 0 ? (
+              filteredFarmFiles.map((item) => (
+                <View key={item.id}>
+                  {renderItem({ item })}
+                </View>
+              ))
+            ) : (
+              <View style={styles.modernEmptyState}>
+                <Ionicons name="document-text-outline" size={64} color="#D1D5DB" />
+                <Text style={styles.modernEmptyTitle}>Aucune fiche trouvée</Text>
+                <Text style={styles.modernEmptySubtitle}>
+                  {activeFilter !== 'all' 
+                    ? `Aucune fiche avec le statut &quot;${activeFilter}&quot;.` 
+                    : "Cr&eacute;ez une nouvelle fiche pour commencer."
+                  }
+                </Text>
+                <TouchableOpacity
+                  style={styles.modernEmptyButton}
+                  onPress={() => router.push('/(tabs)/collecte/fiches/create')}
+                >
+                  <Ionicons name="add" size={20} color={Colors.white} />
+                  <Text style={styles.modernEmptyButtonText}>Créer une fiche</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* Floating action button moderne */}
+      <TouchableOpacity
+        style={styles.modernFloatingButton}
+        onPress={() => router.push('/(tabs)/collecte/fiches/create')}
+      >
+        <Ionicons name="add" size={24} color="#FFFFFF" />
+      </TouchableOpacity>
+    </ScreenContainer>
   );
 }
 
@@ -343,92 +389,408 @@ const StatusBadge = ({ status }: { status: string }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  listContentContainer: { paddingHorizontal: 20, paddingBottom: 40 },
-  primaryButtonContainer: {
-    paddingBottom: 10,
-    paddingHorizontal: 20,
+  container: { 
+    flex: 1, 
+    backgroundColor: Colors.background 
   },
-  primaryButton: {
+  scrollView: {
+    flex: 1,
+  },
+  loadingContainer: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  
+  // === HEADER MODERNE ===
+  modernHeaderCard: {
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 20,
+    marginTop: 16,
+    borderRadius: 16,
+    padding: 20,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  modernHeaderContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  headerIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#E8F5E9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  headerTextContainer: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  headerMeta: {
+    alignItems: 'flex-end',
+  },
+  onlineStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F5E9',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#22c55e',
+    marginRight: 6,
+  },
+  statusText: {
+    color: '#22c55e',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  // === STATS MODERNE ===
+  modernStatsContainer: {
+    backgroundColor: 'white',
+    margin: 20,
+    borderRadius: 16,
+    padding: 20,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+  },
+  modernSectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 16,
+  },
+  modernStatsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  modernStatCard: {
+    flex: 1,
+    minWidth: '45%',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  modernKpiIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  modernStatValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  modernStatLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+
+  // === ACTIONS RAPIDES MODERNE ===
+  modernQuickActionsContainer: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+  },
+  modernPrimaryButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.primary,
-    paddingVertical: 12,
-    borderRadius: 8,
+    backgroundColor: '#3D944B',
+    borderRadius: 12,
+    padding: 16,
     gap: 8,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
-  primaryButtonText: {
-    color: Colors.white,
+  modernPrimaryButtonText: {
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },
-  quickActionsContainer: {
+  modernQuickActionsRow: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingBottom: 20,
     gap: 12,
+    marginTop: 12,
   },
-  quickActionButton: {
+  modernQuickActionButton: {
     flex: 1,
-    backgroundColor: Colors.white,
-    paddingVertical: 16,
-    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
     alignItems: 'center',
     gap: 8,
+    elevation: 1,
     shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 2,
+    shadowRadius: 2,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
-  quickActionText: {
-    color: Colors.primary,
+  modernQuickActionText: {
+    color: '#374151',
     fontSize: 12,
     fontWeight: '600',
     textAlign: 'center',
   },
-  header: { marginBottom: 16, paddingHorizontal:20 },
-  headerTitle: { fontSize: 22, fontWeight: 'bold', color: Colors.text.primary },
-  filterContainer: { flexDirection: 'row', gap: 8, marginBottom: 20, paddingHorizontal:20 },
-  filterButton: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, backgroundColor: Colors.gray.light },
-  activeFilterButton: { backgroundColor: Colors.primary },
-  filterButtonText: { color: Colors.text.secondary, fontWeight: '500' },
-  activeFilterButtonText: { color: Colors.white },
-  farmFileCard: {
-    backgroundColor: Colors.white,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+
+  // === FICHE SECTION MODERNE ===
+  modernFichesSection: {
+    marginHorizontal: 20,
+    marginBottom: 20,
   },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  farmFileName: { fontSize: 16, fontWeight: 'bold', color: Colors.text.primary, flex: 1 },
-  statusBadge: { paddingVertical: 4, paddingHorizontal: 8, borderRadius: 12 },
-  statusBadgeText: { fontSize: 10, fontWeight: 'bold' },
-  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  infoText: { fontSize: 14, color: Colors.text.secondary },
-  completionContainer: { marginTop: 12 },
-  completionText: { fontSize: 12, color: Colors.text.secondary, alignSelf: 'flex-end', marginBottom: 4 },
-  progressBar: { height: 6, backgroundColor: Colors.gray.light, borderRadius: 3, overflow: 'hidden' },
-  progress: { height: '100%', borderRadius: 3 },
-  emptyState: { alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
-  emptyStateText: { marginTop: 16, fontSize: 18, fontWeight: '600', color: Colors.text.primary },
-  emptyStateSubText: { marginTop: 8, fontSize: 14, color: Colors.text.secondary, textAlign: 'center' },
-  floatingButton: {
+  modernSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionHeaderLeft: {
+    flex: 1,
+  },
+  modernFichesTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  modernFichesSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  modernAddButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#3D944B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+
+  // === FILTERS ===
+  filterContainer: { 
+    flexDirection: 'row', 
+    gap: 8, 
+    marginBottom: 20 
+  },
+  filterButton: { 
+    paddingVertical: 8, 
+    paddingHorizontal: 16, 
+    borderRadius: 20, 
+    backgroundColor: Colors.gray.light 
+  },
+  activeFilterButton: { 
+    backgroundColor: Colors.primary 
+  },
+  filterButtonText: { 
+    color: Colors.text.secondary, 
+    fontWeight: '500' 
+  },
+  activeFilterButtonText: { 
+    color: Colors.white 
+  },
+
+  // === FARM FILE CARDS MODERNE ===
+  modernFarmFilesList: {
+    gap: 12,
+  },
+  modernFarmFileCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+  },
+  completedCard: {
+    borderColor: '#10B981',
+    borderWidth: 1.5,
+  },
+  modernCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  cardHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  farmFileIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  cardHeaderContent: {
+    flex: 1,
+  },
+  modernFarmFileName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 2,
+  },
+  cardSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  statusBadge: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+  },
+  statusBadgeText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+
+  // === INFO GRID MODERNE ===
+  modernInfoGrid: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 16,
+  },
+  infoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+
+  // === PROGRESS MODERNE ===
+  modernProgressContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  modernProgressBar: {
+    flex: 1,
+    height: 8,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  modernProgress: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  modernProgressText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#111827',
+    minWidth: 32,
+    textAlign: 'right',
+  },
+
+  // === EMPTY STATE MODERNE ===
+  modernEmptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  modernEmptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#374151',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  modernEmptySubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  modernEmptyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#3D944B',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 8,
+  },
+  modernEmptyButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
+  // === FLOATING BUTTON MODERNE ===
+  modernFloatingButton: {
     position: 'absolute',
-    bottom: 20,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: Colors.primary,
+    bottom: 24,
+    right: 24,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#3D944B',
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 8,
+    elevation: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
 });

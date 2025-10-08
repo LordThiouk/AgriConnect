@@ -152,12 +152,12 @@ export class FicheCreationService {
       
       if (farmFileError) throw farmFileError;
 
-      // 2. Supprimer les anciennes parcelles saisonnières/cultures pour éviter les doublons
+      // 2. Supprimer les anciennes cultures pour éviter les doublons
       const { error: deleteCropsError } = await this.supabase.rpc('delete_crops_for_farm_file', { p_farm_file_id: farmFileId });
       if (deleteCropsError) throw new Error(`Erreur suppression anciennes cultures: ${deleteCropsError.message}`);
       
-      const { error: deleteFarmFilePlotsError } = await this.supabase.from('farm_file_plots').delete().eq('farm_file_id', farmFileId);
-      if (deleteFarmFilePlotsError) throw new Error(`Erreur suppression anciennes données parcellaires: ${deleteFarmFilePlotsError.message}`);
+      const { error: deletePlotsError } = await this.supabase.from('plots').delete().eq('farm_file_id', farmFileId);
+      if (deletePlotsError) throw new Error(`Erreur suppression anciennes parcelles: ${deletePlotsError.message}`);
 
       // 3. Récupérer l'ID du producteur depuis la fiche
       const { data: farmFileData, error: ffDataError } = await this.supabase
@@ -224,31 +224,33 @@ export class FicheCreationService {
 
         const plotId = plot.id;
 
-        // Étape 4.2: Insérer les données saisonnières dans 'farm_file_plots'
-        const { data: newFarmFilePlot, error: ffpError } = await this.supabase
-          .from('farm_file_plots')
-          .insert({
+        // Étape 4.2: Mettre à jour les données de la parcelle
+        const { data: updatedPlot, error: plotUpdateError } = await this.supabase
+          .from('plots')
+          .update({
             farm_file_id: farmFileId,
-            plot_id: plotId,
             producer_id: producerId,
             cooperative_id: cooperativeId,
-            name_season_snapshot: parcel.name, // Sauvegarde du nom pour l'historique
+            name_season_snapshot: parcel.name,
             area_hectares: parcel.totalArea,
             typology: parcel.typology,
             producer_size: parcel.producerSize,
             cotton_variety: parcel.cottonVariety,
+            soil_type: 'unknown', // Valeur par défaut
+            water_source: 'rain', // Valeur par défaut
+            status: 'active'
           })
+          .eq('id', plotId)
           .select('id')
           .single();
 
-        if (ffpError) throw new Error(`Erreur insertion données saisonnières: ${ffpError.message}`);
-        if (!newFarmFilePlot?.id) throw new Error("Impossible de récupérer l'ID des données saisonnières.");
+        if (plotUpdateError) throw new Error(`Erreur mise à jour parcelle: ${plotUpdateError.message}`);
+        if (!updatedPlot?.id) throw new Error("Impossible de récupérer l'ID de la parcelle mise à jour.");
         
-        // Étape 4.3: Insérer les cultures liées à la parcelle saisonnière
+        // Étape 4.3: Insérer les cultures liées à la parcelle
         if (parcel.crops && parcel.crops.length > 0) {
           const cropsToInsert = parcel.crops.map(crop => ({
-            plot_id: plotId, // Les cultures sont liées à la parcelle physique
-            farm_file_plot_id: newFarmFilePlot.id, // Et au contexte saisonnier
+            plot_id: plotId, // Les cultures sont liées à la parcelle
             crop_type: crop.type,
             variety: crop.variety,
             sowing_date: crop.sowingDate,
@@ -281,13 +283,12 @@ export class FicheCreationService {
 
       if (farmFileError) throw farmFileError;
       
-      // 2. Charger les parcelles saisonnières, les parcelles de référence, et les cultures associées
+      // 2. Charger les parcelles et les cultures associées
       const { data: farmFilePlotsData, error: farmFilePlotsError } = await this.supabase
-        .from('farm_file_plots')
+        .from('plots')
         .select(`
           *,
-          plot:plots!inner(name),
-          crops!crops_farm_file_plot_id_fkey(*)
+          crops!crops_plot_id_fkey(*)
         `)
         .eq('farm_file_id', farmFileId);
 
@@ -317,9 +318,9 @@ export class FicheCreationService {
       }
 
       const parcels: ParcelData[] = Array.isArray(farmFilePlotsData) ? farmFilePlotsData.map((ffp: any) => ({
-        id: ffp.id, // ID de farm_file_plots
-        plotId: ffp.plot_id, // ID de la parcelle de référence
-        name: ffp.plot?.name || ffp.name_season_snapshot || '',
+        id: ffp.id, // ID de la parcelle
+        plotId: ffp.id, // Même ID (pas de séparation plot/farm_file_plot)
+        name: ffp.name_season_snapshot || '',
         totalArea: ffp.area_hectares ?? 0,
         typology: ffp.typology,
         producerSize: ffp.producer_size || 'Standard (< 3 ha)',

@@ -1,63 +1,241 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Modal, BackHandler, TextInput } from 'react-native';
-import { router, useRouter } from 'expo-router';
+import React, { useEffect, useState, useCallback } from 'react';
+import { ActivityIndicator, Modal, BackHandler, TextInput, Dimensions, FlatList } from 'react-native';
+import { router, useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../../context/AuthContext';
-import { CollecteService } from '../../../lib/services/collecte';
-import type { PlotDisplay } from '../../../types/collecte';
+import { PlotsServiceInstance } from '../../../lib/services/domain/plots';
+import { CropsServiceInstance } from '../../../lib/services/domain/crops';
+import type { PlotDisplay } from '../../../lib/services/domain/plots/plots.types';
 import { Feather } from '@expo/vector-icons';
 import MapComponent from '../../../components/MapComponent';
-import ContentWithHeader from '../../../components/ContentWithHeader';
+import { ScreenContainer } from '../../../components/ui';
+import { 
+  Box, 
+  Text, 
+  ScrollView, 
+  Pressable, 
+  HStack, 
+  VStack, 
+  useTheme,
+  Badge
+} from 'native-base';
 
-const PlotCard = ({ item }: { item: PlotDisplay }) => {
+const PlotCard = ({ item, agentId, isTablet, isSmallScreen }: { 
+  item: PlotDisplay; 
+  agentId?: string; 
+  isTablet: boolean;
+  isSmallScreen: boolean; 
+}) => {
   const router = useRouter();
+  const theme = useTheme();
+  const [cultures, setCultures] = useState<any[]>([]);
+  const [loadingCultures, setLoadingCultures] = useState(false);
+  const [culturesLoaded, setCulturesLoaded] = useState(false);
+
+  const loadCultures = useCallback(async () => {
+    if (culturesLoaded || loadingCultures) return; // Eviter les chargements multiples
+        
+    try {
+      setLoadingCultures(true);
+      setCulturesLoaded(true);
+      console.log('🌾 [PLOT_CARD] Chargement des cultures pour parcelle:', item.id);
+      console.log('🔍 [PLOT_CARD] Vérification CropsServiceInstance:', {
+        CropsServiceInstanceExists: !!CropsServiceInstance,
+        getCropsByPlotIdExists: !!CropsServiceInstance?.getCropsByPlotId,
+        plotId: item.id,
+        agentId
+      });
+      
+      const cropData = await CropsServiceInstance.getCropsByPlotId(item.id, agentId, undefined, undefined, { useCache: true });
+      console.log('✅ [PLOT_CARD] Cultures récupérées:', cropData?.length || 0);
+      console.log('🔍 [PLOT_CARD] Détails des cultures:', cropData);
+      setCultures(cropData || []);
+    } catch (error) {
+      console.error('❌ [PLOT_CARD] Erreur lors du chargement des cultures:', error);
+      console.error('🔍 [PLOT_CARD] Détails de l\'erreur:', {
+        errorMessage: error?.message,
+        errorType: typeof error,
+        plotId: item.id,
+        agentId
+      });
+      setCultures([]);
+    } finally {
+      setLoadingCultures(false);
+    }
+  }, [item.id, agentId, culturesLoaded, loadingCultures]);
+
+  // Pas de useEffect automatique - chargement sur demande uniquement
+  // useEffect(() => {
+  //   loadCultures();
+  // }, [loadCultures]);
+
   const statusConfig = {
-    preparation: { text: 'En cours', color: '#10b981', icon: 'check-circle' as const, iconColor: '#10b981' },
-    cultivated: { text: 'Récolté', color: '#f59e0b', icon: 'clock' as const, iconColor: '#f59e0b' },
-    fallow: { text: 'Abandonné', color: '#ef4444', icon: 'alert-triangle' as const, iconColor: '#ef4444' },
+    preparation: { text: 'En cours', color: theme.colors.success?.[500] || '#10b981' },
+    cultivated: { text: 'Récolté', color: theme.colors.warning?.[500] || '#f59e0b' },
+    fallow: { text: 'Abandonné', color: theme.colors.error?.[500] || '#ef4444' },
   };
-  const currentStatus = statusConfig[item.status] || statusConfig.preparation;
+  const currentStatus = statusConfig[item.status as keyof typeof statusConfig] || statusConfig.preparation;
+
+  // Affichage du type de culture principal si disponible
+  const primaryCulture = cultures.length > 0 ? cultures[0] : null;
+  const cultureDisplay = primaryCulture 
+    ? `${primaryCulture.crop_type} - ${primaryCulture.variety}` 
+    : 'Cliquer pour voir cultures';
 
   return (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <View>
-          <Text style={styles.cardTitle}>{item.producerName}</Text>
-          <Text style={styles.cardSubtitle}>ID: {item.name}</Text>
-        </View>
-        <View style={{alignItems: 'flex-end'}}>
-          <View style={[styles.statusBadge, { backgroundColor: `${currentStatus.color}20` }]}>
-            <View style={[styles.statusDot, { backgroundColor: currentStatus.color }]} />
-            <Text style={[styles.statusText, { color: currentStatus.color }]}>{currentStatus.text}</Text>
-          </View>
-          <Feather name={currentStatus.icon} size={20} color={currentStatus.iconColor} style={{marginTop: 4}}/>
-        </View>
-      </View>
+    <Box
+      bg="white"
+      borderRadius="xl"
+      p={5}
+      mb={4}
+      mx={4}
+      borderWidth={1}
+      borderColor="gray.200"
+      shadow={3}
+    >
+      <HStack justifyContent="space-between" alignItems="center" mb={4}>
+        <HStack alignItems="center" flex={1}>
+          <Box
+            w={12}
+            h={12}
+            borderRadius="full"
+            bg="green.100"
+            alignItems="center"
+            justifyContent="center"
+            mr={3}
+          >
+            <Feather name="user" size={20} color={theme.colors.primary?.[500] || '#3D944B'} />
+          </Box>
+          <VStack flex={1}>
+            <Text fontSize="lg" fontWeight="bold" color="gray.900">
+              {item.producer_name}
+            </Text>
+            <Text fontSize="sm" color="gray.600" numberOfLines={1}>
+              ID: {item.name}
+            </Text>
+          </VStack>
+        </HStack>
+        <Badge
+          bg={`${currentStatus.color}15`}
+          borderRadius="full"
+          px={3}
+          py={1}
+          borderWidth={1}
+          borderColor={`${currentStatus.color}20`}
+        >
+          <HStack alignItems="center">
+            <Box
+              w={2}
+              h={2}
+              borderRadius="full"
+              bg={currentStatus.color}
+              mr={2}
+            />
+            <Text fontSize="xs" fontWeight="bold" color={currentStatus.color}>
+              {currentStatus.text}
+            </Text>
+          </HStack>
+        </Badge>
+      </HStack>
 
-      <View style={styles.cardBody}>
-        <View style={styles.cardInfo}>
-          <Text style={styles.cardLabel}>Surface</Text>
-          <Text style={styles.cardValue}>{item.area?.toFixed(2)} ha</Text>
-        </View>
-        <View style={styles.cardInfo}>
-          <Text style={styles.cardLabel}>Culture</Text>
-          <Text style={styles.cardValue}>{item.variety || 'N/A'}</Text>
-        </View>
-      </View>
+      <VStack space={3} mb={5}>
+        <HStack
+          alignItems="center"
+          p={4}
+          bg="gray.50"
+          borderRadius="lg"
+          borderWidth={1}
+          borderColor="gray.200"
+        >
+          <Feather name="square" size={16} color={theme.colors.success?.[500] || '#10B981'} />
+          <Text fontSize="sm" color="gray.600" ml={2} mr={2} flex={1}>
+            Surface
+          </Text>
+          <Text fontSize="sm" fontWeight="bold" color="gray.900" flex={1}>
+            {item.area_hectares?.toFixed(2) || item.area?.toFixed(2) || '0.00'} ha
+          </Text>
+        </HStack>
+        
+        <Pressable
+            onPress={!culturesLoaded ? loadCultures : undefined}
+          isDisabled={loadingCultures || culturesLoaded}
+          _pressed={{ opacity: 0.8 }}
+        >
+          <HStack
+            alignItems="center"
+            p={4}
+            bg="gray.50"
+            borderRadius="lg"
+            borderWidth={1}
+            borderColor="gray.200"
+          >
+            {loadingCultures ? (
+              <Feather name="loader" size={16} color={theme.colors.gray?.[500] || '#9CA3AF'} />
+            ) : culturesLoaded ? (
+              <Feather name="trending-up" size={16} color={theme.colors.primary?.[500] || '#3B82F6'} />
+            ) : (
+              <Feather name="arrow-down" size={16} color={theme.colors.success?.[500] || '#10B981'} />
+            )}
+            <Text fontSize="sm" color="gray.600" ml={2} mr={2} flex={1}>
+              Culture
+            </Text>
+            <Text fontSize="sm" fontWeight="bold" color="gray.900" flex={1} numberOfLines={1}>
+              {loadingCultures ? 'Chargement...' : (
+                culturesLoaded ? cultureDisplay : 'Cliquer pour voir'
+              )}
+            </Text>
+          </HStack>
+        </Pressable>
+        
+        <HStack
+          alignItems="center"
+          p={4}
+          bg="gray.50"
+          borderRadius="lg"
+          borderWidth={1}
+          borderColor="gray.200"
+        >
+          <Feather name="map-pin" size={16} color={theme.colors.warning?.[500] || '#F59E0B'} />
+          <Text fontSize="sm" color="gray.600" ml={2} mr={2} flex={1}>
+            Localisation
+          </Text>
+          <Text fontSize="sm" fontWeight="bold" color="gray.900" flex={1} numberOfLines={1}>
+            {item.location || item.village || item.region || 'Non renseignée'}
+          </Text>
+        </HStack>
+      </VStack>
 
-      <View>
-        <Text style={styles.cardLabel}>Localisation</Text>
-        <Text style={styles.cardValue}>{item.location || 'N/A'}</Text>
-      </View>
-      
-      <TouchableOpacity onPress={() => router.push({ pathname: '/(tabs)/parcelles/[plotId]', params: { plotId: item.id } })} style={styles.detailsBtn}>
-        <Text style={styles.detailsBtnText}>Voir détails</Text>
-      </TouchableOpacity>
-    </View>
+      <Pressable
+        onPress={() => router.push({ pathname: '/(tabs)/parcelles/[plotId]', params: { plotId: item.id } })} 
+        _pressed={{ opacity: 0.9 }}
+      >
+        <HStack
+          alignItems="center"
+          justifyContent="center"
+          bg={theme.colors.primary?.[500] || '#3D944B'}
+          py={4}
+          px={5}
+          borderRadius="lg"
+          shadow={2}
+        >
+          <Text color="white" fontSize="md" fontWeight="bold" mr={2}>
+            Voir détails
+          </Text>
+          <Feather name="arrow-right" size={16} color="#FFFFFF" />
+        </HStack>
+      </Pressable>
+    </Box>
   );
 };
 
 export default function ParcellesListScreen() {
   const { isLoading: authLoading, userRole, user } = useAuth();
+  const theme = useTheme();
+  const params = useLocalSearchParams<{
+    focusPlotId?: string;
+    centerLat?: string;
+    centerLng?: string;
+    zoom?: string;
+  }>();
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [plots, setPlots] = useState<PlotDisplay[]>([]);
@@ -78,6 +256,11 @@ export default function ParcellesListScreen() {
   const [availableRegions, setAvailableRegions] = useState<string[]>([]);
   const [availableCultures, setAvailableCultures] = useState<string[]>([]);
   const [showDropdown, setShowDropdown] = useState<string | null>(null);
+
+  // Dimensions pour responsive layout
+  const { width: screenWidth } = Dimensions.get('window');
+  const isTablet = screenWidth >= 768;
+  const isSmallScreen = screenWidth < 360;
 
   // Gestion du bouton retour Android pour fermer le modal
   useEffect(() => {
@@ -122,21 +305,32 @@ export default function ParcellesListScreen() {
     };
     
     return (
-      <View style={styles.filterRow}>
-        <Text style={styles.filterLabel}>{label}:</Text>
-        <TouchableOpacity 
-          style={styles.filterInput}
+      <HStack alignItems="center" mb={3}>
+        <Text fontSize="sm" fontWeight="medium" color="gray.700" w={20}>
+          {label}:
+        </Text>
+        <Pressable 
+          flex={1}
           onPress={handleOpen}
+          bg="white"
+          px={3}
+          py={2}
+          borderRadius="md"
+          borderWidth={1}
+          borderColor="gray.300"
+          flexDirection="row"
+          alignItems="center"
+          justifyContent="space-between"
         >
-          <Text style={styles.filterInputText}>
+          <Text fontSize="sm" color="gray.700" flex={1}>
             {value || `Tous les ${label.toLowerCase()}s`}
           </Text>
           <Feather 
             name={isOpen ? "chevron-up" : "chevron-down"} 
             size={16} 
-            color="#6b7280" 
+            color={theme.colors.gray?.[600] || '#6b7280'} 
           />
-        </TouchableOpacity>
+        </Pressable>
         
         {isOpen && (
           <Modal
@@ -145,105 +339,176 @@ export default function ParcellesListScreen() {
             onRequestClose={() => setShowDropdown(null)}
             animationType="fade"
           >
-            <TouchableOpacity 
-              style={styles.modalOverlay}
-              activeOpacity={1}
+            <Pressable 
+              flex={1}
+              bg="rgba(0, 0, 0, 0.5)"
+              justifyContent="center"
+              alignItems="center"
+              px={5}
               onPress={() => setShowDropdown(null)}
             >
-              <TouchableOpacity 
-                style={styles.dropdownContainer}
-                activeOpacity={1}
+              <Pressable 
+                bg="white"
+                borderRadius="2xl"
+                w="full"
+                maxW={400}
+                maxH="80%"
+                shadow={12}
                 onPress={(e) => e.stopPropagation()}
               >
-                <View style={styles.dropdownHeader}>
-                  <Text style={styles.dropdownTitle}>Sélectionner {label.toLowerCase()}</Text>
-                  <TouchableOpacity 
+                <HStack justifyContent="space-between" alignItems="center" p={5} borderBottomWidth={1} borderBottomColor="gray.200">
+                  <Text fontSize="lg" fontWeight="semibold" color="gray.900">
+                    Sélectionner {label.toLowerCase()}
+                  </Text>
+                  <Pressable 
                     onPress={() => setShowDropdown(null)}
-                    style={styles.closeButton}
+                    p={1}
                   >
-                    <Feather name="x" size={20} color="#6b7280" />
-                  </TouchableOpacity>
-                </View>
+                    <Feather name="x" size={20} color={theme.colors.gray?.[600] || '#6b7280'} />
+                  </Pressable>
+                </HStack>
                 
                 {/* Champ de recherche pour les longues listes */}
                 {options.length > 5 && (
-                  <View style={styles.searchContainer}>
-                    <Feather name="search" size={16} color="#6b7280" style={styles.searchIcon} />
+                  <HStack
+                    alignItems="center"
+                    bg="gray.50"
+                    mx={4}
+                    my={2}
+                    px={3}
+                    py={2}
+                    borderRadius="md"
+                    borderWidth={1}
+                    borderColor="gray.200"
+                  >
+                    <Feather name="search" size={16} color={theme.colors.gray?.[600] || '#6b7280'} style={{ marginRight: 8 }} />
                     <TextInput
-                      style={styles.searchInput}
+                      style={{ flex: 1, fontSize: 14, color: '#374151', paddingVertical: 4 }}
                       placeholder={`Rechercher ${label.toLowerCase()}...`}
                       value={localSearchText}
                       onChangeText={setLocalSearchText}
                       placeholderTextColor="#9ca3af"
                     />
-                  </View>
+                  </HStack>
                 )}
                 
                 <FlatList
                   data={['', ...filteredOptions]}
                   keyExtractor={(item, index) => `${filterKey}-${index}`}
                   renderItem={({ item, index }) => (
-                    <TouchableOpacity
-                      style={[
-                        styles.dropdownItem,
-                        index === 0 && styles.dropdownItemFirst,
-                        item === value && styles.dropdownItemSelected
-                      ]}
+                    <Pressable
+                      bg={index === 0 ? 'gray.50' : (item === value ? 'green.50' : 'white')}
                       onPress={() => {
                         onSelect(item);
                         setShowDropdown(null);
                       }}
+                      py={3.5}
+                      px={5}
+                      borderBottomWidth={1}
+                      borderBottomColor="gray.100"
+                      flexDirection="row"
+                      alignItems="center"
+                      justifyContent="space-between"
                     >
-                      <Text style={[
-                        styles.dropdownItemText,
-                        item === value && styles.dropdownItemTextSelected
-                      ]}>
+                      <Text 
+                        fontSize="sm" 
+                        color={item === value ? (theme.colors.primary?.[500] || '#3D944B') : 'gray.700'}
+                        fontWeight={item === value ? 'medium' : 'normal'}
+                        flex={1}
+                      >
                         {index === 0 ? `Tous les ${label.toLowerCase()}s` : item}
                       </Text>
                       {item === value && (
-                        <Feather name="check" size={16} color="#3D944B" />
+                        <Feather name="check" size={16} color={theme.colors.primary?.[500] || '#3D944B'} />
                       )}
-                    </TouchableOpacity>
+                    </Pressable>
                   )}
                   showsVerticalScrollIndicator={true}
-                  style={styles.dropdownList}
+                  style={{ maxHeight: 300 }}
                   ListEmptyComponent={
-                    <View style={styles.emptySearchContainer}>
-                      <Text style={styles.emptySearchText}>
+                    <Box p={5} alignItems="center">
+                      <Text fontSize="sm" color="gray.500" fontStyle="italic">
                         Aucun {label.toLowerCase()} trouvé
                       </Text>
-                    </View>
+                    </Box>
                   }
                 />
-              </TouchableOpacity>
-            </TouchableOpacity>
+              </Pressable>
+            </Pressable>
           </Modal>
         )}
-      </View>
+      </HStack>
     );
   };
 
   // Chargement des parcelles et extraction des options de filtres
   useEffect(() => {
     const loadPlots = async () => {
-      if (authLoading || userRole !== 'agent' || !user?.id) return;
+      console.log('🔍 [PARCELS] loadPlots appelé');
+      console.log('🔍 [PARCELS] authLoading:', authLoading);
+      console.log('🔍 [PARCELS] userRole:', userRole);
+      console.log('🔍 [PARCELS] user?.id:', user?.id);
+      
+      if (authLoading || userRole !== 'agent' || !user?.id) {
+        console.log('❌ [PARCELS] Conditions non remplies pour charger les parcelles');
+        return;
+      }
       
       setLoading(true);
       try {
-        const data = await CollecteService.getAgentPlots(user.id, {});
+        console.log('🔄 [PARCELS] Appel PlotsServiceInstance.getAgentPlots avec user.id:', user.id);
+        console.log('🔍 [PARCELS] Vérification PlotsServiceInstance:', {
+          PlotsServiceInstanceExists: !!PlotsServiceInstance,
+          getAgentPlotsExists: !!PlotsServiceInstance?.getAgentPlots,
+          user: user.id
+        });
+        
+        const data = await PlotsServiceInstance.getAgentPlots(user.id, undefined, undefined, { useCache: true });
+        console.log('✅ [PARCELS] Données reçues de getAgentPlots:', data?.length || 0, 'parcelles');
+        console.log('📋 [PARCELS] Détails des parcelles:', data);
+        console.log('🔍 [PARCELS] Type de données reçues:', typeof data, Array.isArray(data));
+        
+        // Log du mapping des données pour diagnostic
+        if (data && data.length > 0) {
+          console.log('🔍 [PARCELS] Mapping des données de la première parcelle:', {
+            id: data[0].id,
+            name: data[0].name,
+            name_season_snapshot: data[0].name_season_snapshot,
+            area: data[0].area,
+            area_hectares: data[0].area_hectares,
+            producer_name: data[0].producer_name,
+            location: data[0].location,
+            village: data[0].village,
+            region: data[0].region,
+            status: data[0].status
+          });
+        }
         setPlots(data);
         setFilteredPlots(data);
+        
+        // Si on a des paramètres de navigation, activer la carte automatiquement
+        if (params.focusPlotId || params.centerLat) {
+          setShowMap(true);
+          console.log('🗺️ Mode carte activé automatiquement pour focusPlotId:', params.focusPlotId);
+        }
 
         // Extraire les options de filtres
-        const producers = [...new Set(data.map(p => p.producerName))].sort();
-        const regions = [...new Set(data.map(p => p.location).filter((loc): loc is string => Boolean(loc)))].sort();
-        const cultures = [...new Set(data.map(p => p.variety).filter((cult): cult is string => Boolean(cult)))].sort();
+        const producers = [...new Set(data.map(p => p.producer_name))].sort();
+        const regions = [...new Set(data.map(p => p.region || p.village).filter((loc): loc is string => Boolean(loc)))].sort();
+        const cultures: string[] = []; // TODO: Récupérer depuis CropsService si nécessaire
         
         setAvailableProducers(producers);
         setAvailableRegions(regions);
         setAvailableCultures(cultures);
       } catch (error) {
-        console.error('Erreur lors du chargement des parcelles:', error);
+        console.error('❌ [PARCELS] Erreur lors du chargement des parcelles:', error);
+        console.error('🔍 [PARCELS] Détails de l\'erreur:', {
+          errorMessage: error?.message,
+          errorType: typeof error,
+          errorStack: error?.stack,
+          PlotsServiceInstance: !!PlotsServiceInstance,
+          user: user?.id
+        });
         setError('Erreur lors du chargement des parcelles');
       } finally {
         setLoading(false);
@@ -251,20 +516,35 @@ export default function ParcellesListScreen() {
     };
     
     loadPlots();
-  }, [authLoading, userRole, user?.id]); // Dépendances correctes
+  }, [authLoading, userRole, user?.id, params.centerLat, params.focusPlotId]); // Dépendances correctes
 
   // Filtrage des parcelles
   useEffect(() => {
     let filtered = [...plots];
+    console.log('🔍 [FILTER] Filtrage des parcelles:', {
+      totalPlots: plots.length,
+      focusPlotId: params.focusPlotId,
+      hasFocusPlotId: !!params.focusPlotId
+    });
 
+    // Filtre par ID de parcelle spécifique (pour la navigation depuis les visites)
+    if (params.focusPlotId) {
+      filtered = filtered.filter(p => p.id === params.focusPlotId);
+      console.log('🎯 [FILTER] Filtrage par focusPlotId:', {
+        focusPlotId: params.focusPlotId,
+        filteredCount: filtered.length,
+        filteredPlots: filtered.map(p => ({ id: p.id, name: p.name }))
+      });
+    } else {
+      // Appliquer les autres filtres seulement si pas de focusPlotId
     if (filters.producer) {
-      filtered = filtered.filter(p => p.producerName.toLowerCase().includes(filters.producer.toLowerCase()));
+      filtered = filtered.filter(p => p.producer_name.toLowerCase().includes(filters.producer.toLowerCase()));
     }
     if (filters.region) {
-      filtered = filtered.filter(p => p.location?.toLowerCase().includes(filters.region.toLowerCase()));
+      filtered = filtered.filter(p => (p.region || p.village)?.toLowerCase().includes(filters.region.toLowerCase()));
     }
     if (filters.culture) {
-      filtered = filtered.filter(p => p.variety?.toLowerCase().includes(filters.culture.toLowerCase()));
+      // TODO: Implémenter le filtre culture avec CropsService
     }
     if (filters.status) {
       filtered = filtered.filter(p => p.status === filters.status);
@@ -276,102 +556,214 @@ export default function ParcellesListScreen() {
       }
     }
     if (filters.soilType) {
-      filtered = filtered.filter(p => p.soilType?.toLowerCase().includes(filters.soilType.toLowerCase()));
+      filtered = filtered.filter(p => p.soil_type?.toLowerCase().includes(filters.soilType.toLowerCase()));
     }
     if (filters.waterSource) {
-      filtered = filtered.filter(p => p.waterSource?.toLowerCase().includes(filters.waterSource.toLowerCase()));
+      filtered = filtered.filter(p => p.water_source?.toLowerCase().includes(filters.waterSource.toLowerCase()));
+      }
     }
 
+    console.log('✅ [FILTER] Filtrage terminé:', {
+      finalCount: filtered.length,
+      finalPlots: filtered.map(p => ({ id: p.id, name: p.name }))
+    });
     setFilteredPlots(filtered);
-  }, [plots, filters]);
+  }, [plots, filters, params.focusPlotId]);
 
   if (authLoading || userRole !== 'agent' || !user?.id) {
     return (
-      <View style={styles.center}> 
-        <Text style={styles.info}>Onglet réservé aux agents.</Text>
-      </View>
+      <ScreenContainer title="Parcelles">
+        <Box flex={1} justifyContent="center" alignItems="center" p={5}>
+          <Text fontSize="md" color="gray.600" textAlign="center">
+            Onglet réservé aux agents.
+          </Text>
+        </Box>
+      </ScreenContainer>
     );
   }
 
   return (
-    <ContentWithHeader style={styles.container}>
+    <ScreenContainer title="Parcelles">
+      {/* Indicateur de focus sur une parcelle spécifique */}
+      {params.focusPlotId && (
+        <HStack
+          alignItems="center"
+          bg="green.50"
+          borderColor={theme.colors.primary?.[500] || '#3D944B'}
+          borderWidth={1}
+          borderRadius="lg"
+          px={3}
+          py={2}
+          mx={4}
+          mb={3}
+        >
+          <Feather name="target" size={16} color={theme.colors.primary?.[500] || '#3D944B'} />
+          <Text fontSize="sm" fontWeight="medium" color={theme.colors.primary?.[500] || '#3D944B'} flex={1} ml={2}>
+            Focus sur la parcelle de la visite
+          </Text>
+          <Pressable 
+            onPress={() => router.replace('/(tabs)/parcelles')}
+            p={1}
+            borderRadius="md"
+            bg="gray.200"
+          >
+            <Feather name="x" size={16} color={theme.colors.gray?.[600] || '#6B7280'} />
+          </Pressable>
+        </HStack>
+      )}
+      
       {/* Switch Liste/Carte + Filtre */}
-      <View style={styles.toggleRow}>
-        <TouchableOpacity 
+      <HStack
+        justifyContent="center"
+        mb={3}
+        mx={4}
+        bg="gray.200"
+        borderRadius="lg"
+        p={1}
+      >
+        <Pressable 
           onPress={() => setShowMap(false)} 
-          style={[styles.toggleBtn, !showMap && styles.toggleActive]}
+          flex={1}
+          flexDirection="row"
+          alignItems="center"
+          justifyContent="center"
+          py={2}
+          px={3}
+          borderRadius="md"
+          bg={!showMap ? 'white' : 'transparent'}
+          shadow={!showMap ? 1 : 0}
+          _pressed={{ opacity: 0.8 }}
         >
-          <Feather name="list" size={16} color={!showMap ? '#065f46' : '#6b7280'} />
-          <Text style={[styles.toggleText, !showMap && styles.toggleTextActive]}>Liste</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
+          <Feather name="list" size={16} color={!showMap ? (theme.colors.primary?.[700] || '#065f46') : (theme.colors.gray?.[600] || '#6b7280')} />
+          <Text fontSize="sm" fontWeight="semibold" color={!showMap ? (theme.colors.primary?.[700] || '#065f46') : (theme.colors.gray?.[600] || '#6b7280')} ml={1.5}>
+            Liste
+          </Text>
+        </Pressable>
+        <Pressable 
           onPress={() => setShowMap(true)} 
-          style={[styles.toggleBtn, showMap && styles.toggleActive]}
+          flex={1}
+          flexDirection="row"
+          alignItems="center"
+          justifyContent="center"
+          py={2}
+          px={3}
+          borderRadius="md"
+          bg={showMap ? 'white' : 'transparent'}
+          shadow={showMap ? 1 : 0}
+          _pressed={{ opacity: 0.8 }}
         >
-          <Feather name="map" size={16} color={showMap ? '#065f46' : '#6b7280'} />
-          <Text style={[styles.toggleText, showMap && styles.toggleTextActive]}>Carte</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
+          <Feather name="map" size={16} color={showMap ? (theme.colors.primary?.[700] || '#065f46') : (theme.colors.gray?.[600] || '#6b7280')} />
+          <Text fontSize="sm" fontWeight="semibold" color={showMap ? (theme.colors.primary?.[700] || '#065f46') : (theme.colors.gray?.[600] || '#6b7280')} ml={1.5}>
+            Carte
+          </Text>
+        </Pressable>
+        <Pressable 
           onPress={() => setShowFilters(!showFilters)} 
-          style={[styles.filterBtn, showFilters && styles.filterActive]}
+          flex={1}
+          flexDirection="row"
+          alignItems="center"
+          justifyContent="center"
+          py={2}
+          px={3}
+          borderRadius="md"
+          bg={showFilters ? 'white' : 'transparent'}
+          shadow={showFilters ? 1 : 0}
+          _pressed={{ opacity: 0.8 }}
         >
-          <Feather name="filter" size={16} color={showFilters ? '#065f46' : '#6b7280'} />
-          <Text style={[styles.toggleText, showFilters && styles.toggleTextActive]}>Filtres</Text>
-          </TouchableOpacity>
-        </View>
+          <Feather name="filter" size={16} color={showFilters ? (theme.colors.primary?.[700] || '#065f46') : (theme.colors.gray?.[600] || '#6b7280')} />
+          <Text fontSize="sm" fontWeight="semibold" color={showFilters ? (theme.colors.primary?.[700] || '#065f46') : (theme.colors.gray?.[600] || '#6b7280')} ml={1.5}>
+            Filtres
+          </Text>
+        </Pressable>
+      </HStack>
 
       {/* Nombre de parcelles et filtres actifs */}
-      <View style={styles.countContainer}>
-        <Text style={styles.countText}>
+      <Box
+        bg="gray.100"
+        px={4}
+        py={2}
+        mx={4}
+        mb={2}
+        borderRadius="lg"
+      >
+        <Text fontSize="sm" fontWeight="medium" color="gray.700" textAlign="center">
           {filteredPlots.length} parcelle{filteredPlots.length > 1 ? 's' : ''} trouvée{filteredPlots.length > 1 ? 's' : ''}
         </Text>
         {Object.values(filters).some(f => f !== '') && (
-          <View style={styles.activeFiltersContainer}>
-            <Text style={styles.activeFiltersText}>Filtres actifs:</Text>
+          <VStack mt={2} space={1}>
+            <Text fontSize="xs" fontWeight="semibold" color={theme.colors.primary?.[500] || '#3D944B'} textAlign="center">
+              Filtres actifs:
+            </Text>
+            <HStack flexWrap="wrap" justifyContent="center" space={1}>
             {filters.producer && (
-              <View style={styles.activeFilterTag}>
-                <Text style={styles.activeFilterText}>Producteur: {filters.producer}</Text>
-              </View>
+                <Badge bg={theme.colors.primary?.[500] || '#3D944B'} borderRadius="full" px={2} py={0.5}>
+                  <Text fontSize="xs" fontWeight="medium" color="white">
+                    Producteur: {filters.producer}
+                  </Text>
+                </Badge>
             )}
             {filters.region && (
-              <View style={styles.activeFilterTag}>
-                <Text style={styles.activeFilterText}>Région: {filters.region}</Text>
-              </View>
+                <Badge bg={theme.colors.primary?.[500] || '#3D944B'} borderRadius="full" px={2} py={0.5}>
+                  <Text fontSize="xs" fontWeight="medium" color="white">
+                    Région: {filters.region}
+                  </Text>
+                </Badge>
             )}
             {filters.culture && (
-              <View style={styles.activeFilterTag}>
-                <Text style={styles.activeFilterText}>Culture: {filters.culture}</Text>
-              </View>
+                <Badge bg={theme.colors.primary?.[500] || '#3D944B'} borderRadius="full" px={2} py={0.5}>
+                  <Text fontSize="xs" fontWeight="medium" color="white">
+                    Culture: {filters.culture}
+                  </Text>
+                </Badge>
             )}
             {filters.status && (
-              <View style={styles.activeFilterTag}>
-                <Text style={styles.activeFilterText}>Statut: {filters.status === 'preparation' ? 'Préparation' : 
-                 filters.status === 'cultivated' ? 'Cultivé' : 'Jachère'}</Text>
-              </View>
+                <Badge bg={theme.colors.primary?.[500] || '#3D944B'} borderRadius="full" px={2} py={0.5}>
+                  <Text fontSize="xs" fontWeight="medium" color="white">
+                    Statut: {filters.status === 'preparation' ? 'Préparation' : 
+                     filters.status === 'cultivated' ? 'Cultivé' : 'Jachère'}
+                  </Text>
+                </Badge>
             )}
             {filters.area && (
-              <View style={styles.activeFilterTag}>
-                <Text style={styles.activeFilterText}>Superficie: {filters.area} ha+</Text>
-              </View>
+                <Badge bg={theme.colors.primary?.[500] || '#3D944B'} borderRadius="full" px={2} py={0.5}>
+                  <Text fontSize="xs" fontWeight="medium" color="white">
+                    Superficie: {filters.area} ha+
+                  </Text>
+                </Badge>
             )}
             {filters.soilType && (
-              <View style={styles.activeFilterTag}>
-                <Text style={styles.activeFilterText}>Sol: {filters.soilType}</Text>
-              </View>
+                <Badge bg={theme.colors.primary?.[500] || '#3D944B'} borderRadius="full" px={2} py={0.5}>
+                  <Text fontSize="xs" fontWeight="medium" color="white">
+                    Sol: {filters.soilType}
+                  </Text>
+                </Badge>
             )}
             {filters.waterSource && (
-              <View style={styles.activeFilterTag}>
-                <Text style={styles.activeFilterText}>Eau: {filters.waterSource}</Text>
-            </View>
-            )}
-          </View>
+                <Badge bg={theme.colors.primary?.[500] || '#3D944B'} borderRadius="full" px={2} py={0.5}>
+                  <Text fontSize="xs" fontWeight="medium" color="white">
+                    Eau: {filters.waterSource}
+                  </Text>
+                </Badge>
+              )}
+            </HStack>
+          </VStack>
         )}
-      </View>
+      </Box>
 
       {/* Panneau de filtres */}
       {showFilters && (
-        <View style={styles.filtersPanel}>
-          <Text style={styles.filtersTitle}>Filtres</Text>
+        <Box
+          bg="gray.50"
+          mx={4}
+          mb={3}
+          p={4}
+          borderRadius="xl"
+          borderWidth={1}
+          borderColor="gray.200"
+        >
+          <Text fontSize="lg" fontWeight="semibold" color="gray.900" mb={4}>
+            Filtres
+          </Text>
           
           {/* Filtre par producteur */}
           <FilterDropdown
@@ -449,9 +841,14 @@ export default function ParcellesListScreen() {
           />
 
           {/* Boutons d'action */}
-          <View style={styles.filterActions}>
-            <TouchableOpacity 
-              style={styles.clearFiltersBtn}
+          <HStack justifyContent="space-between" mt={4} space={3}>
+            <Pressable 
+              flex={1}
+              bg="gray.200"
+              py={2.5}
+              borderRadius="lg"
+              alignItems="center"
+              _pressed={{ opacity: 0.8 }}
               onPress={() => setFilters({
                 producer: '',
                 region: '',
@@ -463,406 +860,83 @@ export default function ParcellesListScreen() {
                 waterSource: ''
               })}
             >
-              <Text style={styles.clearFiltersText}>Effacer</Text>
-          </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.applyFiltersBtn}
+              <Text fontSize="sm" fontWeight="medium" color="gray.600">
+                Effacer
+              </Text>
+            </Pressable>
+            <Pressable 
+              flex={1}
+              bg={theme.colors.primary?.[500] || '#3D944B'}
+              py={2.5}
+              borderRadius="lg"
+              alignItems="center"
+              _pressed={{ opacity: 0.8 }}
               onPress={() => setShowFilters(false)}
             >
-              <Text style={styles.applyFiltersText}>Appliquer</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-      )}
-
+              <Text fontSize="sm" fontWeight="medium" color="white">
+                Appliquer
+              </Text>
+            </Pressable>
+          </HStack>
+        </Box>
+        )}
+        
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color="#3D944B" />
-          <Text style={styles.loadingText}>Chargement des parcelles...</Text>
-        </View>
+        <Box flex={1} justifyContent="center" alignItems="center" p={5}>
+          <ActivityIndicator size="large" color={theme.colors.primary?.[500] || '#3D944B'} />
+          <Text fontSize="sm" color="gray.600" mt={2.5}>
+            Chargement des parcelles...
+          </Text>
+        </Box>
       ) : error ? (
-        <View style={styles.center}>
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
+        <Box flex={1} justifyContent="center" alignItems="center" p={5}>
+          <Text fontSize="sm" color="red.500" textAlign="center">
+            {error}
+          </Text>
+        </Box>
       ) : showMap ? (
           <MapComponent
             plots={filteredPlots}
-          onPlotSelect={(plot) => router.push({ pathname: '/(tabs)/parcelles/[plotId]', params: { plotId: plot.id } })}
+            onPlotSelect={(plot) => router.push({ pathname: '/(tabs)/parcelles/[plotId]', params: { plotId: plot.id } })}
+            selectedPlotId={params.focusPlotId}
+            centerLat={params.centerLat ? parseFloat(params.centerLat) : undefined}
+            centerLng={params.centerLng ? parseFloat(params.centerLng) : undefined}
+            zoom={params.zoom ? parseInt(params.zoom) : undefined}
           />
       ) : (
-        <FlatList
-          data={filteredPlots}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <PlotCard item={item} />}
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.center}> 
-              <Text style={styles.info}>Aucune parcelle trouvée.</Text>
-            </View>
-          }
+        <ScrollView 
+          flex={1}
+          p={2}
+          contentContainerStyle={{ paddingBottom: 20, flexGrow: 1 }}
+          showsVerticalScrollIndicator={true}
+          nestedScrollEnabled={true}
+        >
+          {filteredPlots.length > 0 ? (
+            <Box
+              flexDirection={isTablet ? 'row' : 'column'}
+              flexWrap={isTablet ? 'wrap' : 'nowrap'}
+              justifyContent={isTablet ? 'space-between' : 'flex-start'}
+              px={isTablet ? 2 : 0}
+            >
+              {filteredPlots.map((item) => 
+                <PlotCard 
+                  key={item.id} 
+                  item={item} 
+                  agentId={user?.id}
+                  isTablet={isTablet}
+                  isSmallScreen={isSmallScreen}
         />
       )}
-    </ContentWithHeader>
+            </Box>
+          ) : (
+            <Box flex={1} justifyContent="center" alignItems="center" p={5}> 
+              <Text fontSize="md" color="gray.600" textAlign="center">
+                Aucune parcelle trouvée.
+              </Text>
+            </Box>
+          )}
+        </ScrollView>
+      )}
+    </ScreenContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F6F6F6',
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginBottom: 12,
-    marginHorizontal: 16,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 8,
-    padding: 4,
-  },
-  toggleBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: 6,
-    gap: 6,
-  },
-  toggleActive: {
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 3,
-  },
-  toggleText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  toggleTextActive: {
-    color: '#065f46',
-  },
-  filterBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: 6,
-    gap: 6,
-  },
-  filterActive: {
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 3,
-  },
-  filtersPanel: {
-    backgroundColor: '#f9fafb', 
-    marginHorizontal: 16,
-    marginBottom: 12,
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1, 
-    borderColor: '#e5e7eb', 
-  },
-  filtersTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 16,
-  },
-  filterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  filterLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-    width: 80,
-  },
-  filterInput: {
-    flex: 1,
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'space-between',
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-  },
-  filterInputText: {
-    fontSize: 14,
-    color: '#374151',
-  },
-  filterActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 16,
-    gap: 12,
-  },
-  clearFiltersBtn: {
-    flex: 1, 
-    backgroundColor: '#f3f4f6', 
-    paddingVertical: 10, 
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  clearFiltersText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#6b7280',
-  },
-  applyFiltersBtn: {
-    flex: 1,
-    backgroundColor: '#3D944B',
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  applyFiltersText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#ffffff',
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  info: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 14,
-    color: '#666',
-  },
-  errorText: {
-    fontSize: 14,
-    color: '#ef4444',
-    textAlign: 'center',
-  },
-  list: {
-    padding: 8,
-  },
-  countContainer: {
-    backgroundColor: '#f3f4f6',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginHorizontal: 16,
-    marginBottom: 8,
-    borderRadius: 8,
-  },
-  countText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-    textAlign: 'center',
-  },
-  activeFiltersContainer: {
-    marginTop: 8,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  activeFiltersText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#3D944B',
-    marginRight: 8,
-  },
-  activeFilterTag: {
-    backgroundColor: '#3D944B',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-  },
-  activeFilterText: {
-    fontSize: 10,
-    fontWeight: '500',
-    color: '#ffffff',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  dropdownContainer: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    width: '100%',
-    maxWidth: 400,
-    maxHeight: '80%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12,
-  },
-  dropdownHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  dropdownTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  closeButton: {
-    padding: 4,
-  },
-  dropdownList: {
-    maxHeight: 300,
-  },
-  dropdownItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  dropdownItemFirst: {
-    backgroundColor: '#f9fafb',
-  },
-  dropdownItemSelected: {
-    backgroundColor: '#f0fdf4',
-  },
-  dropdownItemText: {
-    fontSize: 14,
-    color: '#374151',
-    flex: 1,
-  },
-  dropdownItemTextSelected: {
-    color: '#3D944B',
-    fontWeight: '500',
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f9fafb',
-    marginHorizontal: 16,
-    marginVertical: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: '#374151',
-    paddingVertical: 4,
-  },
-  emptySearchContainer: {
-    padding: 20,
-    alignItems: 'center',
-  },
-  emptySearchText: {
-    fontSize: 14,
-    color: '#6b7280',
-    fontStyle: 'italic',
-  },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  cardSubtitle: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 2,
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginRight: 6,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  cardBody: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  cardInfo: {
-    flex: 1,
-  },
-  cardLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 4,
-  },
-  cardValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-  },
-  detailsBtn: {
-    backgroundColor: '#3D944B',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  detailsBtnText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-});

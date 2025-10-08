@@ -1,68 +1,81 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
+import { Button as NBButton, Text, HStack, Spinner } from 'native-base';
 
 interface ButtonProps {
   onPress: () => void;
   children: React.ReactNode;
-  variant?: 'default' | 'destructive' | 'outline' | 'ghost';
-  className?: string;
+  variant?: 'solid' | 'outline' | 'ghost' | 'subtle';
+  size?: 'sm' | 'md' | 'lg';
+  colorScheme?: 'primary' | 'secondary' | 'success' | 'error' | 'warning' | 'info';
   disabled?: boolean;
+  loading?: boolean;
+  leftIcon?: React.ReactNode;
+  rightIcon?: React.ReactNode;
+  width?: string | number;
+  fullWidth?: boolean;
+  bg?: string;
+  _pressed?: any;
+  borderColor?: string;
+  _text?: any;
+  flex?: number;
+  h?: number;
+  mt?: number;
 }
 
 const Button: React.FC<ButtonProps> = ({
   onPress,
   children,
-  variant = 'default',
-  className = '',
+  variant = 'solid',
+  size = 'md',
+  colorScheme = 'primary',
   disabled = false,
+  loading = false,
+  leftIcon,
+  rightIcon,
+  width,
+  fullWidth = false,
+  bg,
+  _pressed,
+  borderColor,
+  _text,
+  flex,
+  h,
+  mt,
 }) => {
-  const baseButtonStyles: ViewStyle = {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    opacity: disabled ? 0.5 : 1,
-  };
-
-  const baseTextStyles: TextStyle = {
-    fontSize: 16,
-    fontWeight: '600',
-  };
-
-  const variantStyles: {
-    [key in NonNullable<ButtonProps['variant']>]: { button: ViewStyle; text: TextStyle };
-  } = {
-    default: {
-      button: { backgroundColor: '#3D944B' }, // AgriConnect Green
-      text: { color: '#FFFFFF' },
-    },
-    destructive: {
-      button: { backgroundColor: '#FF6B6B' }, // Red
-      text: { color: '#FFFFFF' },
-    },
-    outline: {
-      button: { borderWidth: 1, borderColor: '#3D944B' },
-      text: { color: '#3D944B' },
-    },
-    ghost: {
-      button: { backgroundColor: 'transparent' },
-      text: { color: '#3D944B' },
-    },
-  };
-
-  const buttonStyle = [baseButtonStyles, variantStyles[variant].button];
-  const textStyle = [baseTextStyles, variantStyles[variant].text];
-
   return (
-    <TouchableOpacity
+    <NBButton
+      variant={variant}
+      size={size}
+      colorScheme={colorScheme}
       onPress={onPress}
-      style={buttonStyle}
-      disabled={disabled}
-      activeOpacity={0.7}
+      isDisabled={disabled || loading}
+      width={fullWidth ? '100%' : width}
+      bg={bg}
+      _pressed={_pressed || { opacity: 0.8 }}
+      borderColor={borderColor}
+      _text={_text}
+      flex={flex}
+      h={h}
+      mt={mt}
     >
-      <Text style={textStyle}>{children}</Text>
-    </TouchableOpacity>
+      <HStack alignItems="center" space={2}>
+        {loading ? (
+          <Spinner size="sm" color="white" />
+        ) : (
+          <>
+            {leftIcon}
+            <Text 
+              color={variant === 'solid' ? 'white' : `${colorScheme}.500`} 
+              fontWeight="semibold"
+              fontSize={size === 'sm' ? 'sm' : size === 'lg' ? 'lg' : 'md'}
+            >
+              {children}
+            </Text>
+            {rightIcon}
+          </>
+        )}
+      </HStack>
+    </NBButton>
   );
 };
 

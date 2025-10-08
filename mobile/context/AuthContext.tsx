@@ -7,7 +7,7 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { MobileAuthService } from '../lib/auth/mobileAuthService';
 import { SessionManager } from '../lib/auth/sessionManager';
 import type { Session, User } from '@supabase/supabase-js';
-import type { UserRole } from '../../types/user';
+import type { UserRole } from '../../lib/types/core/user';
 
 export interface AuthState {
   isAuthenticated: boolean;

@@ -21,7 +21,6 @@ interface CropModalProps {
   onClose: () => void;
   crop?: Crop | null;
   plotId?: string;
-  farmFilePlotId?: string;
   onSave: (crop: Crop) => void;
 }
 
@@ -30,7 +29,6 @@ const CropModal: React.FC<CropModalProps> = ({
   onClose,
   crop,
   plotId,
-  farmFilePlotId,
   onSave
 }) => {
   const { showToast } = useToast();
@@ -44,7 +42,7 @@ const CropModal: React.FC<CropModalProps> = ({
     expected_yield_kg: '',
     actual_yield_kg: '',
     area_hectares: '',
-    status: 'planted',
+    status: 'en_cours',
     notes: ''
   });
 
@@ -72,7 +70,7 @@ const CropModal: React.FC<CropModalProps> = ({
         expected_yield_kg: '',
         actual_yield_kg: '',
         area_hectares: '',
-        status: 'planted',
+        status: 'en_cours',
         notes: ''
       });
     }
@@ -93,7 +91,7 @@ const CropModal: React.FC<CropModalProps> = ({
         ...formData,
         plot_id: plotIdToUse,
         crop_type: formData.crop_type as string,
-        status: formData.status as 'planted' | 'growing' | 'harvested' | 'failed',
+        status: formData.status as 'en_cours' | 'recolte' | 'abandonne',
         estimated_yield_kg_ha: formData.expected_yield_kg ? parseFloat(formData.expected_yield_kg) : undefined,
         actual_yield_kg_ha: formData.actual_yield_kg ? parseFloat(formData.actual_yield_kg) : undefined,
         area_hectares: formData.area_hectares ? parseFloat(formData.area_hectares) : undefined,
@@ -157,6 +155,7 @@ const CropModal: React.FC<CropModalProps> = ({
                   <SelectItemComponent value="Sorghum">Sorgho</SelectItemComponent>
                   <SelectItemComponent value="Millet">Millet</SelectItemComponent>
                   <SelectItemComponent value="Groundnut">Arachide</SelectItemComponent>
+                  <SelectItemComponent value="Cowpea">Niébé</SelectItemComponent>
                   <SelectItemComponent value="Cotton">Coton</SelectItemComponent>
                   <SelectItemComponent value="Other">Autre</SelectItemComponent>
                 </SelectContentComponent>
@@ -249,10 +248,9 @@ const CropModal: React.FC<CropModalProps> = ({
                 <SelectValueComponent placeholder="Sélectionner un statut" />
               </SelectTriggerComponent>
               <SelectContentComponent>
-                <SelectItemComponent value="planted">Planté</SelectItemComponent>
-                <SelectItemComponent value="growing">En croissance</SelectItemComponent>
-                <SelectItemComponent value="harvested">Récolté</SelectItemComponent>
-                <SelectItemComponent value="failed">Échec</SelectItemComponent>
+                <SelectItemComponent value="en_cours">En cours</SelectItemComponent>
+                <SelectItemComponent value="recolte">Récolté</SelectItemComponent>
+                <SelectItemComponent value="abandonne">Abandonné</SelectItemComponent>
               </SelectContentComponent>
             </SelectComponent>
           </div>

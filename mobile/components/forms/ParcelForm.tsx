@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { Colors } from '../../constants/Colors';
-import FormField from '../FormField';
-import CompatiblePicker from '../CompatiblePicker';
+import { FormField } from '../ui';
+import { FormSelect } from '../ui';
 import CropFormView from './CropForm';
 import { ParcelData, PARCEL_TYPOLOGY, PRODUCER_SIZE, COTTON_VARIETIES, CropData } from '../../types/fiche-creation';
 
@@ -111,24 +111,30 @@ const ParcelForm: React.FC<ParcelFormProps> = ({ isVisible, onClose, onSave, ini
           />
 
           <Text style={{ fontSize: 14, fontWeight: '500', color: '#374151', marginBottom: 8 }}>Typologie</Text>
-          <CompatiblePicker
-            selectedValue={parcel.typology}
+          <FormSelect
+            value={parcel.typology}
             onValueChange={(value) => handleInputChange('typology', value)}
-            items={PARCEL_TYPOLOGY.map(item => ({ label: item, value: item }))}
+            options={PARCEL_TYPOLOGY.map(item => ({ label: item, value: item }))}
+            placeholder="Sélectionner la typologie"
+            label="Typologie"
           />
 
           <Text style={{ fontSize: 14, fontWeight: '500', color: '#374151', marginTop: 16, marginBottom: 8 }}>Taille Producteur</Text>
-          <CompatiblePicker
-            selectedValue={parcel.producerSize}
+          <FormSelect
+            value={parcel.producerSize}
             onValueChange={(value) => handleInputChange('producerSize', value)}
-            items={PRODUCER_SIZE.map(item => ({ label: item, value: item }))}
+            options={PRODUCER_SIZE.map(item => ({ label: item, value: item }))}
+            placeholder="Sélectionner la taille"
+            label="Taille Producteur"
           />
 
           <Text style={{ fontSize: 14, fontWeight: '500', color: '#374151', marginTop: 16, marginBottom: 8 }}>Variété Coton</Text>
-          <CompatiblePicker
-            selectedValue={parcel.cottonVariety}
+          <FormSelect
+            label="Variété Coton"
+            value={parcel.cottonVariety}
             onValueChange={(value) => handleInputChange('cottonVariety', value)}
-            items={COTTON_VARIETIES.map(item => ({ label: item, value: item }))}
+            options={COTTON_VARIETIES.map(item => ({ label: item, value: item }))}
+            placeholder="Sélectionner la variété"
           />
 
           <FormField

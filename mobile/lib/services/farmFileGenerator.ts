@@ -10,7 +10,7 @@ type FarmFile = Database['public']['Tables']['farm_files']['Row'];
 type FarmFileInsert = Database['public']['Tables']['farm_files']['Insert'];
 type Producer = Database['public']['Tables']['producers']['Row'];
 type Plot = Database['public']['Tables']['plots']['Row'];
-type AgentAssignment = Database['public']['Tables']['agent_producer_assignments']['Row'];
+type AgentAssignment = Database['public']['Tables']['agent_assignments']['Row'];
 
 export interface FarmFileGenerationResult {
   success: boolean;
@@ -35,39 +35,51 @@ export class FarmFileGenerator {
     try {
       // 1. Récupérer les producteurs assignés à l'agent
       const { data: assignments, error: assignmentsError } = await supabase
-        .from('agent_producer_assignments')
+        .from('agent_assignments')
         .select(`
-          producer_id,
-          producers!inner(
-            id,
-            first_name,
-            last_name,
-            village,
-            commune,
-            department,
-            region,
-            cooperative_id,
-            cooperatives!inner(
-              id,
-              name
-            )
-          )
+          assigned_to_id
         `)
-        .eq('agent_id', agentId);
-
+        .eq('agent_id', agentId)
+        .eq('assigned_to_type', 'producer');
+      
       if (assignmentsError) {
         result.errors.push(`Erreur lors de la récupération des assignations: ${assignmentsError.message}`);
         return result;
       }
 
-      if (!assignments || assignments.length === 0) {
+      const producerIds = (assignments || []).map(a => a.assigned_to_id);
+      
+      // Maintenant récupérer les producteurs complets
+      const { data: producers, error: producersError } = await supabase
+        .from('producers')
+        .select(`
+          id,
+          first_name,
+          last_name,
+          village,
+          commune,
+          department,
+          region,
+          cooperative_id,
+          cooperatives!inner(
+            id,
+            name
+          )
+        `)
+        .in('id', producerIds);
+
+      if (producersError) {
+        result.errors.push(`Erreur lors de la récupération des producteurs: ${producersError.message}`);
+        return result;
+      }
+
+      if (!producers || producers.length === 0) {
         result.errors.push('Aucun producteur assigné à cet agent');
         return result;
       }
 
       // 2. Pour chaque producteur, créer une fiche d'exploitation
-      for (const assignment of assignments) {
-        const producer = assignment.producers as any;
+      for (const producer of producers) {
         
         try {
           // Vérifier si une fiche existe déjà pour ce producteur
@@ -160,7 +172,7 @@ export class FarmFileGenerator {
       // Récupérer tous les agents
       const { data: agents, error: agentsError } = await supabase
         .from('profiles')
-        .select('id, display_name')
+        .select('id, phone, first_name, last_name')
         .eq('role', 'agent');
 
       if (agentsError) {

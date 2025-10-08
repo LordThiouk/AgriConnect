@@ -1,81 +1,87 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
-  TouchableOpacity, 
-  TextInput, 
+import React, { useState } from 'react';
+import {
   Alert,
-  ActivityIndicator,
-  Modal,
-  FlatList
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
-import { useAuth } from '../../../../../context/AuthContext';
-import { CollecteService } from '../../../../../lib/services/collecte';
-import ContentWithHeader from '../../../../../components/ContentWithHeader';
+// TODO: Créer useCreateCrop hook
+import { 
+  FormContainer, 
+  FormFooter, 
+  Card, 
+  FormField, 
+  FormInput, 
+  FormSelect, 
+  FormDatePicker,
+  ScreenContainer
+} from '../../../../../components/ui';
+import { ScrollView } from 'native-base';
 
-const AddCropScreen: React.FC = () => {
+interface CropFormData {
+  crop_type: string;
+  variety: string;
+  sowing_date: string;
+  expected_harvest: string;
+  estimated_yield_kg_ha: string;
+  status: string;
+}
+
+const cropTypes = [
+  { id: 'riz', label: 'Riz' },
+  { id: 'mais', label: 'Maïs' },
+  { id: 'millet', label: 'Millet' },
+  { id: 'sorgho', label: 'Sorgho' },
+  { id: 'arachide', label: 'Arachide' },
+  { id: 'niébé', label: 'Niébé' },
+  { id: 'sésame', label: 'Sésame' },
+  { id: 'tomate', label: 'Tomate' },
+  { id: 'oignon', label: 'Oignon' },
+  { id: 'autre', label: 'Autre' },
+];
+
+const statusOptions = [
+  { id: 'planifie', label: 'Planifié' },
+  { id: 'en_cours', label: 'En cours' },
+  { id: 'termine', label: 'Terminé' },
+  { id: 'abandonne', label: 'Abandonné' },
+];
+
+export default function AddCropScreen() {
   const { plotId } = useLocalSearchParams<{ plotId: string }>();
   const router = useRouter();
-  const { user } = useAuth();
+
+  console.log('🌾 [ADD_CROP] Écran d\'ajout de culture initialisé:', { plotId });
 
   const [loading, setLoading] = useState(false);
-  const [seasons, setSeasons] = useState<{ id: string; label: string }[]>([]);
-  const [formData, setFormData] = useState({
-    crop_type: 'Maize',
+
+  const [formData, setFormData] = useState<CropFormData>({
+    crop_type: '',
     variety: '',
-    sowing_date: new Date().toISOString().split('T')[0], // Format YYYY-MM-DD
-    status: 'en_cours',
-    season_id: '',
+    sowing_date: new Date().toISOString().split('T')[0],
+    expected_harvest: '',
+    estimated_yield_kg_ha: '',
+    status: 'planifie',
   });
 
-  const [showDropdown, setShowDropdown] = useState<string | null>(null);
-
-  const cropTypes = [
-    'Maize',
-    'Rice', 
-    'Millet',
-    'Sorghum',
-    'Groundnut',
-    'Cotton',
-    'Tomato',
-    'Onion',
-    'Other'
-  ];
-
-  const statusOptions = [
-    { value: 'en_cours', label: 'En cours' },
-    { value: 'completed', label: 'Terminé' },
-    { value: 'abandoned', label: 'Abandonné' },
-  ];
-
-  useEffect(() => {
-    loadSeasons();
-  }, []);
-
-  const loadSeasons = async () => {
-    try {
-      const currentSeason = await CollecteService.getCurrentSeason();
-      if (currentSeason) {
-        setSeasons([{ id: currentSeason.id, label: currentSeason.name }]);
-        setFormData(prev => ({ ...prev, season_id: currentSeason.id }));
-      }
-    } catch (error) {
-      console.error('Erreur lors du chargement des saisons:', error);
-    }
+  const handleInputChange = (field: keyof CropFormData, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
   const handleSave = async () => {
-    if (!formData.variety.trim()) {
-      Alert.alert('Erreur', 'Veuillez saisir la variété de la culture');
+    if (!formData.crop_type.trim()) {
+      Alert.alert('Erreur', 'Veuillez sélectionner un type de culture');
       return;
     }
 
-    if (!formData.season_id) {
-      Alert.alert('Erreur', 'Aucune saison sélectionnée');
+    if (!formData.variety.trim()) {
+      Alert.alert('Erreur', 'Veuillez saisir la variété');
+      return;
+    }
+
+    if (!formData.sowing_date) {
+      Alert.alert('Erreur', 'Veuillez saisir la date de semis');
       return;
     }
 
@@ -84,369 +90,110 @@ const AddCropScreen: React.FC = () => {
       
       const cropData = {
         plot_id: plotId!,
-        season_id: formData.season_id,
+        season_id: 'default', // TODO: Récupérer la saison active
         crop_type: formData.crop_type,
         variety: formData.variety.trim(),
         sowing_date: formData.sowing_date,
+        expected_harvest: formData.expected_harvest || undefined,
+        estimated_yield_kg_ha: formData.estimated_yield_kg_ha ? parseFloat(formData.estimated_yield_kg_ha) : undefined,
         status: formData.status,
-        created_by: user?.id || null,
+        created_by: 'system', // TODO: Récupérer l'ID de l'utilisateur connecté
       };
 
-      await CollecteService.createCrop(cropData, user?.id);
+      console.log('🌾 [ADD_CROP] Données de la culture:', cropData);
+      
+      // Utiliser CropsService directement
+      const { CropsServiceInstance } = await import('../../../../../lib/services/domain/crops');
+      const newCrop = await CropsServiceInstance.createCrop(cropData);
+      console.log('✅ [ADD_CROP] Culture ajoutée:', newCrop);
       
       Alert.alert(
         'Succès', 
-        'Culture créée avec succès',
+        'Culture ajoutée avec succès',
         [{ text: 'OK', onPress: () => router.back() }]
       );
     } catch (error) {
-      console.error('Erreur lors de la création de la culture:', error);
-      Alert.alert('Erreur', 'Impossible de créer la culture');
+      console.error('❌ [ADD_CROP] Erreur lors de l\'ajout de la culture:', error);
+      Alert.alert('Erreur', 'Impossible d\'ajouter la culture');
     } finally {
       setLoading(false);
     }
   };
 
-  const FormField = ({ 
-    label, 
-    children, 
-    required = false 
-  }: { 
-    label: string; 
-    children: React.ReactNode; 
-    required?: boolean;
-  }) => (
-    <View style={styles.fieldContainer}>
-      <Text style={styles.fieldLabel}>
-        {label} {required && <Text style={styles.required}>*</Text>}
-      </Text>
-      {children}
-    </View>
-  );
-
-  const Dropdown = ({ 
-    label, 
-    value, 
-    options, 
-    onSelect, 
-    dropdownKey,
-    required = false 
-  }: { 
-    label: string; 
-    value: string; 
-    options: { value: string; label: string }[]; 
-    onSelect: (value: string) => void; 
-    dropdownKey: string;
-    required?: boolean;
-  }) => {
-    const isOpen = showDropdown === dropdownKey;
-    const selectedOption = options.find(opt => opt.value === value);
-
-    return (
-      <FormField label={label} required={required}>
-        <TouchableOpacity
-          style={styles.dropdownContainer}
-          onPress={() => setShowDropdown(isOpen ? null : dropdownKey)}
-        >
-          <Text style={styles.dropdownText}>
-            {selectedOption?.label || `Sélectionner ${label.toLowerCase()}`}
-          </Text>
-          <Feather name={isOpen ? "chevron-up" : "chevron-down"} size={20} color="#6b7280" />
-        </TouchableOpacity>
-
-        {isOpen && (
-          <Modal
-            transparent={true}
-            visible={isOpen}
-            onRequestClose={() => setShowDropdown(null)}
-            animationType="fade"
-          >
-            <TouchableOpacity
-              style={styles.modalOverlay}
-              activeOpacity={1}
-              onPress={() => setShowDropdown(null)}
-            >
-              <View style={styles.dropdownModal}>
-                <View style={styles.dropdownHeader}>
-                  <Text style={styles.dropdownTitle}>Sélectionner {label.toLowerCase()}</Text>
-                  <TouchableOpacity
-                    onPress={() => setShowDropdown(null)}
-                    style={styles.closeButton}
-                  >
-                    <Feather name="x" size={20} color="#6b7280" />
-                  </TouchableOpacity>
-                </View>
-                <FlatList
-                  data={options}
-                  keyExtractor={(item) => item.value}
-                  renderItem={({ item }) => (
-                    <TouchableOpacity
-                      style={[
-                        styles.dropdownItem,
-                        item.value === value && styles.dropdownItemSelected
-                      ]}
-                      onPress={() => {
-                        onSelect(item.value);
-                        setShowDropdown(null);
-                      }}
-                    >
-                      <Text style={[
-                        styles.dropdownItemText,
-                        item.value === value && styles.dropdownItemTextSelected
-                      ]}>
-                        {item.label}
-                      </Text>
-                      {item.value === value && (
-                        <Feather name="check" size={16} color="#3D944B" />
-                      )}
-                    </TouchableOpacity>
-                  )}
-                />
-              </View>
-            </TouchableOpacity>
-          </Modal>
-        )}
-      </FormField>
-    );
-  };
-
   return (
-    <ContentWithHeader style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Ajouter une Culture</Text>
-          <Text style={styles.subtitle}>Renseignez les informations de la nouvelle culture</Text>
-        </View>
-
-        <View style={styles.form}>
-          <Dropdown
-            label="Type de culture"
-            value={formData.crop_type}
-            options={cropTypes.map(type => ({ value: type, label: type }))}
-            onSelect={(value) => setFormData(prev => ({ ...prev, crop_type: value }))}
-            dropdownKey="crop_type"
-            required
-          />
-
-          <FormField label="Variété" required>
-            <TextInput
-              style={styles.textInput}
-              value={formData.variety}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, variety: text }))}
-              placeholder="Ex: Variété locale, hybride..."
-              placeholderTextColor="#9ca3af"
-            />
-          </FormField>
-
-          <FormField label="Date de semis" required>
-            <TextInput
-              style={styles.textInput}
-              value={formData.sowing_date}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, sowing_date: text }))}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor="#9ca3af"
-            />
-          </FormField>
-
-          <Dropdown
-            label="Statut"
-            value={formData.status}
-            options={statusOptions}
-            onSelect={(value) => setFormData(prev => ({ ...prev, status: value }))}
-            dropdownKey="status"
-          />
-
-          <Dropdown
-            label="Saison"
-            value={formData.season_id}
-            options={seasons.map(season => ({ value: season.id, label: season.label }))}
-            onSelect={(value) => setFormData(prev => ({ ...prev, season_id: value }))}
-            dropdownKey="season"
-            required
-          />
-        </View>
-      </ScrollView>
-
-      <View style={styles.footer}>
-        <TouchableOpacity 
-          style={styles.cancelButton} 
-          onPress={() => router.back()}
+    <ScreenContainer 
+      title=""
+      subtitle=""
+      showSubHeader={false}
+      showBackButton={false}
+      animationEnabled={false}
+    >
+      <FormContainer 
+        title="Nouvelle Culture" 
+        subtitle="Ajouter une culture à cette parcelle"
+      >
+        <ScrollView 
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.cancelButtonText}>Annuler</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.saveButton, loading && styles.saveButtonDisabled]} 
-          onPress={handleSave}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#ffffff" size="small" />
-          ) : (
-            <Text style={styles.saveButtonText}>Enregistrer</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-    </ContentWithHeader>
+          <Card>
+            <FormField label="Type de culture" required>
+              <FormSelect
+                value={formData.crop_type}
+                onValueChange={(value) => handleInputChange('crop_type', value)}
+                options={cropTypes.map(opt => ({ value: opt.id, label: opt.label }))}
+                placeholder="Sélectionner un type"
+              />
+            </FormField>
+
+            <FormField label="Variété" required>
+              <FormInput
+                value={formData.variety}
+                onChangeText={(value) => handleInputChange('variety', value)}
+                placeholder="Nom de la variété"
+              />
+            </FormField>
+
+            <FormField label="Date de semis" required>
+              <FormDatePicker
+                value={formData.sowing_date}
+                onChange={(value: string) => handleInputChange('sowing_date', value)}
+              />
+            </FormField>
+
+            <FormField label="Date de récolte prévue">
+              <FormDatePicker
+                value={formData.expected_harvest}
+                onChange={(value: string) => handleInputChange('expected_harvest', value)}
+              />
+            </FormField>
+
+            <FormField label="Rendement estimé (kg/ha)">
+              <FormInput
+                value={formData.estimated_yield_kg_ha}
+                onChangeText={(value) => handleInputChange('estimated_yield_kg_ha', value)}
+                placeholder="Rendement estimé"
+                keyboardType="numeric"
+              />
+            </FormField>
+
+            <FormField label="Statut">
+              <FormSelect
+                value={formData.status}
+                onValueChange={(value) => handleInputChange('status', value)}
+                options={statusOptions.map(opt => ({ value: opt.id, label: opt.label }))}
+                placeholder="Sélectionner un statut"
+              />
+            </FormField>
+          </Card>
+        </ScrollView>
+
+        <FormFooter 
+          onCancel={() => router.back()}
+          onSave={handleSave}
+          loading={loading}
+        />
+      </FormContainer>
+    </ScreenContainer>
   );
-};
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f9fafb',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  header: {
-    padding: 20,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#6b7280',
-  },
-  form: {
-    padding: 20,
-  },
-  fieldContainer: {
-    marginBottom: 20,
-  },
-  fieldLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  required: {
-    color: '#ef4444',
-  },
-  textInput: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#111827',
-  },
-  dropdownContainer: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  dropdownText: {
-    fontSize: 16,
-    color: '#111827',
-  },
-  footer: {
-    flexDirection: 'row',
-    padding: 20,
-    backgroundColor: '#ffffff',
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-    gap: 12,
-  },
-  cancelButton: {
-    flex: 1,
-    backgroundColor: '#f3f4f6',
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#6b7280',
-  },
-  saveButton: {
-    flex: 1,
-    backgroundColor: '#3D944B',
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  saveButtonDisabled: {
-    backgroundColor: '#9ca3af',
-  },
-  saveButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  dropdownModal: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    width: '100%',
-    maxWidth: 400,
-    maxHeight: '80%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12,
-  },
-  dropdownHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  dropdownTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  closeButton: {
-    padding: 4,
-  },
-  dropdownItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  dropdownItemSelected: {
-    backgroundColor: '#f0fdf4',
-  },
-  dropdownItemText: {
-    fontSize: 14,
-    color: '#374151',
-    flex: 1,
-  },
-  dropdownItemTextSelected: {
-    color: '#3D944B',
-    fontWeight: '500',
-  },
-});
-
-export default AddCropScreen;
+}

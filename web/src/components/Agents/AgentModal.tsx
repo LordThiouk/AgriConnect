@@ -26,17 +26,16 @@ const AgentModal: React.FC<AgentModalProps> = ({
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<CreateAgentData>({
+    user_id: '',
     display_name: '',
     phone: '',
     region: '',
     department: '',
     commune: '',
-    cooperative: '',
     is_active: true,
     approval_status: 'pending'
   });
 
-  const [cooperatives, setCooperatives] = useState<Array<{id: string, name: string}>>([]);
   const [regions] = useState([
     'Dakar', 'Thiès', 'Diourbel', 'Kaolack', 'Fatick', 'Kolda', 
     'Ziguinchor', 'Tambacounda', 'Saint-Louis', 'Matam', 'Louga', 'Sédhiou'
@@ -46,23 +45,23 @@ const AgentModal: React.FC<AgentModalProps> = ({
     if (isOpen) {
       if (mode === 'edit' && agent) {
         setFormData({
+          user_id: agent.user_id || '',
           display_name: agent.display_name || '',
           phone: agent.phone || '',
           region: agent.region || '',
           department: agent.department || '',
           commune: agent.commune || '',
-          cooperative: agent.cooperative || 'none',
           is_active: agent.is_active,
           approval_status: agent.approval_status
         });
       } else {
         setFormData({
+          user_id: '',
           display_name: '',
           phone: '',
           region: '',
           department: '',
           commune: '',
-          cooperative: 'none',
           is_active: true,
           approval_status: 'pending'
         });
@@ -70,21 +69,7 @@ const AgentModal: React.FC<AgentModalProps> = ({
     }
   }, [isOpen, mode, agent]);
 
-  useEffect(() => {
-    const fetchCooperatives = async () => {
-      try {
-        const { data, error } = await AgentsService.getCooperatives();
-        if (error) throw error;
-        setCooperatives(data || []);
-      } catch (error) {
-        console.error('Erreur lors du chargement des coopératives:', error);
-      }
-    };
-
-    if (isOpen) {
-      fetchCooperatives();
-    }
-  }, [isOpen]);
+  // Note: Les coopératives sont maintenant gérées via les assignations séparées
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,17 +77,17 @@ const AgentModal: React.FC<AgentModalProps> = ({
 
     try {
       if (mode === 'create') {
+        // Générer un user_id temporaire pour la création
         const createData = {
           ...formData,
-          cooperative: formData.cooperative === 'none' ? undefined : formData.cooperative
+          user_id: formData.user_id || crypto.randomUUID()
         };
         await AgentsService.createAgent(createData);
         showToast({ type: 'success', title: 'Agent créé avec succès' });
       } else if (mode === 'edit' && agent) {
         const updateData: UpdateAgentData = {
           ...formData,
-          id: agent.id,
-          cooperative: formData.cooperative === 'none' ? undefined : formData.cooperative
+          id: agent.id
         };
         await AgentsService.updateAgent(updateData);
         showToast({ type: 'success', title: 'Agent mis à jour avec succès' });
@@ -199,23 +184,19 @@ const AgentModal: React.FC<AgentModalProps> = ({
               />
             </div>
 
-            {/* Coopérative */}
-            <div className="space-y-2">
-              <Label htmlFor="cooperative">Coopérative</Label>
-              <Select value={formData.cooperative} onValueChange={(value) => handleInputChange('cooperative', value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner une coopérative" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Aucune coopérative</SelectItem>
-                  {cooperatives.map(coop => (
-                    <SelectItem key={coop.id} value={coop.name}>
-                      {coop.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* User ID (pour création) */}
+            {mode === 'create' && (
+              <div className="space-y-2">
+                <Label htmlFor="user_id">ID Utilisateur *</Label>
+                <Input
+                  id="user_id"
+                  value={formData.user_id}
+                  onChange={(e) => handleInputChange('user_id', e.target.value)}
+                  placeholder="Ex: uuid-v4-format"
+                  required
+                />
+              </div>
+            )}
 
             {/* Statut actif */}
             <div className="space-y-2">

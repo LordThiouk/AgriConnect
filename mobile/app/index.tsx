@@ -8,7 +8,7 @@ import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
-import type { UserRole } from '../../types/user';
+import type { UserRole } from '../../lib/types/core/user';
 
 export default function IndexScreen() {
   const router = useRouter();

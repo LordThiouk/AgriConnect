@@ -3,7 +3,7 @@
  * Définit les interfaces pour les fiches d'exploitation, producteurs et parcelles
  */
 
-import { Database } from '../../types/database';
+import { Database } from './database';
 
 // Types de base de la base de données
 export type FarmFile = Database['public']['Tables']['farm_files']['Row'];
@@ -101,6 +101,7 @@ export interface ObservationDisplay {
   description: string;
   author: string;
   photoUrl?: string;
+  has_photos?: boolean;
 }
 
 /**
@@ -136,6 +137,7 @@ export interface OperationDisplay {
   description?: string | null;
   date: string;
   author?: string;
+  has_photos?: boolean;
 }
 
 /**
@@ -178,6 +180,12 @@ export interface ProducerDisplay {
   isActive: boolean;
   plotsCount: number;
   lastVisit?: string;
+  // Propriétés supplémentaires pour compatibilité
+  village?: string;
+  commune?: string;
+  region?: string;
+  cooperative_id?: string;
+  is_active?: boolean;
 }
 
 export interface PlotDisplay {
@@ -194,7 +202,12 @@ export interface PlotDisplay {
   lastOperation?: string;
   hasGps: boolean;
   createdBy?: string;
-  // Optionnel: coordonnées si disponibles
+  lastSync?: string;
+  // Propriétés supplémentaires pour compatibilité
+  area_hectares?: number;
+  soil_type?: string;
+  water_source?: string;
+  producer_id?: string;
   lat?: number;
   lon?: number;
 }

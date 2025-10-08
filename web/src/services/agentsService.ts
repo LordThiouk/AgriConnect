@@ -1,23 +1,20 @@
 import { supabase } from '../lib/supabase';
-import { Agent, AgentFilters, AgentPerformance, AgentStats, Producer } from '../types';
+import { 
+  Agent, 
+  AgentFilters, 
+  AgentPerformance, 
+  AgentStats, 
+  Producer,
+  CreateAgentData,
+  UpdateAgentData,
+  AgentAssignment,
+  CreateAgentAssignmentData,
+  AgentAssignmentStats,
+  AvailableAgent
+} from '../types';
 import { Database } from '../types/database';
 
 type SupabaseClient = ReturnType<typeof supabase.rpc>;
-
-export interface CreateAgentData {
-  display_name: string;
-  phone: string;
-  email?: string;
-  region?: string;
-  department?: string;
-  commune?: string;
-  cooperative_id?: string;
-  is_active?: boolean;
-}
-
-export interface UpdateAgentData extends Partial<CreateAgentData> {
-  id: string;
-}
 
 export class AgentsService {
   /**
@@ -34,27 +31,25 @@ export class AgentsService {
         .select('*', { count: 'exact' })
         .eq('role', 'agent');
 
-      // Appliquer les filtres
-      if (filters.search) {
-        query = query.or(`display_name.ilike.%${filters.search}%,phone.ilike.%${filters.search}%`);
-      }
-      if (filters.region) {
-        query = query.eq('region', filters.region);
-      }
-      if (filters.department) {
-        query = query.eq('department', filters.department);
-      }
-      if (filters.commune) {
-        query = query.eq('commune', filters.commune);
-      }
-      if (filters.cooperative_id) {
-        query = query.eq('cooperative', filters.cooperative_id);
-      }
+    // Appliquer les filtres
+    if (filters.search) {
+      query = (query as any).or(`display_name.ilike.%${filters.search}%,phone.ilike.%${filters.search}%`);
+    }
+    if (filters.region) {
+      query = (query as any).eq('region', filters.region);
+    }
+    if (filters.department) {
+      query = (query as any).eq('department', filters.department);
+    }
+    if (filters.commune) {
+      query = (query as any).eq('commune', filters.commune);
+    }
+      // Note: cooperative filtering is now handled via agent_assignments table
       if (filters.is_active !== undefined) {
-        query = query.eq('is_active', filters.is_active);
+        query = (query as any).eq('is_active', filters.is_active);
       }
       if (filters.approval_status) {
-        query = query.eq('approval_status', filters.approval_status);
+        query = (query as any).eq('approval_status', filters.approval_status);
       }
 
       // Pagination
@@ -117,11 +112,15 @@ export class AgentsService {
       const { data, error } = await supabase
         .from('profiles')
         .insert({
+          user_id: agentData.user_id,
           display_name: agentData.display_name,
           phone: agentData.phone,
-          email: agentData.email,
           region: agentData.region,
-          role: 'agent'
+          department: agentData.department,
+          commune: agentData.commune,
+          role: 'agent',
+          is_active: agentData.is_active ?? true,
+          approval_status: agentData.approval_status ?? 'pending'
         } as any)
         .select()
         .single();
@@ -131,7 +130,7 @@ export class AgentsService {
         throw new Error(`Erreur lors de la création de l'agent: ${error.message}`);
       }
 
-      return { ...data, is_active: true, approval_status: 'pending' } as unknown as Agent;
+      return data as unknown as Agent;
     } catch (error) {
       console.error('AgentsService.createAgent error:', error);
       throw error;
@@ -146,12 +145,14 @@ export class AgentsService {
       const { id, ...updateData } = agentData;
       
       // Only update fields that are allowed by RLS
-      // Note: cooperative is not a direct field in profiles, it's managed via agent_producer_assignments
       const allowedFields = {
         display_name: updateData.display_name,
         phone: updateData.phone,
-        email: updateData.email,
-        region: updateData.region
+        region: updateData.region,
+        department: updateData.department,
+        commune: updateData.commune,
+        is_active: updateData.is_active,
+        approval_status: updateData.approval_status
       };
 
       // Remove undefined values
@@ -181,12 +182,16 @@ export class AgentsService {
 
       console.log('Updating agent with data:', { id, cleanData });
 
-      // Use RPC function to bypass RLS restrictions (email column doesn't exist in profiles table)
+      // Use RPC function to bypass RLS restrictions
       const { data: updatedAgent, error: rpcError } = await (supabase as any).rpc('update_agent_profile', {
         agent_id_param: id,
         display_name_param: cleanData.display_name || null,
         phone_param: cleanData.phone || null,
-        region_param: cleanData.region || null
+        region_param: cleanData.region || null,
+        department_param: cleanData.department || null,
+        commune_param: cleanData.commune || null,
+        is_active_param: cleanData.is_active ?? null,
+        approval_status_param: cleanData.approval_status || null
       });
 
       console.log('RPC Update result:', { updatedAgent, rpcError });
@@ -200,10 +205,7 @@ export class AgentsService {
         throw new Error(`Aucune donnée retournée après la mise à jour de l'agent ${id}`);
       }
 
-      // If cooperative assignment was provided, handle it separately
-      if (updateData.cooperative_id && updateData.cooperative_id !== 'none') {
-        await this.assignAgentToCooperative(id, updateData.cooperative_id);
-      }
+      // Note: Cooperative assignments are now handled separately via agent_assignments table
 
       return updatedAgent[0] as unknown as Agent;
     } catch (error) {
@@ -213,22 +215,157 @@ export class AgentsService {
   }
 
   /**
-   * Assigne un agent à une coopérative (en mettant à jour le cooperative_id dans profiles)
+   * Assigne un agent à une coopérative via la nouvelle table agent_assignments
    */
-  static async assignAgentToCooperative(agentId: string, cooperativeId: string): Promise<void> {
+  static async assignAgentToCooperative(agentId: string, cooperativeId: string): Promise<boolean> {
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ cooperative: cooperativeId })
-        .eq('id', agentId)
-        .eq('role', 'agent');
+      const { data, error } = await (supabase as any).rpc('assign_agent_to_cooperative', {
+        p_agent_id: agentId,
+        p_cooperative_id: cooperativeId
+      });
 
       if (error) {
         console.error('Error assigning agent to cooperative:', error);
         throw new Error(`Erreur lors de l'assignation à la coopérative: ${error.message}`);
       }
+
+      return data === true;
     } catch (error) {
       console.error('AgentsService.assignAgentToCooperative error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Assigne un agent à un producteur via la nouvelle table agent_assignments
+   */
+  static async assignAgentToProducer(agentId: string, producerId: string): Promise<boolean> {
+    try {
+      const { data, error } = await (supabase as any).rpc('assign_agent_to_producer', {
+        p_agent_id: agentId,
+        p_producer_id: producerId
+      });
+
+      if (error) {
+        console.error('Error assigning agent to producer:', error);
+        throw new Error(`Erreur lors de l'assignation au producteur: ${error.message}`);
+      }
+
+      return data === true;
+    } catch (error) {
+      console.error('AgentsService.assignAgentToProducer error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Supprime une assignation d'agent
+   */
+  static async removeAgentAssignment(assignmentId: string): Promise<boolean> {
+    try {
+      const { data, error } = await (supabase as any).rpc('remove_agent_assignment', {
+        assignment_id_param: assignmentId
+      });
+
+      if (error) {
+        console.error('Error removing agent assignment:', error);
+        throw new Error(`Erreur lors de la suppression de l'assignation: ${error.message}`);
+      }
+
+      return data === true;
+    } catch (error) {
+      console.error('AgentsService.removeAgentAssignment error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Récupère les assignations d'un agent
+   */
+  static async getAgentAssignments(agentId: string): Promise<AgentAssignment[]> {
+    try {
+      const { data, error } = await (supabase as any).rpc('get_agent_assignments', {
+        p_agent_id: agentId
+      });
+
+      if (error) {
+        console.error('Error fetching agent assignments:', error);
+        throw new Error(`Erreur lors de la récupération des assignations: ${error.message}`);
+      }
+
+      return (data || []).map((assignment: any) => ({
+        id: assignment.id,
+        agent_id: agentId,
+        assigned_to_type: assignment.assigned_to_type,
+        assigned_to_id: assignment.assigned_to_id,
+        assigned_at: assignment.assigned_at,
+        assigned_by: assignment.assigned_by,
+        assigned_by_name: assignment.assigned_by_name,
+        created_at: assignment.assigned_at,
+        updated_at: assignment.assigned_at,
+        assigned_to_name: assignment.assigned_to_name,
+        // Champs supplémentaires pour l'affichage
+        name: assignment.name,
+        display_name: assignment.display_name,
+        first_name: assignment.first_name,
+        last_name: assignment.last_name,
+        phone: assignment.phone,
+        region: assignment.region
+      }));
+    } catch (error) {
+      console.error('AgentsService.getAgentAssignments error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Récupère les coopératives d'un agent
+   */
+  static async getAgentCooperatives(agentId: string): Promise<any[]> {
+    try {
+      const { data, error } = await (supabase as any).rpc('get_agent_cooperatives', {
+        p_agent_id: agentId
+      });
+
+      if (error) {
+        console.error('Error fetching agent cooperatives:', error);
+        throw new Error(`Erreur lors de la récupération des coopératives: ${error.message}`);
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('AgentsService.getAgentCooperatives error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Récupère les statistiques des assignations
+   */
+  static async getAgentAssignmentStats(): Promise<AgentAssignmentStats> {
+    try {
+      const { data, error } = await (supabase as any).rpc('get_agent_assignments_stats');
+
+      if (error) {
+        console.error('Error fetching assignment stats:', error);
+        throw new Error(`Erreur lors de la récupération des statistiques: ${error.message}`);
+      }
+
+      const stats = Array.isArray(data) && data.length > 0 ? data[0] : {
+        total_assignments: 0,
+        producer_assignments: 0,
+        cooperative_assignments: 0,
+        recent_assignments: 0
+      };
+
+      return {
+        total_assignments: Number(stats.total_assignments) || 0,
+        producer_assignments: Number(stats.producer_assignments) || 0,
+        cooperative_assignments: Number(stats.cooperative_assignments) || 0,
+        recent_assignments: Number(stats.recent_assignments) || 0
+      };
+    } catch (error) {
+      console.error('AgentsService.getAgentAssignmentStats error:', error);
       throw error;
     }
   }
@@ -320,11 +457,22 @@ export class AgentsService {
         total_visits: 0,
         total_producers: 0,
         total_plots: 0,
+        total_operations: 0,
+        total_observations: 0,
+        visits_this_month: 0,
+        avg_visits_per_producer: 0,
+        last_visit_date: null,
+        data_completion_rate: 0,
+        photos_per_plot: 0,
+        gps_accuracy_rate: 0,
+        avg_visit_duration: 0,
+        avg_data_entry_time: 0,
+        sync_success_rate: 0,
         avg_visits_per_month: 0,
         data_quality_rate: 0
       };
 
-      return performance ? {
+      return {
         totalProducers: Number(performance.total_producers) || 0,
         totalVisits: Number(performance.total_visits) || 0,
         totalPlots: Number(performance.total_plots) || 0,
@@ -332,7 +480,7 @@ export class AgentsService {
         totalObservations: Number(performance.total_observations) || 0,
         visitsThisMonth: Number(performance.visits_this_month) || 0,
         avgVisitsPerProducer: Number(performance.avg_visits_per_producer) || 0,
-        lastSyncDate: performance.last_sync_date ? new Date(performance.last_sync_date).toISOString() : null,
+        lastSyncDate: performance.last_visit_date ? new Date(performance.last_visit_date).toISOString() : null,
         dataCompletionRate: Number(performance.data_completion_rate) || 0,
         photosPerPlot: Number(performance.photos_per_plot) || 0,
         gpsAccuracyRate: Number(performance.gps_accuracy_rate) || 0,
@@ -341,23 +489,6 @@ export class AgentsService {
         syncSuccessRate: Number(performance.sync_success_rate) || 0,
         avgVisitsPerMonth: Number(performance.avg_visits_per_month) || 0,
         dataQualityRate: Number(performance.data_quality_rate) || 0
-      } : {
-        totalProducers: 0,
-        totalVisits: 0,
-        totalPlots: 0,
-        totalOperations: 0,
-        totalObservations: 0,
-        visitsThisMonth: 0,
-        avgVisitsPerProducer: 0,
-        lastSyncDate: null,
-        dataCompletionRate: 0,
-        photosPerPlot: 0,
-        gpsAccuracyRate: 0,
-        avgVisitDuration: 0,
-        avgDataEntryTime: 0,
-        syncSuccessRate: 0,
-        avgVisitsPerMonth: 0,
-        dataQualityRate: 0
       };
     } catch (error) {
       console.error('AgentsService.getAgentPerformance error:', error);
@@ -429,12 +560,12 @@ export class AgentsService {
   }
 
   /**
-   * Récupère les producteurs assignés à un agent
+   * Récupère les producteurs assignés à un agent (unifié)
    */
   static async getAgentProducers(agentId: string): Promise<{ data: any[]; total: number }> {
     try {
       const { data, error } = await (supabase as any)
-        .rpc('get_agent_producers', { agent_id_param: agentId });
+        .rpc('get_agent_producers_unified', { p_agent_id: agentId });
 
       if (error) {
         console.error('Error fetching agent producers:', error);
@@ -452,22 +583,19 @@ export class AgentsService {
   }
 
   /**
-   * Récupère tous les producteurs disponibles (non assignés)
+   * Récupère tous les producteurs disponibles (avec statut d'assignation)
    */
-  static async getAvailableProducers(): Promise<Producer[]> {
+  static async getAvailableProducers(agentId?: string): Promise<any[]> {
     try {
-      const { data, error } = await supabase
-        .from('producers')
-        .select('*')
-        .eq('is_active', true)
-        .order('first_name');
+      const { data, error } = await (supabase as any)
+        .rpc('get_available_producers_for_agent', { p_agent_id: agentId || null });
 
       if (error) {
         console.error('Error fetching available producers:', error);
         throw new Error(`Erreur lors de la récupération des producteurs: ${error.message}`);
       }
 
-      return (data || []) as unknown as Producer[];
+      return data || [];
     } catch (error) {
       console.error('AgentsService.getAvailableProducers error:', error);
       throw error;
@@ -475,23 +603,48 @@ export class AgentsService {
   }
 
   /**
-   * Récupère tous les agents disponibles
+   * Récupère toutes les coopératives disponibles
    */
-  static async getAvailableAgents(): Promise<Agent[]> {
+  static async getAvailableCooperatives(agentId?: string): Promise<any[]> {
     try {
+      // Pour l'instant, récupérer toutes les coopératives
+      // TODO: Ajouter une RPC pour filtrer les coopératives déjà assignées
       const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('role', 'agent')
-        .eq('is_active', true)
-        .order('display_name');
+        .from('cooperatives')
+        .select('*');
+
+      if (error) {
+        console.error('Error fetching available cooperatives:', error);
+        throw new Error(`Erreur lors de la récupération des coopératives: ${error.message}`);
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('AgentsService.getAvailableCooperatives error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Récupère tous les agents disponibles avec leurs assignations
+   */
+  static async getAvailableAgents(): Promise<AvailableAgent[]> {
+    try {
+      const { data, error } = await (supabase as any)
+        .rpc('get_available_agents');
 
       if (error) {
         console.error('Error fetching available agents:', error);
         throw new Error(`Erreur lors de la récupération des agents: ${error.message}`);
       }
 
-      return (data || []) as unknown as Agent[];
+      return (data || []).map((agent: any) => ({
+        agent_id: agent.agent_id,
+        agent_name: agent.agent_name,
+        region: agent.region,
+        cooperative_name: agent.cooperative_name,
+        total_assigned_producers: Number(agent.total_assigned_producers) || 0
+      }));
     } catch (error) {
       console.error('AgentsService.getAvailableAgents error:', error);
       throw error;
@@ -499,45 +652,14 @@ export class AgentsService {
   }
 
   /**
-   * Assigne un producteur à un agent
-   */
-  static async assignProducerToAgent(producerId: string, agentId: string): Promise<void> {
-    try {
-      const { error } = await (supabase as any)
-        .rpc('assign_producer_to_agent', {
-          producer_id_param: producerId,
-          agent_id_param: agentId
-        });
-
-      if (error) {
-        console.error('Error assigning producer to agent:', error);
-        throw new Error(`Erreur lors de l'assignation: ${error.message}`);
-      }
-    } catch (error) {
-      console.error('AgentsService.assignProducerToAgent error:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Récupère les agents assignés à un producteur
+   * Récupère les agents assignés à un producteur (unifié)
    */
   static async getAssignedAgentsForProducer(producerId: string): Promise<Agent[]> {
     try {
-      const { data, error } = await supabase
-        .from('agent_producer_assignments')
-        .select(`
-          agent_id,
-          assigned_at,
-          profiles!inner(
-            id,
-            display_name,
-            phone,
-            is_active
-          )
-        `)
-        .eq('producer_id', producerId)
-        .eq('profiles.is_active', true);
+      const { data, error } = await (supabase as any)
+        .rpc('get_assigned_agents_for_producer', {
+          p_producer_id: producerId
+        });
 
       if (error) {
         console.error('Error fetching assigned agents for producer:', error);
@@ -545,11 +667,20 @@ export class AgentsService {
       }
 
       // Transform the data to match Agent interface
-      return (data || []).map((assignment: any) => ({
-        id: assignment.agent_id,
-        display_name: assignment.profiles.display_name,
-        phone: assignment.profiles.phone,
-        is_active: assignment.profiles.is_active
+      return (data || []).map((agent: any) => ({
+        id: agent.agent_id,
+        user_id: agent.user_id || '',
+        display_name: agent.agent_name,
+        phone: agent.phone || 'Non disponible',
+        region: agent.region || '',
+        department: agent.department || '',
+        commune: agent.commune || '',
+        is_active: agent.is_active || true,
+        approval_status: agent.approval_status || 'approved',
+        created_at: agent.created_at || '',
+        updated_at: agent.updated_at || '',
+        assigned_at: agent.assigned_at,
+        assignment_type: agent.assignment_type
       })) as Agent[];
     } catch (error) {
       console.error('AgentsService.getAssignedAgentsForProducer error:', error);
@@ -558,14 +689,15 @@ export class AgentsService {
   }
 
   /**
-   * Désassigne un producteur d'un agent
+   * Désassigne un producteur d'un agent (unifié)
    */
   static async unassignProducerFromAgent(producerId: string, agentId: string): Promise<void> {
     try {
       const { error } = await (supabase as any)
-        .rpc('unassign_producer_from_agent', {
-          producer_id_param: producerId,
-          agent_id_param: agentId
+        .rpc('remove_agent_assignment', {
+          p_agent_id: agentId,
+          p_assigned_to_type: 'producer',
+          p_assigned_to_id: producerId
         });
 
       if (error) {

@@ -7,6 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Textarea } from '../ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+
+// Type assertions pour résoudre les conflits de types
+const TabsComponent = Tabs as any;
+const TabsListComponent = TabsList as any;
+const TabsTriggerComponent = TabsTrigger as any;
+const TabsContentComponent = TabsContent as any;
 import { Producer, ProducersService } from '../../services/producersService';
 import { useToast } from '../../context/ToastContext';
 
@@ -138,7 +144,7 @@ const ProducerModal: React.FC<ProducerModalProps> = ({
     e.preventDefault();
     
     if (!formData.first_name || !formData.last_name || !formData.phone) {
-      showToast('Veuillez remplir les champs obligatoires', 'error');
+      showToast({ type: 'error', title: 'Veuillez remplir les champs obligatoires' });
       return;
     }
 
@@ -156,7 +162,7 @@ const ProducerModal: React.FC<ProducerModalProps> = ({
         gender: formData.gender && formData.gender.trim() !== '' ? formData.gender : null,
         education_level: formData.education_level && formData.education_level.trim() !== '' ? formData.education_level : null,
         primary_language: formData.primary_language && formData.primary_language.trim() !== '' ? formData.primary_language : null,
-        is_active: formData.is_active === 'true' || formData.is_active === true
+        is_active: String(formData.is_active) === 'true'
       };
 
       console.log('Form data before processing:', formData);
@@ -164,16 +170,16 @@ const ProducerModal: React.FC<ProducerModalProps> = ({
 
       if (producer) {
         await ProducersService.updateProducer(producer.id, producerData);
-        showToast('Producteur modifié avec succès', 'success');
+        showToast({ type: 'success', title: 'Producteur modifié avec succès' });
       } else {
         await ProducersService.createProducer(producerData);
-        showToast('Producteur créé avec succès', 'success');
+        showToast({ type: 'success', title: 'Producteur créé avec succès' });
       }
 
       onSave();
     } catch (error) {
       console.error('Error saving producer:', error);
-      showToast('Erreur lors de la sauvegarde', 'error');
+      showToast({ type: 'error', title: 'Erreur lors de la sauvegarde' });
     } finally {
       setLoading(false);
     }
@@ -212,15 +218,15 @@ const ProducerModal: React.FC<ProducerModalProps> = ({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto py-4">
-          <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="basic">Informations de base</TabsTrigger>
-              <TabsTrigger value="location">Localisation</TabsTrigger>
-              <TabsTrigger value="personal">Informations personnelles</TabsTrigger>
-            </TabsList>
+          <TabsComponent defaultValue="basic" className="w-full">
+            <TabsListComponent className="grid w-full grid-cols-3">
+              <TabsTriggerComponent value="basic">Informations de base</TabsTriggerComponent>
+              <TabsTriggerComponent value="location">Localisation</TabsTriggerComponent>
+              <TabsTriggerComponent value="personal">Informations personnelles</TabsTriggerComponent>
+            </TabsListComponent>
 
             {/* Informations de base */}
-            <TabsContent value="basic" className="space-y-4">
+            <TabsContentComponent value="basic" className="space-y-4">
               <Card>
                 <CardHeader>
                   <CardTitle>Informations de base</CardTitle>
@@ -293,6 +299,7 @@ const ProducerModal: React.FC<ProducerModalProps> = ({
                 <input
                       type="checkbox"
                       id="is_active"
+                      aria-label="Producteur actif"
                       checked={formData.is_active}
                       onChange={(e) => handleInputChange('is_active', e.target.checked.toString())}
                     />
@@ -300,10 +307,10 @@ const ProducerModal: React.FC<ProducerModalProps> = ({
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
+            </TabsContentComponent>
 
             {/* Localisation */}
-            <TabsContent value="location" className="space-y-4">
+            <TabsContentComponent value="location" className="space-y-4">
               <Card>
                 <CardHeader>
                   <CardTitle>Localisation</CardTitle>
@@ -392,10 +399,10 @@ const ProducerModal: React.FC<ProducerModalProps> = ({
             </div>
                 </CardContent>
               </Card>
-            </TabsContent>
+            </TabsContentComponent>
 
             {/* Informations personnelles */}
-            <TabsContent value="personal" className="space-y-4">
+            <TabsContentComponent value="personal" className="space-y-4">
               <Card>
                 <CardHeader>
                   <CardTitle>Informations personnelles</CardTitle>
@@ -494,8 +501,8 @@ const ProducerModal: React.FC<ProducerModalProps> = ({
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
-          </Tabs>
+            </TabsContentComponent>
+          </TabsComponent>
         </form>
 
           {/* Actions */}

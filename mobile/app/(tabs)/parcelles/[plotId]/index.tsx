@@ -1,231 +1,405 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator, FlatList } from 'react-native';
-import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
-import { CollecteService } from '../../../../lib/services/collecte';
-import { PlotDisplay, ParticipantDisplay, RecommendationDisplay, OperationDisplay, InputDisplay, ObservationDisplay, Crop } from '../../../../types/collecte';
-import { Feather } from '@expo/vector-icons';
+import React, { useState } from 'react';
+import { ActivityIndicator, FlatList } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { RecommendationDisplay, OperationDisplay, InputDisplay, Crop } from '../../../../types/collecte';
+import { PlotDisplay } from '../../../../lib/services/domain/plots/plots.types';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../../../context/AuthContext';
-import ContentWithHeader from '../../../../components/ContentWithHeader';
+import { ScreenContainer } from '../../../../components/ui';
+import { HStack as HStackIcon, Pressable as PressableIcon } from 'native-base';
+import PhotoGallery from '../../../../components/ui/interactive/PhotoGallery';
+import { OperationsCard } from '../../../../components/OperationsCard';
+import { IntrantsCard } from '../../../../components/IntrantsCard';
+import { ObservationsCard } from '../../../../components/ObservationsCard';
+import { usePlotById, useActiveCrop, useParticipantsByPlot, useRecommendationsByPlot, useLatestRecommendations, useLatestOperations, useCrops, useLatestInputs } from '../../../../lib/hooks';
+import { 
+  Box, 
+  Text, 
+  ScrollView, 
+  Pressable, 
+  HStack, 
+  VStack, 
+  useTheme,
+  Badge
+} from 'native-base';
 
-const InfoCard = ({ plot }: { plot: PlotDisplay | null }) => {
+const InfoCard = ({ plot, activeCrop }: { plot: PlotDisplay | null; activeCrop: Crop | null }) => {
+  const theme = useTheme();
+  
+  console.log('🏞️ [INFO_CARD] Rendu InfoCard:', {
+    plot: plot ? { 
+      name: plot.name_season_snapshot, 
+      status: plot.status,
+      area: plot.area_hectares,
+      producer_name: plot.producer_name,
+      id: plot.id,
+      // Test des alias
+      name_alias: plot.name,
+      area_alias: plot.area,
+      producerName_alias: plot.producerName,
+      variety_alias: plot.variety,
+      soilType_alias: plot.soilType,
+      waterSource_alias: plot.waterSource
+    } : null,
+    activeCrop: activeCrop ? { 
+      id: activeCrop.id, 
+      variety: activeCrop.variety,
+      crop_type: activeCrop.crop_type,
+      status: activeCrop.status
+    } : null
+  });
+  
   const statusConfig = {
-    preparation: { text: 'En cours', color: '#10b981' },
-    active: { text: 'En cours', color: '#10b981' }, // Correction du bug
-    cultivated: { text: 'Récolté', color: '#f59e0b' },
-    fallow: { text: 'Abandonné', color: '#ef4444' },
+    preparation: { text: 'En cours', color: theme.colors.success?.[500] || '#10b981' },
+    active: { text: 'En cours', color: theme.colors.success?.[500] || '#10b981' },
+    cultivated: { text: 'Récolté', color: theme.colors.warning?.[500] || '#f59e0b' },
+    fallow: { text: 'Abandonné', color: theme.colors.error?.[500] || '#ef4444' },
   };
   const currentStatus = statusConfig[plot?.status as keyof typeof statusConfig] || statusConfig.preparation;
 
+  // Utiliser la culture active si disponible, sinon fallback sur variety de plot
+  const culturePrincipale = activeCrop?.variety || plot?.variety || 'N/A';
+  
+  // Construire la localisation à partir des données disponibles
+  const localisation = plot?.location || 'N/A';
+
+  // Utiliser lastSync si disponible
+  const derniereSync = plot?.lastSync;
+  const derniereSyncFormatted = derniereSync ? new Date(derniereSync).toLocaleString('fr-FR') : 'Non disponible';
+
   return (
-    <View style={styles.card}>
-      <Text style={styles.cardTitle}>Informations générales</Text>
-      <View style={styles.infoGrid}>
-        <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>ID Parcelle</Text>
-          <Text style={styles.infoValue}>{plot?.name}</Text>
-        </View>
-        <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>Surface</Text>
-          <Text style={styles.infoValue}>{plot?.area?.toFixed(2)} ha</Text>
-        </View>
-      </View>
-      <View style={styles.infoGrid}>
-        <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>Culture principale</Text>
-          <Text style={styles.infoValue}>{plot?.variety || 'N/A'}</Text>
-        </View>
-      </View>
-       <View style={styles.infoGrid}>
-        <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>Localisation</Text>
-          <Text style={styles.infoValue}>{plot?.location || 'N/A'}</Text>
-        </View>
-      </View>
-      <View style={styles.infoGrid}>
-        <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>Statut</Text>
-          <View style={[styles.statusBadge, { backgroundColor: `${currentStatus.color}20` }]}>
-            <Text style={[styles.statusText, { color: currentStatus.color }]}>{currentStatus.text}</Text>
-          </View>
-        </View>
-        <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>Dernière synchro</Text>
-          <Text style={styles.infoValue}>Il y a 2h</Text>
-        </View>
-      </View>
-    </View>
+    <Box bg="white" borderRadius="xl" p={4} mb={4} shadow={2}>
+      <Text fontSize="lg" fontWeight="bold" color="gray.900" mb={3}>
+        Informations générales
+      </Text>
+      <VStack space={3}>
+        <HStack justifyContent="space-between">
+          <VStack flex={1}>
+            <Text fontSize="xs" color="gray.600" mb={1}>
+              ID Parcelle
+            </Text>
+            <Text fontSize="sm" fontWeight="semibold" color="gray.900">
+              {plot?.name_season_snapshot || plot?.name || 'N/A'}
+            </Text>
+          </VStack>
+          <VStack flex={1}>
+            <Text fontSize="xs" color="gray.600" mb={1}>
+              Surface
+            </Text>
+            <Text fontSize="sm" fontWeight="semibold" color="gray.900">
+              {plot?.area_hectares ? `${plot.area_hectares.toFixed(2)} ha` : 'N/A'}
+            </Text>
+          </VStack>
+        </HStack>
+        
+        <VStack>
+          <Text fontSize="xs" color="gray.600" mb={1}>
+            Culture principale
+          </Text>
+          <Text fontSize="sm" fontWeight="semibold" color="gray.900">
+            {culturePrincipale}
+          </Text>
+        </VStack>
+        
+        <VStack>
+          <Text fontSize="xs" color="gray.600" mb={1}>
+            Localisation
+          </Text>
+          <Text fontSize="sm" fontWeight="semibold" color="gray.900">
+            {localisation}
+          </Text>
+        </VStack>
+        
+        <HStack justifyContent="space-between">
+          <VStack flex={1}>
+            <Text fontSize="xs" color="gray.600" mb={1}>
+              Statut
+            </Text>
+            <Badge
+              bg={`${currentStatus.color}20`}
+              borderRadius="full"
+              px={3}
+              py={1}
+              borderWidth={1}
+              borderColor={`${currentStatus.color}40`}
+              alignSelf="flex-start"
+            >
+              <Text fontSize="xs" fontWeight="bold" color={currentStatus.color}>
+                {currentStatus.text}
+              </Text>
+            </Badge>
+          </VStack>
+          <VStack flex={1}>
+            <Text fontSize="xs" color="gray.600" mb={1}>
+              Dernière synchro
+            </Text>
+            <Text fontSize="sm" fontWeight="semibold" color="gray.900">
+            {derniereSyncFormatted}
+          </Text>
+          </VStack>
+        </HStack>
+      </VStack>
+    </Box>
   );
 };
 
-const IntervenantsCard = ({ plotId, router }: { plotId: string; router: any }) => {
-  const [participants, setParticipants] = useState<ParticipantDisplay[]>([]);
-  const [loading, setLoading] = useState(true);
+const ParticipantsCard = ({ plotId, router }: { plotId: string; router: any }) => {
+  const theme = useTheme();
+  // Utiliser le hook pour récupérer les participants
+  const { data: participants, loading: participantsLoading, error: participantsError } = useParticipantsByPlot(plotId!);
 
-  const fetchParticipants = React.useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await CollecteService.getParticipantsByPlotId(plotId);
-      setParticipants(data);
-    } catch (error) {
-      console.error("Failed to fetch participants:", error);
-    } finally {
-      setLoading(false);
+  console.log('👥 [PLOT_DETAIL] Participants récupérés:', { 
+    count: participants?.length || 0, 
+    loading: participantsLoading, 
+    error: participantsError?.message 
+  });
+
+  // Le hook gère automatiquement le chargement
+
+  const getRoleIcon = (role: string) => {
+    if (!role) return 'user';
+    switch (role.toLowerCase()) {
+      case 'producteur':
+        return 'user';
+      case 'agent':
+        return 'user-check';
+      case 'ouvrier':
+        return 'users';
+      case 'superviseur':
+        return 'shield';
+      default:
+        return 'user';
     }
-  }, [plotId]);
+  };
 
-  useEffect(() => {
-    fetchParticipants();
-  }, [fetchParticipants]);
-
-  useFocusEffect(
-    React.useCallback(() => {
-      fetchParticipants();
-    }, [fetchParticipants])
-  );
-
-  const getTagStyle = (tag: string) => {
-    if (tag.toLowerCase().includes('alpha')) return styles.tagGreen;
-    if (tag.toLowerCase().includes('wolof')) return styles.tagBlue;
-    return styles.tagGray;
+  const getRoleColor = (role: string) => {
+    if (!role) return theme.colors.gray?.[600] || '#6b7280';
+    switch (role.toLowerCase()) {
+      case 'producteur':
+        return theme.colors.primary?.[500] || '#3D944B';
+      case 'agent':
+        return theme.colors.blue?.[500] || '#2196F3';
+      case 'ouvrier':
+        return theme.colors.orange?.[500] || '#FF9800';
+      case 'superviseur':
+        return theme.colors.purple?.[500] || '#9C27B0';
+      default:
+        return theme.colors.gray?.[600] || '#6b7280';
+    }
   };
 
   return (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle}>Intervenants</Text>
-        <TouchableOpacity onPress={() => router.push(`/(tabs)/parcelles/${plotId}/intervenants`)}>
-          <Text style={styles.addBtnText}>+ Ajouter</Text>
-        </TouchableOpacity>
-      </View>
+    <Box bg="white" borderRadius="xl" p={4} mb={4} shadow={2}>
+      <HStack justifyContent="space-between" alignItems="center" mb={3}>
+        <Text fontSize="lg" fontWeight="bold" color="gray.900">
+          Participants
+        </Text>
+        <Pressable onPress={() => router.push(`/(tabs)/parcelles/${plotId}/intervenants`)}>
+          <Text color={theme.colors.primary?.[500] || '#3D944B'} fontWeight="semibold" fontSize="sm">
+            Gérer
+          </Text>
+        </Pressable>
+      </HStack>
       
-      {loading ? (
-        <ActivityIndicator />
-      ) : participants.length === 0 ? (
-        <Text style={styles.noDataText}>Aucun intervenant pour cette parcelle.</Text>
+      {participantsLoading ? (
+        <ActivityIndicator color={theme.colors.primary?.[500] || '#3D944B'} />
+      ) : participantsError ? (
+        <Text textAlign="center" color="red.500" py={4}>
+          Erreur: {participantsError.message}
+        </Text>
+      ) : participants?.length === 0 ? (
+        <Text textAlign="center" color="gray.500" py={4} fontStyle="italic">
+          Aucun participant pour cette parcelle.
+        </Text>
       ) : (
-        participants.map(item => (
-          <View key={item.id} style={styles.intervenantItem}>
-            <Image source={{ uri: `https://i.pravatar.cc/150?u=${item.id}` }} style={styles.avatar} />
-            <View style={styles.intervenantInfo}>
-              <Text style={styles.intervenantName}>{item.name}</Text>
-              <Text style={styles.intervenantRole}>{item.role}{item.age ? ` • ${item.age} ans` : ''}</Text>
-            </View>
-            {item.tags[0] && <Text style={[styles.tag, getTagStyle(item.tags[0])]}>{item.tags[0]}</Text>}
-          </View>
-        ))
+        <VStack space={3}>
+          {participants?.slice(0, 3).map(item => (
+            <HStack key={item.id} alignItems="center" py={2}>
+              <Box
+                w={10}
+                h={10}
+                borderRadius="full"
+                bg={`${getRoleColor(item.role)}20`}
+                alignItems="center"
+                justifyContent="center"
+                mr={3}
+              >
+                <Feather name={getRoleIcon(item.role)} size={20} color={getRoleColor(item.role)} />
+              </Box>
+              <VStack flex={1}>
+                <Text fontSize="md" fontWeight="semibold" color="gray.900">
+                  {item.name}
+                </Text>
+                <Text fontSize="sm" color="gray.600">
+                  {item.role}{item.age ? ` • ${item.age} ans` : ''}
+                </Text>
+              </VStack>
+            </HStack>
+          ))}
+          <Pressable 
+            onPress={() => router.push(`/(tabs)/parcelles/${plotId}/intervenants`)}
+            py={2}
+            alignItems="center"
+          >
+            <Text color={theme.colors.primary?.[500] || '#3D944B'} fontSize="sm" fontWeight="semibold">
+              {participants.length > 3 ? 'Voir tous les intervenants' : 'Gérer les intervenants'}
+            </Text>
+          </Pressable>
+        </VStack>
       )}
-    </View>
+    </Box>
   );
 };
 
 const ConseilsCard = ({ plotId }: { plotId: string }) => {
-  const [recommendations, setRecommendations] = useState<RecommendationDisplay[]>([]);
-  const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  useEffect(() => {
-    const fetchRecommendations = async () => {
-      try {
-        setLoading(true);
-        const data = await CollecteService.getRecommendationsByPlotId(plotId);
-        setRecommendations(data);
-      } catch (error) {
-        console.error("Failed to fetch recommendations:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchRecommendations();
-  }, [plotId]);
+  // Utiliser le hook pour récupérer les recommandations
+  const { data: recommendations, loading: recommendationsLoading, error: recommendationsError } = useRecommendationsByPlot(plotId!);
+
+  console.log('💡 [PLOT_DETAIL] Recommandations récupérées:', { 
+    count: recommendations?.length || 0, 
+    loading: recommendationsLoading, 
+    error: recommendationsError?.message 
+  });
 
   const getStatusStyle = (status: string) => {
-    if (status.toLowerCase() === 'completed') return { container: styles.statusGreen, text: styles.statusTextGreen };
-    if (status.toLowerCase() === 'acknowledged') return { container: styles.statusBlue, text: styles.statusTextBlue };
-    return { container: styles.statusGray, text: styles.statusTextGray };
+    if (!status) return { container: 'gray.100', text: 'gray.600' };
+    if (status.toLowerCase() === 'completed') return { container: 'green.100', text: 'green.600' };
+    if (status.toLowerCase() === 'acknowledged') return { container: 'blue.100', text: 'blue.600' };
+    return { container: 'gray.100', text: 'gray.600' };
   };
+
 
   const RecommendationItem = ({ item }: { item: RecommendationDisplay }) => {
     const statusStyle = getStatusStyle(item.status);
     return (
-      <View style={styles.conseilItem}>
-        <Feather name="info" size={24} color="#3D944B" />
-        <View style={styles.conseilContent}>
-          <View style={styles.conseilHeader}>
-            <Text style={styles.conseilTitle}>{item.title}</Text>
-            <View style={statusStyle.container}><Text style={statusStyle.text}>{item.status}</Text></View>
-          </View>
-          <Text style={styles.conseilMessage}>{item.message}</Text>
-          <Text style={styles.conseilDate}>{item.date}</Text>
-        </View>
-      </View>
+      <HStack space={3} py={3} borderBottomWidth={1} borderBottomColor="gray.100">
+        <Box
+          w={12}
+          h={12}
+          borderRadius="full"
+          bg="yellow.100"
+          justifyContent="center"
+          alignItems="center"
+        >
+          <Feather name="sun" size={24} color="#FFD65A" />
+        </Box>
+        <VStack flex={1} space={2}>
+          <HStack justifyContent="space-between" alignItems="center">
+            <Text fontSize="md" fontWeight="600" color="gray.900">
+              {item.title}
+            </Text>
+            <Badge
+              bg="gray.100"
+              _text={{ color: 'gray.600', fontSize: 'xs', fontWeight: 'bold' }}
+              px={2}
+              py={1}
+              borderRadius="md"
+            >
+              Normale
+            </Badge>
+          </HStack>
+          <Text fontSize="sm" color="gray.600" lineHeight={20}>
+            {item.message}
+          </Text>
+          <HStack justifyContent="space-between" alignItems="center">
+            <Text fontSize="xs" color="gray.500">
+              {item.date}
+            </Text>
+            <Badge
+              bg={statusStyle.container}
+              _text={{ color: statusStyle.text, fontSize: 'xs', fontWeight: 'bold' }}
+              px={2}
+              py={1}
+              borderRadius="md"
+            >
+              {item.status}
+            </Badge>
+          </HStack>
+        </VStack>
+      </HStack>
     );
   };
   
-  if (loading) return <ActivityIndicator />;
+  if (recommendationsLoading) return <ActivityIndicator />;
 
   return (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle}>Conseils & Recommandations</Text>
-        <TouchableOpacity onPress={() => router.push(`/(tabs)/parcelles/${plotId}/conseils/add`)}>
+    <Box bg="white" borderRadius="xl" p={4} mb={4} shadow={2}>
+      <HStack justifyContent="space-between" alignItems="center" mb={3}>
+        <Text fontSize="lg" fontWeight="bold" color="gray.900">
+          Conseils & Recommandations
+        </Text>
+        <Pressable onPress={() => router.push(`/(tabs)/parcelles/${plotId}/conseils/add`)}>
           <Feather name="plus-circle" size={24} color="#3D944B" />
-        </TouchableOpacity>
-      </View>
-      {recommendations.length === 0 ? (
-        <Text style={styles.noDataText}>Aucun conseil pour cette parcelle.</Text>
+        </Pressable>
+      </HStack>
+      {recommendationsError ? (
+        <Text textAlign="center" color="red.500" py={4}>
+          Erreur: {recommendationsError.message}
+        </Text>
+      ) : recommendations?.length === 0 ? (
+        <Text textAlign="center" color="gray.500" py={4}>
+          Aucun conseil pour cette parcelle.
+        </Text>
       ) : (
         <FlatList
           data={recommendations}
           renderItem={({ item }) => <RecommendationItem item={item} />}
           keyExtractor={(item) => item.id}
-          scrollEnabled={false} // Disable scroll for FlatList inside ScrollView
+          scrollEnabled={false}
         />
       )}
-    </View>
+    </Box>
   );
 };
 
 const LatestConseilsCard = ({ plotId, onSeeAll }: { plotId: string; onSeeAll: () => void }) => {
-  const [recommendations, setRecommendations] = useState<RecommendationDisplay[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Utiliser le hook pour récupérer les dernières recommandations
+  const { data: recommendations, loading: recsLoading, error: recsError } = useLatestRecommendations(plotId);
 
-  useEffect(() => {
-    const fetchRecs = async () => {
-      try {
-        setLoading(true);
-        const data = await CollecteService.getLatestRecommendations(plotId);
-        setRecommendations(data);
-      } catch (error) {
-        console.error("Failed to fetch latest recommendations:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchRecs();
-  }, [plotId]);
+  console.log('💡 [PLOT_DETAIL] Dernières recommandations récupérées:', { 
+    count: recommendations?.length || 0, 
+    loading: recsLoading, 
+    error: recsError?.message 
+  });
 
   const renderItem = ({ item }: { item: RecommendationDisplay }) => (
-    <View style={styles.conseilItem}>
-      <Feather name="info" size={20} color="#3D944B" style={{ marginRight: 12 }} />
-      <View style={{ flex: 1 }}>
-        <Text style={styles.conseilTitle}>{item.title}</Text>
-        <Text style={styles.conseilMessage}>{item.message}</Text>
-      </View>
-    </View>
+    <HStack space={3} py={3} borderBottomWidth={1} borderBottomColor="gray.100">
+      <Feather name="info" size={20} color="#3D944B" />
+      <VStack flex={1} space={1}>
+        <Text fontSize="md" fontWeight="600" color="gray.900">
+          {item.title}
+        </Text>
+        <Text fontSize="sm" color="gray.600" lineHeight={20}>
+          {item.message}
+        </Text>
+      </VStack>
+    </HStack>
   );
 
   return (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle}>Derniers Conseils</Text>
-        <TouchableOpacity onPress={onSeeAll}>
-          <Text style={styles.seeAllButton}>Voir tout</Text>
-        </TouchableOpacity>
-      </View>
-      {loading ? (
+    <Box bg="white" borderRadius="xl" p={4} mb={4} shadow={2}>
+      <HStack justifyContent="space-between" alignItems="center" mb={3}>
+        <Text fontSize="lg" fontWeight="bold" color="gray.900">
+          Derniers Conseils
+        </Text>
+        <Pressable onPress={onSeeAll}>
+          <Text color="primary.500" fontWeight="600" fontSize="sm">
+            Voir tout
+          </Text>
+        </Pressable>
+      </HStack>
+      {recsLoading ? (
         <ActivityIndicator color="#3D944B" style={{ marginVertical: 20 }} />
-      ) : recommendations.length === 0 ? (
-        <Text style={styles.emptyText}>Aucun conseil pour le moment.</Text>
+      ) : recsError ? (
+        <Text textAlign="center" color="red.500" py={4}>
+          Erreur: {recsError.message}
+        </Text>
+      ) : recommendations?.length === 0 ? (
+        <Text textAlign="center" color="gray.500" py={4}>
+          Aucun conseil pour le moment.
+        </Text>
       ) : (
         <FlatList
           data={recommendations}
@@ -234,63 +408,89 @@ const LatestConseilsCard = ({ plotId, onSeeAll }: { plotId: string; onSeeAll: ()
           scrollEnabled={false}
         />
       )}
-    </View>
+    </Box>
   );
 };
 
 const LatestOperationsCard = ({ plotId, onSeeAll }: { plotId: string; onSeeAll: () => void }) => {
-  const [operations, setOperations] = useState<OperationDisplay[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Utiliser le hook pour récupérer les dernières opérations
+  const { data: operations, loading: operationsLoading, error: operationsError } = useLatestOperations(plotId);
 
-  const fetchOps = React.useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await CollecteService.getLatestOperations(plotId);
-      setOperations(data);
-    } catch (error) {
-      console.error("Failed to fetch latest operations:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [plotId]);
-
-  useEffect(() => {
-    fetchOps();
-  }, [fetchOps]);
-
-  useFocusEffect(
-    React.useCallback(() => {
-      fetchOps();
-    }, [fetchOps])
-  );
+  console.log('🚜 [PLOT_DETAIL] Dernières opérations récupérées:', { 
+    count: operations?.length || 0, 
+    loading: operationsLoading, 
+    error: operationsError?.message 
+  });
 
   const renderItem = ({ item }: { item: OperationDisplay }) => {
     const iconName = operationIcons[item.type] || 'settings';
     return (
-      <View style={styles.operationItem}>
-        <View style={styles.operationIconContainer}>
+      <HStack space={4} py={3} borderBottomWidth={1} borderBottomColor="gray.100">
+        <Box
+          w={12}
+          h={12}
+          borderRadius="full"
+          bg="green.100"
+          justifyContent="center"
+          alignItems="center"
+        >
           <Feather name={iconName} size={24} color="#3D944B" />
-        </View>
-        <View style={styles.operationDetails}>
-          <Text style={styles.operationType}>{item.type}</Text>
-          <Text style={styles.operationDate}>Par {item.author} le {item.date}</Text>
-        </View>
-      </View>
+        </Box>
+        <VStack flex={1} space={1}>
+          <Text fontSize="md" fontWeight="600" color="gray.900" textTransform="capitalize">
+            {item.type}
+          </Text>
+          <Text fontSize="sm" color="gray.600">
+            Par {item.author} le {item.date}
+          </Text>
+          {item.description && (
+            <Text fontSize="sm" color="gray.600">
+              {item.description}
+            </Text>
+          )}
+        </VStack>
+        <Box
+          w={16}
+          h={16}
+          borderRadius="md"
+          overflow="hidden"
+          ml={3}
+        >
+          <PhotoGallery
+            entityType="operation"
+            entityId={item.id}
+            title=""
+            maxPhotos={1}
+            showTitle={false}
+            style={{ width: '100%', height: '100%' }}
+          />
+        </Box>
+      </HStack>
     );
   };
 
   return (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle}>Dernières Opérations</Text>
-        <TouchableOpacity onPress={onSeeAll}>
-          <Text style={styles.seeAllButton}>Voir tout</Text>
-        </TouchableOpacity>
-      </View>
-      {loading ? (
+    <Box bg="white" borderRadius="xl" p={4} mb={4} shadow={2}>
+      <HStack justifyContent="space-between" alignItems="center" mb={3}>
+        <Text fontSize="lg" fontWeight="bold" color="gray.900">
+          Dernières Opérations
+        </Text>
+        <Pressable onPress={onSeeAll}>
+          <Text color="primary.500" fontWeight="600" fontSize="sm">
+            Voir tout
+          </Text>
+        </Pressable>
+      </HStack>
+      {operationsLoading ? (
         <ActivityIndicator color="#3D944B" style={{ marginVertical: 20 }} />
-      ) : operations.length === 0 ? (
-        <Text style={styles.emptyText}>Aucune opération récente.</Text>
+      ) : operationsError ? (
+        <Text textAlign="center" color="red.500" py={4}>
+          Erreur: {operationsError.message}
+        </Text>
+      ) : operations?.length === 0 ? (
+        <Text textAlign="center" color="gray.500" py={4}>
+          Aucune opération récente.
+        </Text>
       ) : (
         <FlatList
           data={operations}
@@ -299,126 +499,110 @@ const LatestOperationsCard = ({ plotId, onSeeAll }: { plotId: string; onSeeAll: 
           scrollEnabled={false}
         />
       )}
-    </View>
+    </Box>
   );
 };
 
-const LatestObservationsCard = ({ plotId, router }: { plotId: string; router: any }) => {
-  const [observations, setObservations] = useState<ObservationDisplay[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  const fetchObs = React.useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await CollecteService.getLatestObservations(plotId);
-      setObservations(data);
-    } catch (error) {
-      console.error("Failed to fetch latest observations:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [plotId]);
-
-  useEffect(() => {
-    fetchObs();
-  }, [fetchObs]);
-
-  useFocusEffect(
-    React.useCallback(() => {
-      fetchObs();
-    }, [fetchObs])
-  );
-
-  const renderItem = ({ item }: { item: ObservationDisplay }) => (
-    <View style={styles.observationItem}>
-      <Feather name="eye" size={20} color="#3D944B" style={{ marginRight: 12, marginTop: 2 }} />
-      <View style={{ flex: 1 }}>
-        <Text style={styles.observationTitle}>{item.title}</Text>
-        <Text style={styles.observationDate}>Par {item.author} le {item.date}</Text>
-        <Text style={styles.observationDescription}>{item.description}</Text>
-      </View>
-    </View>
-  );
-
-  return (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle}>Dernières Observations</Text>
-        <TouchableOpacity onPress={() => router.push(`/(tabs)/parcelles/${plotId}/observations/add`)}>
-          <Feather name="plus-circle" size={24} color="#3D944B" />
-        </TouchableOpacity>
-      </View>
-      {loading ? (
-        <ActivityIndicator color="#3D944B" style={{ marginVertical: 20 }} />
-      ) : observations.length === 0 ? (
-        <Text style={styles.emptyText}>Aucune observation récente.</Text>
-      ) : (
-        <FlatList
-          data={observations}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
-          scrollEnabled={false}
-        />
-      )}
-    </View>
-  );
-};
-
-const ActiveCropCard = ({ crop }: { crop: Crop | null }) => {
+const CurrentCropCard = ({ crop }: { crop: Crop | null }) => {
   if (!crop) {
     return (
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Culture Active</Text>
-        <Text style={styles.emptyText}>Aucune culture active sur cette parcelle.</Text>
-      </View>
+      <Box bg="white" borderRadius="xl" p={4} mb={4} shadow={2}>
+        <Text fontSize="lg" fontWeight="bold" color="gray.900" mb={3}>
+          Culture en cours
+        </Text>
+        <Text textAlign="center" color="gray.500" py={4}>
+          Aucune culture active sur cette parcelle.
+        </Text>
+      </Box>
     );
   }
 
-  const InfoItem = ({ label, value }: { label: string; value: string | undefined | null }) => (
-    <View style={styles.infoItem}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value || 'N/A'}</Text>
-    </View>
-  );
-
   return (
-    <View style={styles.card}>
-      <Text style={styles.cardTitle}>Culture Active</Text>
-      <View style={styles.infoGrid}>
-        <InfoItem label="Type" value={crop.crop_type} />
-        <InfoItem label="Variété" value={crop.variety} />
-        <InfoItem label="Date de semis" value={new Date(crop.sowing_date).toLocaleDateString('fr-FR')} />
-        <InfoItem label="Statut" value={crop.status} />
-      </View>
-    </View>
+    <Box bg="white" borderRadius="xl" p={4} mb={4} shadow={2}>
+      <HStack justifyContent="space-between" alignItems="center" mb={3}>
+        <Text fontSize="lg" fontWeight="bold" color="gray.900">
+          Culture en cours
+        </Text>
+        <Pressable>
+          <Text color="primary.500" fontWeight="600" fontSize="sm">
+            Voir détails
+          </Text>
+        </Pressable>
+      </HStack>
+      
+      <HStack space={3} mb={4}>
+        <Box
+          w={12}
+          h={12}
+          borderRadius="full"
+          bg="yellow.100"
+          justifyContent="center"
+          alignItems="center"
+        >
+          <Feather name="sun" size={24} color="#FFD65A" />
+        </Box>
+        <VStack flex={1} space={1}>
+          <Text fontSize="md" fontWeight="600" color="gray.900">
+            {crop.crop_type} - {crop.variety}
+          </Text>
+          <Text fontSize="sm" color="gray.600">
+            Saison hivernage 2024
+          </Text>
+        </VStack>
+      </HStack>
+
+      <VStack space={3}>
+        <HStack space={4}>
+          <Box flex={1}>
+            <Text fontSize="xs" color="gray.600" mb={1}>
+              Semis
+            </Text>
+            <Text fontSize="sm" fontWeight="600" color="gray.900">
+              {new Date(crop.sowing_date).toLocaleDateString('fr-FR')}
+            </Text>
+          </Box>
+          <Box flex={1}>
+            <Text fontSize="xs" color="gray.600" mb={1}>
+              Levée
+            </Text>
+            <Text fontSize="sm" fontWeight="600" color="gray.900">
+              N/A
+            </Text>
+          </Box>
+        </HStack>
+        <HStack space={4}>
+          <Box flex={1}>
+            <Text fontSize="xs" color="gray.600" mb={1}>
+              Récolte prévue
+            </Text>
+            <Text fontSize="sm" fontWeight="600" color="gray.900">
+              {crop.expected_harvest_date ? new Date(crop.expected_harvest_date).toLocaleDateString('fr-FR') : 'N/A'}
+            </Text>
+          </Box>
+          <Box flex={1}>
+            <Text fontSize="xs" color="gray.600" mb={1}>
+              Rendement estimé
+            </Text>
+            <Text fontSize="sm" fontWeight="600" color="gray.900">
+              {crop.actual_yield_kg ? `${crop.actual_yield_kg} T/ha` : 'N/A'}
+            </Text>
+          </Box>
+        </HStack>
+      </VStack>
+    </Box>
   );
 };
 
 const CulturesCard = ({ plotId, router, agentId }: { plotId: string; router: any; agentId?: string }) => {
-  const [crops, setCrops] = useState<Crop[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Utiliser le hook pour récupérer les cultures
+  const { crops, loading: cropsLoading, error: cropsError } = useCrops(plotId);
 
-  const fetchCrops = React.useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await CollecteService.getCropsByPlotId(plotId, agentId);
-      setCrops(data);
-    } catch (error) {
-      console.error("Failed to fetch crops:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [plotId, agentId]);
-
-  useEffect(() => {
-    fetchCrops();
-  }, [fetchCrops]);
-
-  useFocusEffect(
-    React.useCallback(() => {
-      fetchCrops();
-    }, [fetchCrops])
-  );
+  console.log('🌾 [PLOT_DETAIL] Cultures récupérées:', { 
+    count: crops?.length || 0, 
+    loading: cropsLoading, 
+    error: cropsError?.message 
+  });
 
   const getStatusStyle = (status: string | null) => {
     switch (status) {
@@ -437,66 +621,93 @@ const CulturesCard = ({ plotId, router, agentId }: { plotId: string; router: any
   };
 
   const handleEditCrop = (cropId: string) => {
-    router.push(`/(tabs)/parcelles/${plotId}/cultures/edit?cropId=${cropId}`);
+    router.push(`/(tabs)/parcelles/${plotId}/cultures/${cropId}/edit`);
   };
 
   const handleDeleteCrop = async (cropId: string) => {
     try {
-      await CollecteService.deleteCrop(cropId, agentId || '');
-      fetchCrops(); // Rafraîchir la liste
+      console.log('🌾 [PLOT_DETAIL] Suppression de la culture:', cropId);
+      
+      // Utiliser CropsService directement
+      const { CropsServiceInstance } = await import('../../../../lib/services/domain/crops');
+      await CropsServiceInstance.deleteCrop(cropId, plotId);
+      
+      console.log('✅ [PLOT_DETAIL] Culture supprimée avec succès');
+      
+      // Le hook se rafraîchira automatiquement
     } catch (error) {
-      console.error('Erreur lors de la suppression:', error);
+      console.error('❌ [PLOT_DETAIL] Erreur lors de la suppression:', error);
     }
   };
 
   const renderCropItem = ({ item }: { item: Crop }) => {
     const statusStyle = getStatusStyle(item.status);
     return (
-      <View style={styles.cropItem}>
-        <View style={styles.cropInfo}>
-          <Text style={styles.cropType}>{item.crop_type}</Text>
-          <Text style={styles.cropVariety}>{item.variety}</Text>
-          <Text style={styles.cropDate}>
+      <HStack space={4} py={3} borderBottomWidth={1} borderBottomColor="gray.100">
+        <VStack flex={1} space={1}>
+          <Text fontSize="md" fontWeight="600" color="gray.900">
+            {item.crop_type}
+          </Text>
+          <Text fontSize="sm" color="gray.600">
+            {item.variety}
+          </Text>
+          <Text fontSize="sm" color="gray.600">
             Semis: {new Date(item.sowing_date).toLocaleDateString('fr-FR')}
           </Text>
-        </View>
-        <View style={styles.cropActions}>
-          <View style={[styles.cropStatus, statusStyle]}>
-            <Text style={[styles.cropStatusText, { color: statusStyle.color }]}>
-              {item.status}
-            </Text>
-          </View>
-          <View style={styles.actionButtons}>
-            <TouchableOpacity 
-              onPress={() => handleEditCrop(item.id)} 
-              style={styles.actionButton}
+        </VStack>
+        <VStack space={2} alignItems="flex-end">
+          <Badge
+            bg={statusStyle.backgroundColor}
+            _text={{ color: statusStyle.color, fontSize: 'xs', fontWeight: 'bold' }}
+            px={2}
+            py={1}
+            borderRadius="md"
+          >
+            {item.status}
+          </Badge>
+          <HStack space={2}>
+            <Pressable
+              p={2}
+              borderRadius="md"
+              bg="gray.100"
+              onPress={() => handleEditCrop(item.id)}
             >
               <Feather name="edit" size={16} color="#3D944B" />
-            </TouchableOpacity>
-            <TouchableOpacity 
-              onPress={() => handleDeleteCrop(item.id)} 
-              style={styles.actionButton}
+            </Pressable>
+            <Pressable
+              p={2}
+              borderRadius="md"
+              bg="gray.100"
+              onPress={() => handleDeleteCrop(item.id)}
             >
               <Feather name="trash-2" size={16} color="#ef4444" />
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
+            </Pressable>
+          </HStack>
+        </VStack>
+      </HStack>
     );
   };
 
   return (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle}>Cultures</Text>
-        <TouchableOpacity onPress={() => router.push(`/(tabs)/parcelles/${plotId}/cultures/add`)}>
+    <Box bg="white" borderRadius="xl" p={4} mb={4} shadow={2}>
+      <HStack justifyContent="space-between" alignItems="center" mb={3}>
+        <Text fontSize="lg" fontWeight="bold" color="gray.900">
+          Cultures
+        </Text>
+        <Pressable onPress={() => router.push(`/(tabs)/parcelles/${plotId}/cultures/add`)}>
           <Feather name="plus-circle" size={24} color="#3D944B" />
-        </TouchableOpacity>
-      </View>
-      {loading ? (
+        </Pressable>
+      </HStack>
+      {cropsLoading ? (
         <ActivityIndicator color="#3D944B" style={{ marginVertical: 20 }} />
-      ) : crops.length === 0 ? (
-        <Text style={styles.emptyText}>Aucune culture enregistrée pour cette parcelle.</Text>
+      ) : cropsError ? (
+        <Text textAlign="center" color="red.500" py={4}>
+          Erreur: {cropsError.message}
+        </Text>
+      ) : crops?.length === 0 ? (
+        <Text textAlign="center" color="gray.500" py={4}>
+          Aucune culture enregistrée pour cette parcelle.
+        </Text>
       ) : (
         <FlatList
           data={crops}
@@ -505,64 +716,112 @@ const CulturesCard = ({ plotId, router, agentId }: { plotId: string; router: any
           scrollEnabled={false}
         />
       )}
-    </View>
+    </Box>
   );
 };
 
 const LatestIntrantsCard = ({ plotId, onSeeAll }: { plotId: string; onSeeAll: () => void }) => {
-  const [inputs, setInputs] = useState<InputDisplay[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Utiliser le hook pour récupérer les derniers intrants
+  const { data: inputs, loading: inputsLoading, error: inputsError } = useLatestInputs(plotId);
 
-  const fetchInputs = React.useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await CollecteService.getLatestInputs(plotId);
-      setInputs(data);
-    } catch (error) {
-      console.error("Failed to fetch latest inputs:", error);
-    } finally {
-      setLoading(false);
+  console.log('🌱 [PLOT_DETAIL] Derniers intrants récupérés:', { 
+    count: inputs?.length || 0, 
+    loading: inputsLoading, 
+    error: inputsError?.message 
+  });
+
+  const getInputIcon = (category: string) => {
+    if (!category) return 'package';
+    switch (category.toLowerCase()) {
+      case 'semence':
+        return 'sun';
+      case 'engrais':
+        return 'trending-up';
+      case 'pesticide':
+        return 'shield';
+      case 'herbicide':
+        return 'slash';
+      case 'autre':
+        return 'package';
+      default:
+        return 'package';
     }
-  }, [plotId]);
+  };
 
-  useEffect(() => {
-    fetchInputs();
-  }, [fetchInputs]);
-
-  useFocusEffect(
-    React.useCallback(() => {
-      fetchInputs();
-    }, [fetchInputs])
-  );
+  const getInputColor = (category: string) => {
+    if (!category) return '#6b7280';
+    switch (category.toLowerCase()) {
+      case 'semence':
+        return '#4CAF50';
+      case 'engrais':
+        return '#FF9800';
+      case 'pesticide':
+        return '#F44336';
+      case 'herbicide':
+        return '#9C27B0';
+      case 'autre':
+        return '#6b7280';
+      default:
+        return '#6b7280';
+    }
+  };
 
   const renderItem = ({ item }: { item: InputDisplay }) => {
-    const iconName = inputIcons[item.category.toLowerCase()] || 'package';
+    const iconName = getInputIcon(item.category);
+    const iconColor = getInputColor(item.category);
+    
     return (
-      <View style={styles.intrantItem}>
-        <View style={styles.intrantIconContainer}>
-          <Feather name={iconName} size={20} color="#3D944B" />
-        </View>
-        <View style={styles.intrantDetails}>
-          <Text style={styles.intrantCategory}>{item.category}</Text>
-          <Text style={styles.intrantQuantity}>{item.quantity} {item.unit}</Text>
-        </View>
-        <Text style={styles.intrantDate}>{item.date}</Text>
-      </View>
+      <HStack space={4} py={3} borderBottomWidth={1} borderBottomColor="gray.100">
+        <Box
+          w={12}
+          h={12}
+          borderRadius="full"
+          bg={`${iconColor}20`}
+          justifyContent="center"
+          alignItems="center"
+        >
+          <Feather name={iconName} size={24} color={iconColor} />
+        </Box>
+        <VStack flex={1} space={1}>
+          <Text fontSize="md" fontWeight="600" color="gray.900" textTransform="capitalize">
+            {item.category}
+          </Text>
+          <Text fontSize="sm" color="gray.600">
+            {item.label}
+          </Text>
+          <Text fontSize="sm" color="gray.700">
+            {item.quantity} {item.unit}
+          </Text>
+        </VStack>
+        <Text fontSize="xs" color="gray.500">
+          {item.date}
+        </Text>
+      </HStack>
     );
   };
   
   return (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle}>Derniers Intrants</Text>
-        <TouchableOpacity onPress={onSeeAll}>
-          <Text style={styles.seeAllButton}>Voir tout</Text>
-        </TouchableOpacity>
-      </View>
-      {loading ? (
+    <Box bg="white" borderRadius="xl" p={4} mb={4} shadow={2}>
+      <HStack justifyContent="space-between" alignItems="center" mb={3}>
+        <Text fontSize="lg" fontWeight="bold" color="gray.900">
+          Derniers Intrants
+        </Text>
+        <Pressable onPress={onSeeAll}>
+          <Text color="primary.500" fontWeight="600" fontSize="sm">
+            Voir tout
+          </Text>
+        </Pressable>
+      </HStack>
+      {inputsLoading ? (
         <ActivityIndicator color="#3D944B" style={{ marginVertical: 20 }}/>
-      ) : inputs.length === 0 ? (
-        <Text style={styles.emptyText}>Aucun intrant récent.</Text>
+      ) : inputsError ? (
+        <Text textAlign="center" color="red.500" py={4}>
+          Erreur: {inputsError.message}
+        </Text>
+      ) : inputs?.length === 0 ? (
+        <Text textAlign="center" color="gray.500" py={4}>
+          Aucun intrant récent.
+        </Text>
       ) : (
         <FlatList
           data={inputs}
@@ -571,7 +830,7 @@ const LatestIntrantsCard = ({ plotId, onSeeAll }: { plotId: string; onSeeAll: ()
           scrollEnabled={false}
         />
       )}
-    </View>
+    </Box>
   );
 };
 
@@ -588,218 +847,259 @@ const operationIcons: { [key: string]: keyof typeof Feather.glyphMap } = {
 };
 
 
-const OperationsCard = ({ plotId }: { plotId: string }) => {
-  const router = useRouter();
-  const [operations, setOperations] = useState<OperationDisplay[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchOperations = async () => {
-      try {
-        setLoading(true);
-        const data = await CollecteService.getOperationsByPlotId(plotId);
-        setOperations(data);
-      } catch (error) {
-        console.error("Failed to fetch operations:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchOperations();
-  }, [plotId]);
-  
-  const renderItem = ({ item }: { item: OperationDisplay }) => {
-    const iconName = operationIcons[item.type] || operationIcons.default;
-    
-    return (
-      <View style={styles.operationItem}>
-        <View style={styles.operationIconContainer}>
-          <Feather name={iconName} size={24} color="#3D944B" />
-        </View>
-        <View style={styles.operationDetails}>
-          <Text style={styles.operationType}>{item.type}</Text>
-          <Text style={styles.operationDate}>{item.date} {item.author && `par ${item.author}`}</Text>
-          {item.product && <Text style={styles.operationProduct}>Produit: {item.product}</Text>}
-          {item.description && <Text style={styles.operationDescription}>{item.description}</Text>}
-        </View>
-      </View>
-    );
-  };
-
-  return (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle}>Opérations Agricoles</Text>
-        <TouchableOpacity onPress={() => router.push(`/parcelles/${plotId}/operations/add`)}>
-          <Feather name="plus-circle" size={24} color="#3D944B" />
-        </TouchableOpacity>
-      </View>
-      {loading ? (
-        <ActivityIndicator color="#3D944B" style={{ marginVertical: 20 }}/>
-      ) : operations.length === 0 ? (
-        <Text style={styles.emptyText}>Aucune opération enregistrée pour cette parcelle.</Text>
-      ) : (
-        <FlatList
-          data={operations}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
-          scrollEnabled={false}
-        />
-      )}
-    </View>
-  );
-};
-
-const inputIcons: { [key: string]: keyof typeof Feather.glyphMap } = {
-  semence: 'sun',
-  engrais: 'trending-up',
-  pesticide: 'shield',
-  herbicide: 'slash',
-  autre: 'package',
-};
 
 
-const IntrantsCard = ({ plotId }: { plotId: string }) => {
-  const [inputs, setInputs] = useState<InputDisplay[]>([]);
-  const [loading, setLoading] = useState(true);
-  const router = useRouter();
 
-  useEffect(() => {
-    const fetchInputs = async () => {
-      try {
-        setLoading(true);
-        const data = await CollecteService.getInputsByPlotId(plotId);
-        setInputs(data);
-      } catch (error) {
-        console.error("Failed to fetch inputs:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchInputs();
-  }, [plotId]);
-
-  const renderItem = ({ item }: { item: InputDisplay }) => {
-    const iconName = inputIcons[item.category.toLowerCase()] || 'package';
-    return (
-      <View style={styles.intrantItem}>
-        <View style={styles.intrantIconContainer}>
-          <Feather name={iconName} size={24} color="#3D944B" />
-        </View>
-        <View style={styles.intrantDetails}>
-          <Text style={styles.intrantCategory}>{item.category}</Text>
-          <Text style={styles.intrantLabel}>{item.label}</Text>
-          <Text style={styles.intrantQuantity}>{item.quantity} {item.unit}</Text>
-        </View>
-        <Text style={styles.intrantDate}>{item.date}</Text>
-      </View>
-    );
-  };
-  
-  return (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle}>Intrants</Text>
-        <TouchableOpacity onPress={() => router.push(`/(tabs)/parcelles/${plotId}/intrants/add`)}>
-          <Feather name="plus-circle" size={24} color="#3D944B" />
-        </TouchableOpacity>
-      </View>
-      {loading ? (
-        <ActivityIndicator color="#3D944B" style={{ marginVertical: 20 }}/>
-      ) : inputs.length === 0 ? (
-        <Text style={styles.emptyText}>Aucun intrant enregistré.</Text>
-      ) : (
-        <FlatList
-          data={inputs}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
-          scrollEnabled={false}
-        />
-      )}
-    </View>
-  );
-};
 
 
 const ParcelleDashboardScreen: React.FC = () => {
   const { plotId } = useLocalSearchParams<{ plotId: string }>();
   const router = useRouter();
   const { user } = useAuth();
+  const theme = useTheme();
 
-  const [plot, setPlot] = useState<PlotDisplay | null>(null);
-  const [activeCrop, setActiveCrop] = useState<Crop | null>(null);
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('Infos');
 
-  useEffect(() => {
-    if (plotId && user?.id) {
-      const loadData = async () => {
-        try {
-          setLoading(true);
-          const plotData = await CollecteService.getPlotById(plotId, user.id);
-          setPlot(plotData);
+  console.log('🏞️ [PLOT_DETAIL] Écran de détail parcelle initialisé:', {
+    plotId,
+    user: user?.id,
+    activeTab
+  });
 
-          let cropData = await CollecteService.getActiveCropByPlotId(plotId);
-          
-          if (!cropData) {
-            console.log(`🌽 Aucune culture active trouvée. Tentative de création d'une culture par défaut...`);
-            const currentSeason = await CollecteService.getCurrentSeason();
-            if (currentSeason) {
-              console.log(`📅 Utilisation de la saison active: ${currentSeason.name} (${currentSeason.id})`);
-              const newCrop = await CollecteService.createCrop({
-                plot_id: plotId,
-                season_id: currentSeason.id,
-                crop_type: 'Maize',
-                variety: 'Default Variety',
-                sowing_date: new Date().toISOString(),
-                status: 'en_cours',
-                created_by: plotData?.createdBy || null,
-              }, user?.id);
-              cropData = newCrop;
-            } else {
-              console.warn("⚠️ Impossible de créer une culture par défaut : aucune saison active n'a été trouvée.");
-            }
-          }
-          
-          setActiveCrop(cropData);
+  // Utiliser les nouveaux hooks pour récupérer les données
+  const { data: plot, loading: plotLoading, error: plotError } = usePlotById(plotId, {
+    refetchOnMount: true,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
 
-        } catch (err) {
-          console.error("Failed to load plot data:", err);
-        } finally {
-          setLoading(false);
-        }
-      };
-      loadData();
-    }
-  }, [plotId, user?.id]);
+  const { crop: activeCrop, loading: cropLoading, error: cropError } = useActiveCrop(plotId || '', {
+    refetchOnMount: true,
+    cacheTTL: 2 * 60 * 1000, // 2 minutes
+  });
+
+  const loading = plotLoading || cropLoading;
+  const error = plotError || cropError;
+
+  console.log('🏞️ [PLOT_DETAIL] État des hooks:', {
+    plotId,
+    plot: plot ? { 
+      name: plot.name_season_snapshot, 
+      area: plot.area_hectares,
+      status: plot.status,
+      producer_name: plot.producer_name,
+      id: plot.id,
+      // Test des alias
+      name_alias: plot.name,
+      area_alias: plot.area,
+      producerName_alias: plot.producerName
+    } : null,
+    activeCrop: activeCrop ? { 
+      id: activeCrop.id, 
+      variety: activeCrop.variety,
+      crop_type: activeCrop.crop_type,
+      status: activeCrop.status
+    } : null,
+    plotLoading,
+    cropLoading,
+    plotError: plotError?.message,
+    cropError: cropError?.message,
+    loading,
+    error: error?.message
+  });
 
   const TabButton = ({ title, isActive, onPress }: { title: string; isActive: boolean; onPress: () => void }) => (
-    <TouchableOpacity onPress={onPress} style={[styles.tab, isActive && styles.activeTab]}>
-      <Text style={[styles.tabText, isActive && styles.activeTabText]}>{title}</Text>
-    </TouchableOpacity>
+    <Pressable 
+      onPress={onPress} 
+      py={3}
+      px={4}
+      borderBottomWidth={2}
+      borderBottomColor={isActive ? (theme.colors.primary?.[500] || '#3D944B') : 'transparent'}
+    >
+      <Text 
+        color={isActive ? (theme.colors.primary?.[500] || '#3D944B') : 'gray.600'}
+        fontWeight="semibold"
+        fontSize="sm"
+      >
+        {title}
+      </Text>
+    </Pressable>
   );
 
   if (loading) {
-    return <ActivityIndicator style={{ flex: 1, justifyContent: 'center' }} size="large" />;
+    console.log('🏞️ [PLOT_DETAIL] État de chargement:', { plotLoading, cropLoading, loading });
+    return (
+      <ScreenContainer 
+        title="Détail Parcelle"
+        showSubHeader={true}
+        showBackButton={false}
+        animationEnabled={true}
+      >
+        <Box flex={1} justifyContent="center" alignItems="center">
+          <ActivityIndicator size="large" color={theme.colors.primary?.[500] || '#3D944B'} />
+          <Text mt={4} fontSize="md" color="gray.600">Chargement des données...</Text>
+        </Box>
+      </ScreenContainer>
+    );
   }
 
-  return (
-    <ContentWithHeader style={{flex: 1}}>
-      <ScrollView style={styles.container}>
-        <View style={styles.headerImageContainer}>
-          <Image 
-            source={{ uri: 'https://via.placeholder.com/400x200.png/a3e6bd/ffffff?text=Photo+Parcelle' }} 
-            style={styles.headerImage} 
-          />
-          <View style={styles.headerOverlay}>
-            <Text style={styles.headerTitle}>{plot?.producerName} / {plot?.name}</Text>
-            <View style={styles.headerBadge}>
-              <Text style={styles.headerBadgeText}>{plot?.area?.toFixed(2)} ha</Text>
-            </View>
-          </View>
-        </View>
+  if (error) {
+    console.log('🏞️ [PLOT_DETAIL] Erreur détectée:', { 
+      plotError: plotError?.message, 
+      cropError: cropError?.message, 
+      error: error?.message 
+    });
+    return (
+      <ScreenContainer 
+        title="Détail Parcelle"
+        showSubHeader={true}
+        showBackButton={false}
+        animationEnabled={true}
+      >
+        <Box flex={1} justifyContent="center" alignItems="center" p={4}>
+          <Feather name="alert-circle" size={48} color={theme.colors.error?.[500] || '#ef4444'} />
+          <Text mt={4} fontSize="lg" fontWeight="semibold" color="gray.800" textAlign="center">
+            Erreur de chargement
+          </Text>
+          <Text mt={2} fontSize="sm" color="gray.600" textAlign="center">
+            Impossible de charger les données de la parcelle
+          </Text>
+          <Text mt={1} fontSize="xs" color="gray.500" textAlign="center">
+            {error?.message || 'Erreur inconnue'}
+          </Text>
+        </Box>
+      </ScreenContainer>
+    );
+  }
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabBar}>
+  console.log('🏞️ [PLOT_DETAIL] Rendu principal:', {
+    plot: plot ? { 
+      name: plot.name_season_snapshot, 
+      area: plot.area_hectares,
+      status: plot.status 
+    } : null,
+    activeCrop: activeCrop ? { 
+      id: activeCrop.id, 
+      variety: activeCrop.variety,
+      crop_type: activeCrop.crop_type 
+    } : null,
+    activeTab
+  });
+
+  return (
+    <ScreenContainer 
+      title="Détail Parcelle"
+      subtitle={plot?.name_season_snapshot || 'N/A'}
+      showSubHeader={true}
+      showBackButton={true}
+      subHeaderActions={
+        <HStackIcon space={2}>
+          <PressableIcon
+            onPress={() => {
+              // Action pour partager
+              console.log('Partager parcelle');
+            }}
+            p={2}
+            borderRadius="md"
+            _pressed={{ bg: 'gray.100' }}
+          >
+            <Ionicons name="share-outline" size={20} color={theme.colors.primary?.[500] || '#3D944B'} />
+          </PressableIcon>
+          <PressableIcon
+            onPress={() => {
+              // Action pour menu
+              console.log('Menu parcelle');
+            }}
+            p={2}
+            borderRadius="md"
+            _pressed={{ bg: 'gray.100' }}
+          >
+            <Ionicons name="ellipsis-horizontal" size={20} color={theme.colors.primary?.[500] || '#3D944B'} />
+          </PressableIcon>
+        </HStackIcon>
+      }
+      animationEnabled={true}
+    >
+      <ScrollView flex={1} bg="gray.50">
+        {/* Header avec photo de parcelle */}
+        <Box h={200} position="relative">
+          {plot ? (
+            <PhotoGallery
+              entityType="plot"
+              entityId={plotId!}
+              title=""
+              maxPhotos={1}
+              showTitle={false}
+              isHeaderGallery={true}
+            />
+          ) : (
+            <Box 
+              flex={1} 
+              bg="green.100" 
+              justifyContent="center" 
+              alignItems="center"
+            >
+              <Feather name="map-pin" size={48} color={theme.colors.primary?.[500] || '#3D944B'} />
+              <Text color={theme.colors.primary?.[500] || '#3D944B'} fontSize="md" fontWeight="semibold" mt={2}>
+                Photo de parcelle
+              </Text>
+            </Box>
+          )}
+          <Box
+            position="absolute"
+            top={0}
+            left={0}
+            right={0}
+            bottom={0}
+            bg="rgba(0,0,0,0.4)"
+            p={4}
+            justifyContent="space-between"
+          >
+            <HStack justifyContent="space-between" alignItems="flex-start" mt={4}>
+              <Text color="white" fontSize="xl" fontWeight="bold" flex={1} mr={3}>
+                {plot?.producer_name} / {plot?.name_season_snapshot || plot?.name}
+              </Text>
+              <Badge bg="rgba(255,255,255,0.9)" borderRadius="full" px={3} py={1}>
+                <Text color="gray.900" fontWeight="bold" fontSize="sm">
+                  {plot?.area_hectares?.toFixed(2)} ha
+                </Text>
+              </Badge>
+            </HStack>
+            
+            <VStack alignItems="flex-start" my={2}>
+              <Badge bg="green.500" borderRadius="full" px={3} py={1}>
+                <Text color="white" fontSize="xs" fontWeight="bold">
+                  Cultivée
+                </Text>
+              </Badge>
+            </VStack>
+            
+            <HStack alignItems="center" mb={2}>
+              <Feather name="map-pin" size={16} color="green.400" />
+              <Text color="white" fontSize="sm" ml={2} flex={1}>
+                GPS: {plot?.center_point && typeof plot.center_point === 'object' && 'coordinates' in plot.center_point && Array.isArray((plot.center_point as any).coordinates) ? `${(plot.center_point as any).coordinates[1].toFixed(4)}°N` : '14.6928°N'}, {plot?.center_point && typeof plot.center_point === 'object' && 'coordinates' in plot.center_point && Array.isArray((plot.center_point as any).coordinates) ? `${(plot.center_point as any).coordinates[0].toFixed(4)}°W` : '17.4467°W'}
+              </Text>
+              <Pressable 
+                bg="rgba(76, 175, 80, 0.8)" 
+                px={3} 
+                py={1.5} 
+                borderRadius="lg" 
+                ml={2}
+              >
+                <Text color="white" fontSize="xs" fontWeight="semibold">
+                  Voir carte
+                </Text>
+              </Pressable>
+            </HStack>
+          </Box>
+        </Box>
+
+        {/* Tab Navigation */}
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false} 
+          bg="white"
+          px={2}
+        >
           <TabButton title="Infos" isActive={activeTab === 'Infos'} onPress={() => setActiveTab('Infos')} />
           <TabButton title="Cultures" isActive={activeTab === 'Cultures'} onPress={() => setActiveTab('Cultures')} />
           <TabButton title="Intrants" isActive={activeTab === 'Intrants'} onPress={() => setActiveTab('Intrants')} />
@@ -808,397 +1108,66 @@ const ParcelleDashboardScreen: React.FC = () => {
           <TabButton title="Conseils" isActive={activeTab === 'Conseils'} onPress={() => setActiveTab('Conseils')} />
         </ScrollView>
 
-        {activeTab === 'Infos' && (
-          <View style={styles.contentContainer}>
-            {plot && <InfoCard plot={plot} />}
-            {plot && <ActiveCropCard crop={activeCrop} />}
-            {plot && <IntervenantsCard plotId={plot.id} router={router} />}
-            {plot && <LatestIntrantsCard plotId={plot.id} onSeeAll={() => setActiveTab('Intrants')} />}
-            {plot && <LatestOperationsCard plotId={plot.id} onSeeAll={() => setActiveTab('Opérations')} />}
-            {plot && <LatestObservationsCard plotId={plot.id} router={router} />}
-            {plot && <LatestConseilsCard plotId={plot.id} onSeeAll={() => setActiveTab('Conseils')} />}
-          </View>
-        )}
-        {activeTab === 'Cultures' && (
-          <View style={styles.contentContainer}>
-            {plot && <CulturesCard plotId={plot.id} router={router} agentId={user?.id} />}
-          </View>
-        )}
-        {activeTab === 'Conseils' && (
-          <View style={styles.contentContainer}>
-            {plot && <ConseilsCard plotId={plot.id} />}
-          </View>
-        )}
-        {activeTab === 'Opérations' && (
-          <View style={styles.contentContainer}>
-            {plot && <OperationsCard plotId={plot.id} />}
-          </View>
-        )}
-        {activeTab === 'Observations' && (
-          <View style={styles.contentContainer}>
-            {plot && <LatestObservationsCard plotId={plot.id} router={router} />}
-          </View>
-        )}
-        {activeTab === 'Intrants' && (
-          <View style={styles.contentContainer}>
-            {plot && <IntrantsCard plotId={plot.id} />}
-          </View>
-        )}
-        {/* Other tabs content will go here */}
+        {/* Tab Content */}
+        <Box p={4}>
+          {activeTab === 'Infos' && (
+            <VStack space={4}>
+              {console.log('🏞️ [TAB_INFOS] Rendu onglet Infos:', { plot: !!plot, activeCrop: !!activeCrop })}
+              {plot && <InfoCard plot={plot} activeCrop={activeCrop} />}
+              {plot && <CurrentCropCard crop={activeCrop} />}
+              {plot && (
+                <Box bg="white" borderRadius="xl" p={4} shadow={2}>
+                  <PhotoGallery
+                    entityType="plot"
+                    entityId={plotId!}
+                    title="Photos de la parcelle"
+                    maxPhotos={10}
+                    showTitle={true}
+                  />
+                </Box>
+              )}
+              {plot && <ParticipantsCard plotId={plotId!} router={router} />}
+              {plot && <LatestIntrantsCard plotId={plotId!} onSeeAll={() => setActiveTab('Intrants')} />}
+              {plot && <LatestOperationsCard plotId={plotId!} onSeeAll={() => setActiveTab('Opérations')} />}
+              {plot && <ObservationsCard plotId={plotId!} onSeeAll={() => setActiveTab('Observations')} />}
+              {plot && <LatestConseilsCard plotId={plotId!} onSeeAll={() => setActiveTab('Conseils')} />}
+            </VStack>
+          )}
+          {activeTab === 'Cultures' && (
+            <VStack space={4}>
+              {console.log('🏞️ [TAB_CULTURES] Rendu onglet Cultures:', { plot: !!plot, plotId })}
+              {plot && <CulturesCard plotId={plotId!} router={router} agentId={user?.id} />}
+            </VStack>
+          )}
+          {activeTab === 'Conseils' && (
+            <VStack space={4}>
+              {console.log('🏞️ [TAB_CONSEILS] Rendu onglet Conseils:', { plot: !!plot, plotId })}
+              {plot && <ConseilsCard plotId={plotId!} />}
+            </VStack>
+          )}
+          {activeTab === 'Opérations' && (
+            <VStack space={4}>
+              {console.log('🏞️ [TAB_OPERATIONS] Rendu onglet Opérations:', { plot: !!plot, plotId })}
+              {plot && <OperationsCard plotId={plotId!} onSeeAll={() => router.push(`/(tabs)/parcelles/${plotId}/operations`)} />}
+            </VStack>
+          )}
+          {activeTab === 'Observations' && (
+            <VStack space={4}>
+              {console.log('🏞️ [TAB_OBSERVATIONS] Rendu onglet Observations:', { plot: !!plot, plotId })}
+              {plot && <ObservationsCard plotId={plotId!} onSeeAll={() => router.push(`/(tabs)/parcelles/${plotId}/observations`)} />}
+            </VStack>
+          )}
+          {activeTab === 'Intrants' && (
+            <VStack space={4}>
+              {console.log('🏞️ [TAB_INTRANTS] Rendu onglet Intrants:', { plot: !!plot, plotId })}
+              {plot && <IntrantsCard plotId={plotId!} onSeeAll={() => router.push(`/(tabs)/parcelles/${plotId}/intrants`)} />}
+            </VStack>
+          )}
+        </Box>
       </ScrollView>
-      <TouchableOpacity style={styles.fab}>
-        <Feather name="plus" size={24} color="#fff" />
-      </TouchableOpacity>
-    </ContentWithHeader>
+      
+    </ScreenContainer>
   );
 };
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f4f8' },
-  headerImageContainer: { height: 200 },
-  headerImage: { width: '100%', height: '100%' },
-  headerOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    padding: 16,
-    justifyContent: 'flex-end',
-  },
-  headerTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  headerBadge: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    backgroundColor: 'rgba(255,255,255,0.8)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  headerBadgeText: { color: '#111827', fontWeight: 'bold', fontSize: 12 },
-  tabBar: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    paddingHorizontal: 8,
-  },
-  tab: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  activeTab: {
-    borderBottomColor: '#3D944B',
-  },
-  tabText: {
-    color: '#6b7280',
-    fontWeight: '600',
-  },
-  activeTabText: {
-    color: '#3D944B',
-  },
-  content: {
-    padding: 16,
-  },
-  contentContainer: {
-    padding: 16,
-  },
-  fab: {
-    position: 'absolute',
-    bottom: 24,
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#3D944B',
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 4,
-  },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 12,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  addBtnText: {
-    color: '#3D944B',
-    fontWeight: '600',
-  },
-  infoGrid: {
-    flexDirection: 'row',
-    marginBottom: 12,
-  },
-  infoItem: {
-    flex: 1,
-  },
-  infoLabel: {
-    fontSize: 12,
-    color: '#6b7280',
-  },
-  infoValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginTop: 2,
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  intervenantItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 12,
-  },
-  intervenantInfo: {
-    flex: 1,
-  },
-  intervenantName: {
-    fontWeight: '600',
-    color: '#1f2937',
-  },
-  intervenantRole: {
-    fontSize: 12,
-    color: '#6b7280',
-  },
-  tag: {
-    fontSize: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  tagBlue: {
-    backgroundColor: '#e0f2fe',
-    color: '#0284c7',
-  },
-  tagGreen: {
-    backgroundColor: '#dcfce7',
-    color: '#16a34a',
-  },
-  tagGray: {
-    backgroundColor: '#f3f4f6',
-    color: '#4b5563',
-  },
-  noDataText: {
-    textAlign: 'center',
-    color: '#6b7280',
-    marginVertical: 16,
-  },
-  conseilItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  conseilContent: { flex: 1, marginLeft: 12 },
-  conseilHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  conseilTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 2,
-  },
-  conseilMessage: {
-    fontSize: 14,
-    color: '#6b7280',
-    lineHeight: 20,
-  },
-  conseilDate: { fontSize: 12, color: '#9ca3af' },
-  statusGray: { backgroundColor: '#f3f4f6', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
-  statusTextGray: { color: '#4b5563', fontSize: 10, fontWeight: 'bold' },
-  statusBlue: { backgroundColor: '#e0f2fe', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
-  statusTextBlue: { color: '#0284c7', fontSize: 10, fontWeight: 'bold' },
-  statusGreen: { backgroundColor: '#dcfce7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
-  statusTextGreen: { color: '#16a34a', fontSize: 10, fontWeight: 'bold' },
-  operationItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  operationIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#eefdf4',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  operationDetails: {
-    flex: 1,
-  },
-  operationType: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1f2937',
-    textTransform: 'capitalize',
-  },
-  operationDate: {
-    fontSize: 13,
-    color: '#6b7280',
-    marginTop: 2,
-  },
-  operationProduct: {
-    fontSize: 14,
-    color: '#374151',
-    marginTop: 4,
-    fontStyle: 'italic',
-  },
-  operationDescription: {
-    fontSize: 14,
-    color: '#4b5563',
-    marginTop: 4,
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: '#6b7280',
-    paddingVertical: 20,
-    fontStyle: 'italic',
-  },
-  intrantItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  intrantIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#eefdf4',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  intrantDetails: {
-    flex: 1,
-  },
-  intrantCategory: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1f2937',
-    textTransform: 'capitalize',
-  },
-  intrantLabel: {
-    fontSize: 14,
-    color: '#6b7280',
-  },
-  intrantQuantity: {
-    fontSize: 14,
-    color: '#374151',
-    marginTop: 2,
-  },
-  intrantDate: {
-    fontSize: 12,
-    color: '#9ca3af',
-  },
-  seeAllButton: {
-    color: '#3D944B',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  observationItem: {
-    flexDirection: 'row',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  observationTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1f2937',
-    textTransform: 'capitalize',
-  },
-  observationDate: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginTop: 2,
-    marginBottom: 4,
-  },
-  observationDescription: {
-    fontSize: 14,
-    color: '#374151',
-    lineHeight: 20,
-  },
-  cropItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  cropInfo: {
-    flex: 1,
-  },
-  cropActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: 4,
-  },
-  actionButton: {
-    padding: 4,
-    borderRadius: 4,
-    backgroundColor: '#f3f4f6',
-  },
-  cropType: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1f2937',
-    textTransform: 'capitalize',
-  },
-  cropVariety: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginTop: 2,
-  },
-  cropDate: {
-    fontSize: 12,
-    color: '#9ca3af',
-    marginTop: 4,
-  },
-  cropStatus: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  cropStatusText: {
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  },
-});
 
 export default ParcelleDashboardScreen;

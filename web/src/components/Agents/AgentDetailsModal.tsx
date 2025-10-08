@@ -18,7 +18,8 @@ import {
   Map,
   AlertTriangle,
   CheckCircle,
-  Clock
+  Clock,
+  BarChart3
 } from 'lucide-react';
 
 interface AgentDetailsModalProps {
@@ -226,7 +227,7 @@ const AgentDetailsModal: React.FC<AgentDetailsModalProps> = ({
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                       <div className="text-center">
                         <div className="text-3xl font-bold text-blue-600">{performance.totalVisits || 0}</div>
                         <div className="text-sm text-gray-600">Total visites</div>
@@ -238,6 +239,20 @@ const AgentDetailsModal: React.FC<AgentDetailsModalProps> = ({
                       <div className="text-center">
                         <div className="text-3xl font-bold text-purple-600">{performance.totalPlots || 0}</div>
                         <div className="text-sm text-gray-600">Parcelles suivies</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-3xl font-bold text-indigo-600">{performance.totalOperations || 0}</div>
+                        <div className="text-sm text-gray-600">Opérations réalisées</div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                      <div className="text-center">
+                        <div className="text-3xl font-bold text-teal-600">{performance.totalObservations || 0}</div>
+                        <div className="text-sm text-gray-600">Observations effectuées</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-3xl font-bold text-cyan-600">{performance.visitsThisMonth || 0}</div>
+                        <div className="text-sm text-gray-600">Visites ce mois</div>
                       </div>
                     </div>
                   </CardContent>
@@ -251,14 +266,74 @@ const AgentDetailsModal: React.FC<AgentDetailsModalProps> = ({
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div className="text-center">
                         <div className="text-3xl font-bold text-orange-600">{performance.avgVisitsPerMonth?.toFixed(1) || '0.0'}</div>
                         <div className="text-sm text-gray-600">Visites/mois (moyenne)</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-3xl font-bold text-red-600">{(performance.dataQualityRate * 100)?.toFixed(1) || '0.0'}%</div>
+                        <div className="text-3xl font-bold text-pink-600">{performance.avgVisitsPerProducer?.toFixed(1) || '0.0'}</div>
+                        <div className="text-sm text-gray-600">Visites/producteur</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-3xl font-bold text-red-600">{performance.dataQualityRate?.toFixed(1) || '0.0'}%</div>
                         <div className="text-sm text-gray-600">Qualité des données</div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <Clock className="h-5 w-5" />
+                      <span>Métriques temporelles</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="text-center">
+                        <div className="text-3xl font-bold text-emerald-600">{performance.avgVisitDuration?.toFixed(0) || '0'} min</div>
+                        <div className="text-sm text-gray-600">Durée moyenne visite</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-3xl font-bold text-lime-600">{performance.avgDataEntryTime?.toFixed(0) || '0'} min</div>
+                        <div className="text-sm text-gray-600">Temps saisie données</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-sm font-bold text-gray-600">
+                          {performance.lastSyncDate ? new Date(performance.lastSyncDate).toLocaleDateString('fr-FR') : 'Jamais'}
+                        </div>
+                        <div className="text-sm text-gray-600">Dernière synchronisation</div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <BarChart3 className="h-5 w-5" />
+                      <span>Métriques de qualité</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                      <div className="text-center">
+                        <div className="text-3xl font-bold text-violet-600">{performance.dataCompletionRate?.toFixed(1) || '0.0'}%</div>
+                        <div className="text-sm text-gray-600">Taux complétion données</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-3xl font-bold text-amber-600">{performance.photosPerPlot?.toFixed(1) || '0.0'}</div>
+                        <div className="text-sm text-gray-600">Photos/parcelle</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-3xl font-bold text-sky-600">{performance.gpsAccuracyRate?.toFixed(1) || '0.0'}%</div>
+                        <div className="text-sm text-gray-600">Précision GPS</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-3xl font-bold text-rose-600">{performance.syncSuccessRate?.toFixed(1) || '0.0'}%</div>
+                        <div className="text-sm text-gray-600">Taux sync réussie</div>
                       </div>
                     </div>
                   </CardContent>

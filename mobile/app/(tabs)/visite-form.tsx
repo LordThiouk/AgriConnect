@@ -1,20 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
-  TouchableOpacity, 
   Alert,
-  ActivityIndicator 
+  ActivityIndicator,
+  TouchableOpacity 
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { Text, VStack, Spinner, Box, HStack, Icon } from 'native-base';
+import { FormInput, FormSelect, FormDatePicker, ScreenContainer, FormField } from '../../components/ui';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
-import { CollecteService } from '../../lib/services/collecte';
-import { ProducerDisplay, PlotDisplay } from '../../types/collecte';
-import ContentWithHeader from '../../components/ContentWithHeader';
-import Dropdown from '../../components/Dropdown';
-import CustomDateTimePicker from '../../components/DateTimePicker';
+import { VisitsService } from '../../lib/services/domain/visits';
+import { PlotsService } from '../../lib/services/domain/plots';
+import { useProducers } from '../../lib/hooks/useProducers';
+import { ProducerDisplay, PlotDisplay } from '../../lib/types/core/collecte';
 import { Feather } from '@expo/vector-icons';
 
 // Types pour le formulaire de visite
@@ -22,23 +19,35 @@ interface VisiteFormData {
   producer_id: string;
   plot_id?: string;
   visit_date: string;
-  visit_type: 'planned' | 'follow_up' | 'emergency' | 'routine';
-  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'no_show';
-  duration_minutes?: number;
-  location_latitude?: number;
-  location_longitude?: number;
-  notes?: string;
-  weather_conditions?: string;
+  visit_type: string;
+  status: string;
+  duration_minutes: number;
+  notes: string;
+  weather_conditions: string;
 }
 
-export default function VisiteFormScreen() {
-  const { user } = useAuth();
+export default function VisiteForm() {
   const router = useRouter();
+  const { user } = useAuth();
+  const { edit, emergency, alertId, producerId, plotId, notes, alertTitle, alertDescription } = useLocalSearchParams<{
+    edit?: string;
+    emergency?: string;
+    alertId?: string;
+    producerId?: string;
+    plotId?: string;
+    notes?: string;
+    alertTitle?: string;
+    alertDescription?: string;
+  }>();
   const [loading, setLoading] = useState(false);
-  const [producers, setProducers] = useState<ProducerDisplay[]>([]);
   const [plots, setPlots] = useState<PlotDisplay[]>([]);
   const [selectedProducer, setSelectedProducer] = useState<ProducerDisplay | null>(null);
   const [selectedPlot, setSelectedPlot] = useState<PlotDisplay | null>(null);
+  const [isEditMode, setIsEditMode] = useState(!!edit);
+  const [visitId, setVisitId] = useState<string | null>(edit || null);
+  
+  // Utiliser le hook pour les producteurs
+  const { producers, loading: producersLoading } = useProducers(user?.id || null);
   
   const [formData, setFormData] = useState<VisiteFormData>({
     producer_id: '',
@@ -51,71 +60,351 @@ export default function VisiteFormScreen() {
     weather_conditions: ''
   });
 
-  // Charger les producteurs et parcelles
+  // Charger les parcelles
   useEffect(() => {
-    loadData();
+    if (user?.id) {
+      // Cette fonction sera définie plus tard
+      console.log('Chargement des parcelles pour user:', user.id);
+    }
   }, [user?.id]);
 
-  const loadData = async () => {
-    if (!user?.id) return;
+  // S'assurer que la parcelle est sélectionnée en mode édition
+  useEffect(() => {
+    console.log('🔄 useEffect déclenché:', { isEditMode, selectedPlot: !!selectedPlot, plotsLength: plots.length });
+    
+    if (isEditMode && plots.length > 0 && formData.plot_id && !selectedPlot) {
+      console.log('🔄 Recherche de la parcelle à sélectionner en mode édition');
+      console.log('   formData.plot_id:', formData.plot_id);
+      console.log('   plots disponibles:', plots.map(p => ({ id: p.id, name: p.name })));
+      
+      const plotToSelect = plots.find(p => p.id === formData.plot_id);
+      if (plotToSelect) {
+        console.log('✅ Parcelle trouvée, sélection en cours:', plotToSelect.name);
+        setSelectedPlot(plotToSelect);
+      } else {
+        console.log('⚠️ Parcelle non trouvée dans la liste pour formData.plot_id:', formData.plot_id);
+      }
+    } else {
+      console.log('⚠️ Conditions non remplies pour la sélection de parcelle');
+    }
+  }, [isEditMode, selectedPlot, plots, formData.plot_id]);
+
+  // Fonction pour charger les données de visite
+  const loadVisitData = useCallback(async () => {
+    if (!edit) return;
     
     try {
       setLoading(true);
-      console.log('🔄 Chargement des producteurs pour user.id:', user.id);
+      setIsEditMode(true);
+      setVisitId(edit);
       
-      // Utiliser la nouvelle méthode qui gère la conversion user_id -> profile.id
-      const producersData = await CollecteService.getProducersByUserId(user.id);
-      console.log('✅ Producteurs récupérés:', producersData.length);
-      console.log('📋 Détails des producteurs:', producersData);
+      console.log('🔍 Chargement des données de visite pour édition via VisitsService:', edit);
       
-      setProducers(producersData);
-      setPlots([]); // Les parcelles seront chargées dynamiquement selon le producteur sélectionné
+      // Utiliser le nouveau service VisitsService avec cache
+      const visitData = await VisitsService.getVisitForEdit(edit);
+      
+      if (!visitData) {
+        console.error('❌ Visite non trouvée ou accès refusé:', edit);
+        Alert.alert(
+          'Visite introuvable', 
+          'Cette visite n\'existe plus ou vous n\'avez pas l\'autorisation de la modifier.',
+          [
+            { text: 'OK', onPress: () => router.back() }
+          ]
+        );
+        return;
+      }
+      
+      console.log('✅ Données de visite chargées via RPC:', {
+        visit: visitData.visit?.id,
+        producer: visitData.producer?.first_name + ' ' + visitData.producer?.last_name,
+        plot: visitData.plot?.name
+      });
+      
+      // Pré-remplir le formulaire avec les données de la visite
+      setFormData({
+        producer_id: visitData.visit.producer_id,
+        plot_id: visitData.visit.plot_id,
+        visit_date: visitData.visit.visit_date,
+        visit_type: visitData.visit.visit_type,
+        status: visitData.visit.status,
+        duration_minutes: visitData.visit.duration_minutes?.toString() || '',
+        notes: visitData.visit.notes || '',
+        weather_conditions: visitData.visit.weather_conditions || ''
+      });
+
+      // Créer un objet producteur à partir des données RPC
+      const producerFromRPC: ProducerDisplay = {
+        id: visitData.producer.id,
+        name: `${visitData.producer.first_name} ${visitData.producer.last_name}`,
+        phone: visitData.producer.phone,
+        village: visitData.producer.village,
+        commune: visitData.producer.commune,
+        region: visitData.producer.region,
+        cooperative_id: visitData.producer.cooperative_id,
+        is_active: true,
+        isActive: true,
+        location: `${visitData.producer.village}, ${visitData.producer.commune}`,
+        cooperativeName: 'Coopérative',
+        plotsCount: 0
+      };
+      
+      // Créer un objet parcelle à partir des données RPC
+      const plotFromRPC: PlotDisplay = {
+        id: visitData.plot.id,
+        name: visitData.plot.name,
+        area_hectares: visitData.plot.area_hectares,
+        soil_type: visitData.plot.soil_type,
+        water_source: visitData.plot.water_source,
+        status: visitData.plot.status,
+        producer_id: visitData.visit.producer_id,
+        area: visitData.plot.area_hectares,
+        producerName: `${visitData.producer.first_name} ${visitData.producer.last_name}`,
+        cropsCount: 0,
+        hasGps: !!(visitData.plot.lat && visitData.plot.lon)
+      };
+      
+      console.log('✅ Producteur et parcelle créés à partir du RPC:', {
+        producer: producerFromRPC.name,
+        plot: plotFromRPC.name,
+        plotId: plotFromRPC.id,
+        area: plotFromRPC.area_hectares
+      });
+      
+      console.log('🔍 Données complètes de la parcelle RPC:', visitData.plot);
+      
+      // Sélectionner le producteur et la parcelle
+      setSelectedProducer(producerFromRPC);
+      setSelectedPlot(plotFromRPC);
+      
+      // Ajouter la parcelle aux listes si pas déjà présente
+      // Note: Les producteurs sont maintenant gérés par le hook useProducers
+      
+      setPlots(prev => {
+        const exists = prev.some(p => p.id === plotFromRPC.id);
+        const newPlots = exists ? prev : [...prev, plotFromRPC];
+        console.log('🔍 Parcelles après ajout:', newPlots.length, 'parcelles');
+        console.log('🔍 Parcelle ajoutée:', plotFromRPC.name, 'ID:', plotFromRPC.id);
+        return newPlots;
+      });
+      
+      console.log('✅ Données de visite chargées avec succès via RPC');
+      
     } catch (error) {
-      console.error('Erreur lors du chargement des données:', error);
-      Alert.alert('Erreur', 'Impossible de charger les données');
+      console.error('Erreur lors du chargement de la visite:', error);
+      Alert.alert('Erreur', 'Impossible de charger les données de la visite');
     } finally {
       setLoading(false);
     }
-  };
+  }, [edit, router]);
 
-  const handleProducerSelect = async (option: { value: string; label: string; subtitle?: string }) => {
-    const producer = producers.find(p => p.id === option.value);
-    if (!producer) return;
+  // Charger les données de visite en mode édition
+  useEffect(() => {
+    if (edit && user?.id) {
+      console.log('🔄 Chargement des données de visite en mode édition');
+      loadVisitData();
+    }
+  }, [edit, user?.id, loadVisitData]);
+
+  // Forcer la mise à jour du dropdown parcelle en mode édition
+  useEffect(() => {
+    if (isEditMode && selectedPlot && plots.length > 0) {
+      console.log('🔄 Forçage de la mise à jour du dropdown parcelle');
+      console.log('   selectedPlot:', selectedPlot.name, 'ID:', selectedPlot.id);
+      console.log('   plots.length:', plots.length);
+      console.log('   formData.plot_id:', formData.plot_id);
+      
+      // S'assurer que formData.plot_id correspond à selectedPlot.id
+      if (formData.plot_id !== selectedPlot.id) {
+        console.log('🔄 Mise à jour formData.plot_id pour correspondre à selectedPlot.id');
+        setFormData(prev => ({ ...prev, plot_id: selectedPlot.id }));
+      }
+    }
+  }, [isEditMode, selectedPlot, plots, formData.plot_id]);
+
+  // Forcer la sélection de la parcelle quand elle est ajoutée en mode édition
+  useEffect(() => {
+    if (isEditMode && plots.length > 0 && formData.plot_id && !selectedPlot) {
+      console.log('🔄 Recherche de la parcelle à sélectionner en mode édition');
+      console.log('   formData.plot_id:', formData.plot_id);
+      console.log('   plots disponibles:', plots.map(p => ({ id: p.id, name: p.name })));
+      
+      const plotToSelect = plots.find(p => p.id === formData.plot_id);
+      if (plotToSelect) {
+        console.log('✅ Parcelle trouvée, sélection en cours:', plotToSelect.name);
+        setSelectedPlot(plotToSelect);
+      } else {
+        console.log('⚠️ Parcelle non trouvée dans la liste pour formData.plot_id:', formData.plot_id);
+      }
+    }
+  }, [isEditMode, plots, formData.plot_id, selectedPlot]);
+
+  // Fonction pour charger les parcelles d'un producteur
+  const handleProducerSelect = useCallback(async (option: { value: string; label: string; subtitle?: string }) => {
+    console.log('🔄 handleProducerSelect appelé avec:', option);
+    const producer = producers?.find(p => p.id === option.value);
+    if (!producer) {
+      console.error('❌ Producteur non trouvé:', option.value);
+      console.log('📋 Producteurs disponibles:', producers?.map(p => ({ id: p.id, name: p.name })));
+      return;
+    }
     
-    setSelectedProducer(producer);
+    console.log('🔄 Sélection producteur:', producer.name);
+    setSelectedProducer(producer as unknown as ProducerDisplay);
     setFormData(prev => ({ ...prev, producer_id: producer.id }));
     
-    // Charger les parcelles du producteur sélectionné
+    // Charger les parcelles du producteur sélectionné via PlotsService
     try {
-      // Utiliser la nouvelle méthode qui gère la conversion user_id -> profile.id
-      const plotsData = await CollecteService.getPlotsByUserId(user?.id || '');
-      const producerPlots = plotsData.filter(plot => 
-        plot.producerName === producer.name
-      );
-      setPlots(producerPlots);
-    } catch (error) {
-      console.error('Erreur lors du chargement des parcelles:', error);
-      setPlots([]);
-    }
-  };
+      console.log('🔄 Chargement parcelles pour producteur via PlotsService:', producer.id);
+      
+      // Utiliser le nouveau service PlotsService avec cache
+      const plotsData = await PlotsService.getPlotsByProducerId(producer.id);
+      console.log('✅ Parcelles récupérées via PlotsService:', plotsData.length);
 
-  const handlePlotSelect = (option: { value: string; label: string; subtitle?: string }) => {
+      // Transformer les données pour le format attendu
+      const transformedPlots = plotsData.map(plot => ({
+        id: plot.id,
+        name: plot.name,
+        area: plot.area_hectares,
+        area_hectares: plot.area_hectares,
+        soil_type: plot.soil_type,
+        water_source: plot.water_source,
+        status: plot.status,
+        producerName: plot.producer_name,
+        producer_id: producer.id,
+        cropsCount: 0,
+        hasGps: !!(plot.lat && plot.lon)
+      }));
+
+      console.log('✅ Parcelles transformées:', transformedPlots.length);
+      console.log('📋 Parcelles disponibles:', transformedPlots.map(p => ({ id: p.id, name: p.name })));
+      
+      setPlots(transformedPlots);
+      console.log('✅ setPlots() appelé avec', transformedPlots.length, 'parcelles');
+    } catch (error) {
+      console.error('❌ Erreur lors du chargement des parcelles:', error);
+    }
+  }, [producers]);
+
+  // Fonction pour gérer les visites d'urgence
+  const handleEmergencyVisit = useCallback(async () => {
+    try {
+      console.log('🚨 Mode urgence activé:', {
+        alertId,
+        producerId,
+        plotId,
+        notes,
+        alertTitle,
+        alertDescription
+      });
+
+      // Pré-remplir le formulaire pour l'urgence
+      setFormData(prev => ({
+        ...prev,
+        producer_id: producerId || '',
+        plot_id: plotId || '',
+        visit_type: 'emergency',
+        status: 'scheduled',
+        notes: notes || `Visite d'urgence suite à: ${alertTitle || 'Alerte'}`,
+        weather_conditions: 'À déterminer'
+      }));
+
+      // Attendre que les données soient chargées
+      const waitForData = async (maxRetries = 10) => {
+        for (let i = 0; i < maxRetries; i++) {
+          if (producers && producers.length > 0) {
+            console.log('✅ Données producteurs chargées');
+            return true;
+          }
+          console.log(`⏳ Attente des données... (${i + 1}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+        return false;
+      };
+
+      const dataLoaded = await waitForData();
+      if (!dataLoaded) {
+        console.error('❌ Timeout: Données non chargées');
+        Alert.alert('Erreur', 'Impossible de charger les données des producteurs');
+        return;
+      }
+
+      // Sélectionner le producteur si fourni
+      if (producerId && producers) {
+        console.log('🔍 Recherche du producteur:', producerId);
+        const producer = producers.find(p => p.id === producerId);
+        console.log('📋 Producteurs disponibles:', producers.map(p => ({ id: p.id, name: p.name })));
+        
+        if (producer) {
+          console.log('✅ Producteur trouvé:', producer.name);
+          setSelectedProducer(producer as unknown as ProducerDisplay);
+          
+          // Charger les parcelles de ce producteur
+          await handleProducerSelect({ value: producer.id, label: producer.name || 'Producteur sans nom' });
+          
+          // Attendre que les parcelles soient chargées
+          const waitForPlots = async (maxRetries = 10) => {
+            for (let i = 0; i < maxRetries; i++) {
+              if (plots.length > 0) {
+                console.log('✅ Parcelles chargées');
+                return true;
+              }
+              console.log(`⏳ Attente des parcelles... (${i + 1}/${maxRetries})`);
+              await new Promise(resolve => setTimeout(resolve, 200));
+            }
+            return false;
+          };
+
+          const plotsLoaded = await waitForPlots();
+          if (plotsLoaded && plotId) {
+            console.log('🔍 Recherche de la parcelle:', plotId);
+            const plot = plots.find(p => p.id === plotId);
+            console.log('📋 Parcelles disponibles:', plots.map(p => ({ id: p.id, name: p.name })));
+            
+            if (plot) {
+              console.log('✅ Parcelle trouvée:', plot.name);
+              setSelectedPlot(plot);
+              setFormData(prev => ({
+                ...prev,
+                plot_id: plotId
+              }));
+            } else {
+              console.warn('⚠️ Parcelle non trouvée:', plotId);
+            }
+          }
+        } else {
+          console.warn('⚠️ Producteur non trouvé:', producerId);
+        }
+      }
+
+    } catch (error) {
+      console.error('❌ Erreur configuration visite d\'urgence:', error);
+      Alert.alert('Erreur', 'Impossible de configurer la visite d\'urgence');
+    }
+  }, [alertId, producerId, plotId, notes, alertTitle, alertDescription, producers, plots, handleProducerSelect]);
+
+  // Gérer les paramètres d'urgence
+  useEffect(() => {
+    if (emergency === 'true' && user?.id && producers && producers.length > 0) {
+      handleEmergencyVisit();
+    }
+  }, [emergency, user?.id, producers, handleEmergencyVisit]);
+
+  const handlePlotSelect = (option: { value: string; label: string }) => {
     if (option.value === '') {
       setSelectedPlot(null);
       setFormData(prev => ({ ...prev, plot_id: '' }));
       return;
     }
     
-    const plot = plots.find(p => p.id === option.value);
+    const plot = plots?.find(p => p.id === option.value);
     if (!plot) return;
     
     setSelectedPlot(plot);
     setFormData(prev => ({ ...prev, plot_id: plot.id }));
   };
 
-  const handleDateChange = (date: Date) => {
-    setFormData(prev => ({ ...prev, visit_date: date.toISOString() }));
-  };
+  // Cette fonction n'est plus utilisée car on utilise FormDatePicker
 
   const handleSubmit = async () => {
     if (!formData.producer_id) {
@@ -126,15 +415,42 @@ export default function VisiteFormScreen() {
     try {
       setLoading(true);
       
-      // TODO: Implémenter la création de visite via CollecteService
-      console.log('Création de visite:', formData);
-      
-      Alert.alert('Succès', 'Visite créée avec succès', [
-        { text: 'OK', onPress: () => router.back() }
-      ]);
+      // Préparer les données de visite
+      const visitData = {
+        producer_id: formData.producer_id,
+        plot_id: formData.plot_id || null,
+        visit_date: formData.visit_date,
+        visit_type: formData.visit_type,
+        status: formData.status,
+        duration_minutes: formData.duration_minutes ? parseInt(formData.duration_minutes.toString()) : null,
+        notes: formData.notes || null,
+        weather_conditions: formData.weather_conditions || null
+      };
+
+      if (isEditMode && visitId) {
+        // Mode édition
+        console.log('Mise à jour de visite via VisitsService:', visitData);
+        await VisitsService.updateVisit(visitId, visitData);
+        Alert.alert('Succès', 'Visite mise à jour avec succès');
+        // Redirection automatique après un court délai
+        setTimeout(() => {
+          router.push('/(tabs)/agent-dashboard');
+        }, 1000);
+      } else {
+        // Mode création
+        console.log('Création de visite via VisitsService:', visitData);
+        const data = await VisitsService.createVisit(user?.id || '', visitData);
+
+        console.log('✅ Visite créée avec succès:', data);
+        Alert.alert('Succès', 'Visite créée avec succès');
+        // Redirection automatique après un court délai
+        setTimeout(() => {
+          router.push('/(tabs)/agent-dashboard');
+        }, 1000);
+      }
     } catch (error) {
-      console.error('Erreur lors de la création de visite:', error);
-      Alert.alert('Erreur', 'Impossible de créer la visite');
+      console.error('Erreur lors de la soumission de visite:', error);
+      Alert.alert('Erreur', `Impossible de ${isEditMode ? 'mettre à jour' : 'créer'} la visite: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
     } finally {
       setLoading(false);
     }
@@ -156,285 +472,367 @@ export default function VisiteFormScreen() {
   ];
 
   // Préparer les options pour les dropdowns
-  const producerOptions = producers.map(producer => ({
+  const producerOptions = producers?.map(producer => ({
     value: producer.id,
-    label: producer.name,
+    label: producer.name || 'Producteur sans nom',
     subtitle: producer.location
-  }));
+  })) || [];
 
   const plotOptions = [
     { value: '', label: 'Aucune parcelle spécifique' },
-    ...plots.map(plot => ({
-      value: plot.id,
-      label: plot.name,
-      subtitle: `${plot.area?.toFixed(2)} ha`
-    }))
+    ...(plots?.map(plot => {
+      console.log('🔍 Mapping parcelle pour dropdown:', {
+        id: plot.id,
+        name: plot.name,
+        area_hectares: plot.area_hectares,
+        rawPlot: plot
+      });
+      return {
+        value: plot.id,
+        label: plot.name || 'Parcelle sans nom',
+        subtitle: `${plot.area_hectares?.toFixed(2) || '0.00'} ha`
+      };
+    }) || [])
   ];
 
-  if (loading && producers.length === 0) {
+  // Debug logs pour les parcelles
+  console.log('🔍 Debug parcelles:', {
+    plotsLength: plots?.length || 0,
+    plotOptionsLength: plotOptions.length,
+    isEditMode,
+    selectedPlot: selectedPlot?.name,
+    formDataPlotId: formData.plot_id,
+    plots: plots?.map(p => ({ id: p.id, name: p.name, area_hectares: p.area_hectares })) || [],
+    plotOptions: plotOptions.map(o => ({ value: o.value, label: o.label, subtitle: 'subtitle' in o ? o.subtitle : undefined }))
+  });
+
+  if (loading && (!producers || producers.length === 0)) {
     return (
-      <ContentWithHeader style={{ flex: 1 }}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3D944B" />
-          <Text style={styles.loadingText}>Chargement des données...</Text>
-        </View>
-      </ContentWithHeader>
+      <ScreenContainer
+        title="Chargement..."
+        contentScrollable={true}
+        contentPadding={5}
+      >
+        <VStack space={4} alignItems="center" justifyContent="center" flex={1}>
+          <Spinner size="lg" color="primary.500" />
+          <Text color="gray.600">Chargement des données...</Text>
+        </VStack>
+      </ScreenContainer>
     );
   }
 
   return (
-    <ContentWithHeader style={{ flex: 1 }}>
-      <ScrollView style={styles.container}>
-        <Text style={styles.title}>Nouvelle Visite</Text>
-        
+    <ScreenContainer
+      title={emergency === 'true' ? 'Visite d\'Urgence' : (isEditMode ? 'Modifier la Visite' : 'Nouvelle Visite')}
+      showBackButton={true}
+      contentScrollable={true}
+      contentPadding={5}
+    >
+      <VStack space={4}>
         {/* Sélection du producteur */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Producteur *</Text>
-          {producerOptions.length === 0 && !loading ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>
+        <FormField
+          label="Producteur"
+          required
+        >
+          {producerOptions.length === 0 && !producersLoading ? (
+            <Box p={4} bg="gray.100" borderRadius="md" alignItems="center">
+              <Text color="gray.600" textAlign="center">
                 Aucun producteur assigné à cet agent
               </Text>
-            </View>
+            </Box>
           ) : (
-            <Dropdown
-              options={producerOptions}
-              selectedValue={formData.producer_id}
-              onSelect={handleProducerSelect}
+            <FormSelect
+              value={formData.producer_id}
+              onValueChange={(value) => {
+                const option = producerOptions.find(opt => opt.value === value);
+                if (option) {
+                  handleProducerSelect(option);
+                }
+              }}
+              options={producerOptions.map(opt => ({ value: opt.value, label: opt.label || 'Producteur sans nom' }))}
               placeholder="Sélectionner un producteur"
-              disabled={loading}
+              disabled={producersLoading}
             />
           )}
-        </View>
+        </FormField>
 
         {/* Sélection de la parcelle (optionnelle) */}
         {selectedProducer && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Parcelle (optionnel)</Text>
-            {plotOptions.length === 1 ? (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyStateText}>
+          <FormField
+            label="Parcelle"
+          >
+            {/* Debug dropdown parcelle */}
+            {(() => {
+              console.log('🔍 Debug dropdown parcelle:', { 
+                selectedProducer: !!selectedProducer, 
+                plotsLength: plots?.length || 0, 
+                plotOptionsLength: plotOptions.length,
+                isEditMode,
+                selectedPlot: selectedPlot?.name,
+                formDataPlotId: formData.plot_id,
+                plotOptions: plotOptions.map(o => ({ value: o.value, label: o.label }))
+              });
+              return null;
+            })()}
+            {plotOptions.length === 0 ? (
+              <Box p={4} bg="gray.100" borderRadius="md" alignItems="center">
+                <Text color="gray.600" textAlign="center">
                   Aucune parcelle disponible pour ce producteur
                 </Text>
-              </View>
+              </Box>
             ) : (
-              <Dropdown
-                options={plotOptions}
-                selectedValue={formData.plot_id || ''}
-                onSelect={handlePlotSelect}
+              <FormSelect
+                key={`plot-select-${plots?.length || 0}-${formData.plot_id}`}
+                value={formData.plot_id || ''}
+                onValueChange={(value) => {
+                  const option = plotOptions.find(opt => opt.value === value);
+                  if (option) {
+                    handlePlotSelect(option);
+                  }
+                }}
+                options={plotOptions.map(opt => ({ value: opt.value, label: opt.label }))}
                 placeholder="Sélectionner une parcelle"
-                disabled={loading}
+                disabled={loading || producersLoading}
               />
             )}
             {selectedPlot && (
-              <Text style={styles.selectedInfo}>
-                Parcelle sélectionnée: {selectedPlot.name} ({selectedPlot.area?.toFixed(2)} ha)
-              </Text>
+              <Box mt={2} p={3} bg="primary.50" borderRadius="md">
+                <Text color="primary.700" fontSize="sm">
+                  Parcelle sélectionnée: {selectedPlot.name} ({selectedPlot.area_hectares?.toFixed(2)} ha)
+                </Text>
+              </Box>
             )}
-          </View>
+          </FormField>
         )}
 
         {/* Date et heure */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Date et heure *</Text>
-          <CustomDateTimePicker
-            value={new Date(formData.visit_date)}
-            onChange={handleDateChange}
-            mode="datetime"
-            placeholder="Sélectionner la date et l'heure"
-            disabled={loading}
+        <FormField
+          label="Date et heure"
+          required
+        >
+          <FormDatePicker
+            value={formData.visit_date}
+            onChange={(value) => setFormData(prev => ({ ...prev, visit_date: value }))}
+            disabled={loading || producersLoading}
           />
-        </View>
+        </FormField>
 
         {/* Type de visite */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Type de visite *</Text>
-          <Dropdown
-            options={visitTypes}
-            selectedValue={formData.visit_type}
-            onSelect={(option) => setFormData(prev => ({ ...prev, visit_type: option.value as any }))}
+        <FormField
+          label="Type de visite"
+        >
+          <FormSelect
+            value={formData.visit_type}
+            onValueChange={(value) => setFormData(prev => ({ ...prev, visit_type: value as any }))}
+            options={visitTypes.map(opt => ({ value: opt.value, label: opt.label }))}
             placeholder="Sélectionner le type de visite"
-            disabled={loading}
+            disabled={loading || producersLoading}
           />
-        </View>
+        </FormField>
 
         {/* Statut */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Statut *</Text>
-          <Dropdown
-            options={statusOptions}
-            selectedValue={formData.status}
-            onSelect={(option) => setFormData(prev => ({ ...prev, status: option.value as any }))}
+        <FormField
+          label="Statut"
+        >
+          <FormSelect
+            value={formData.status}
+            onValueChange={(value) => setFormData(prev => ({ ...prev, status: value as any }))}
+            options={statusOptions.map(opt => ({ value: opt.value, label: opt.label }))}
             placeholder="Sélectionner le statut"
-            disabled={loading}
+            disabled={loading || producersLoading}
           />
-        </View>
+        </FormField>
 
         {/* Durée */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Durée (minutes)</Text>
-          <View style={styles.inputContainer}>
-            <Feather name="clock" size={20} color="#3D944B" />
-            <Text style={styles.inputText}>{formData.duration_minutes} minutes</Text>
-          </View>
-        </View>
+        <FormField
+          label="Durée (minutes)"
+        >
+          <HStack space={3} alignItems="center" p={3} bg="gray.50" borderRadius="md">
+            <Icon as={Feather} name="clock" size={5} color="primary.500" />
+            <Text color="gray.700" fontSize="md">
+              {formData.duration_minutes} minutes
+            </Text>
+          </HStack>
+        </FormField>
 
         {/* Notes */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Notes</Text>
-          <View style={styles.textAreaContainer}>
-            <Text style={styles.placeholderText}>
-              Ajoutez des notes sur la visite...
-            </Text>
-          </View>
-        </View>
+        <FormField
+          label="Notes"
+        >
+          <FormInput
+            placeholder="Ajoutez des notes sur la visite..."
+            value={formData.notes || ''}
+            onChangeText={(text) => setFormData(prev => ({ ...prev, notes: text }))}
+            multiline
+            numberOfLines={4}
+          />
+        </FormField>
 
         {/* Conditions météo */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Conditions météo</Text>
-          <View style={styles.inputContainer}>
-            <Feather name="cloud" size={20} color="#3D944B" />
-            <Text style={styles.inputText}>
-              {formData.weather_conditions || 'Non spécifié'}
-            </Text>
-          </View>
-        </View>
+        <FormField
+          label="Conditions météo"
+        >
+          <HStack space={3} alignItems="center">
+            <Icon as={Feather} name="cloud" size={5} color="primary.500" />
+            <FormInput
+              placeholder="Conditions météo (ex: Ensoleillé, Pluvieux...)"
+              value={formData.weather_conditions || ''}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, weather_conditions: text }))}
+            />
+          </HStack>
+        </FormField>
+
+        {/* Détails de la visite - Affichage des informations complètes */}
+        {isEditMode && selectedProducer && selectedPlot && (
+          <FormField
+            label="Détails de la visite"
+          >
+            <VStack space={3} p={4} bg="gray.50" borderRadius="md">
+              {/* Producteur */}
+              <HStack justifyContent="space-between" alignItems="center">
+                <Text color="gray.600" fontSize="sm" fontWeight="medium">Producteur</Text>
+                <Text color="gray.900" fontSize="sm">{selectedProducer.name}</Text>
+              </HStack>
+              
+              {/* Parcelle */}
+              <HStack justifyContent="space-between" alignItems="center">
+                <Text color="gray.600" fontSize="sm" fontWeight="medium">Parcelle</Text>
+                <Text color="gray.900" fontSize="sm">{selectedPlot.name}</Text>
+              </HStack>
+              
+              {/* Localisation */}
+              <HStack justifyContent="space-between" alignItems="center">
+                <Text color="gray.600" fontSize="sm" fontWeight="medium">Localisation</Text>
+                <Text color="gray.900" fontSize="sm">
+                  {selectedPlot.lat && selectedPlot.lon 
+                    ? `${selectedPlot.lat.toFixed(6)}, ${selectedPlot.lon.toFixed(6)}`
+                    : 'Non disponible'
+                  }
+                </Text>
+              </HStack>
+              
+              {/* Visite */}
+              <HStack justifyContent="space-between" alignItems="center">
+                <Text color="gray.600" fontSize="sm" fontWeight="medium">Visite</Text>
+                <Text color="gray.900" fontSize="sm">
+                  {formData.visit_date 
+                    ? new Date(formData.visit_date).toLocaleDateString('fr-FR', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })
+                    : 'Date non spécifiée'
+                  }
+                </Text>
+              </HStack>
+              
+              {/* Durée prévue */}
+              <HStack justifyContent="space-between" alignItems="center">
+                <Text color="gray.600" fontSize="sm" fontWeight="medium">Durée prévue</Text>
+                <Text color="gray.900" fontSize="sm">
+                  {formData.duration_minutes ? `${formData.duration_minutes} minutes` : 'Non spécifiée'}
+                </Text>
+              </HStack>
+              
+              {/* Statut */}
+              <HStack justifyContent="space-between" alignItems="center">
+                <Text color="gray.600" fontSize="sm" fontWeight="medium">Statut</Text>
+                <Box px={2} py={1} bg="primary.100" borderRadius="sm">
+                  <Text color="primary.700" fontSize="sm" fontWeight="medium">
+                    {formData.status === 'scheduled' ? 'à faire' : 
+                     formData.status === 'in_progress' ? 'en cours' : 
+                     formData.status === 'completed' ? 'terminé' : 
+                     formData.status || 'Non spécifié'}
+                  </Text>
+                </Box>
+              </HStack>
+              
+              {/* Type de visite */}
+              <HStack justifyContent="space-between" alignItems="center">
+                <Text color="gray.600" fontSize="sm" fontWeight="medium">Type de visite</Text>
+                <Text color="gray.900" fontSize="sm">
+                  {formData.visit_type === 'routine' ? 'Routine' :
+                   formData.visit_type === 'planned' ? 'Planifiée' :
+                   formData.visit_type === 'follow_up' ? 'Suivi' :
+                   formData.visit_type === 'emergency' ? 'Urgence' :
+                   formData.visit_type || 'Non spécifié'}
+                </Text>
+              </HStack>
+              
+              {/* Superficie de la parcelle */}
+              <HStack justifyContent="space-between" alignItems="center">
+                <Text color="gray.600" fontSize="sm" fontWeight="medium">Superficie parcelle</Text>
+                <Text color="gray.900" fontSize="sm">
+                  {selectedPlot.area_hectares ? `${selectedPlot.area_hectares} hectares` : 'Non spécifiée'}
+                </Text>
+              </HStack>
+              
+              {/* Type de sol */}
+              <HStack justifyContent="space-between" alignItems="center">
+                <Text color="gray.600" fontSize="sm" fontWeight="medium">Type de sol</Text>
+                <Text color="gray.900" fontSize="sm">
+                  {selectedPlot.soil_type || 'Non spécifié'}
+                </Text>
+              </HStack>
+              
+              {/* Source d'eau */}
+              <HStack justifyContent="space-between" alignItems="center">
+                <Text color="gray.600" fontSize="sm" fontWeight="medium">Source d&apos;eau</Text>
+                <Text color="gray.900" fontSize="sm">
+                  {selectedPlot.waterSource || 'Non spécifiée'}
+                </Text>
+              </HStack>
+            </VStack>
+          </FormField>
+        )}
 
         {/* Boutons d'action */}
-        <View style={styles.actionsContainer}>
+        <HStack space={3} mt={6}>
           <TouchableOpacity 
-            style={styles.cancelButton}
+            style={{ flex: 1 }}
             onPress={() => router.back()}
           >
-            <Text style={styles.cancelButtonText}>Annuler</Text>
+            <Box 
+              flex={1} 
+              p={4} 
+              bg="gray.200" 
+              borderRadius="md" 
+              alignItems="center"
+            >
+              <Text color="gray.700" fontSize="md" fontWeight="medium">
+                Annuler
+              </Text>
+            </Box>
           </TouchableOpacity>
           
           <TouchableOpacity 
-            style={[styles.submitButton, loading && styles.disabledButton]}
+            style={{ flex: 1 }}
             onPress={handleSubmit}
-            disabled={loading}
+            disabled={loading || producersLoading}
           >
-            {loading ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text style={styles.submitButtonText}>Créer la visite</Text>
-            )}
+            <Box 
+              flex={1} 
+              p={4} 
+              bg={loading || producersLoading ? "gray.300" : "primary.500"} 
+              borderRadius="md" 
+              alignItems="center"
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text color="white" fontSize="md" fontWeight="medium">
+                  {isEditMode ? 'Mettre à jour' : 'Créer la visite'}
+                </Text>
+              )}
+            </Box>
           </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </ContentWithHeader>
+        </HStack>
+      </VStack>
+    </ScreenContainer>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f9fafb',
-    padding: 16,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 10,
-    color: '#6b7280',
-    fontSize: 16,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 24,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 12,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  inputText: {
-    marginLeft: 12,
-    fontSize: 16,
-    color: '#111827',
-  },
-  textAreaContainer: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    minHeight: 80,
-  },
-  placeholderText: {
-    color: '#9ca3af',
-    fontSize: 16,
-  },
-  actionsContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 32,
-    marginBottom: 32,
-  },
-  cancelButton: {
-    flex: 1,
-    paddingVertical: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    backgroundColor: '#fff',
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-  },
-  submitButton: {
-    flex: 1,
-    paddingVertical: 16,
-    borderRadius: 8,
-    backgroundColor: '#3D944B',
-    alignItems: 'center',
-  },
-  disabledButton: {
-    backgroundColor: '#9ca3af',
-  },
-  submitButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  emptyState: {
-    backgroundColor: '#f9fafb',
-    padding: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    alignItems: 'center',
-  },
-  emptyStateText: {
-    fontSize: 14,
-    color: '#6b7280',
-    textAlign: 'center',
-  },
-  selectedInfo: {
-    fontSize: 12,
-    color: '#059669',
-    marginTop: 8,
-    fontStyle: 'italic',
-  },
-});
+// Styles supprimés - utilisation du thème NativeBase

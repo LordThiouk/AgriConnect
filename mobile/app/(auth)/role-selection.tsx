@@ -22,7 +22,7 @@ import { useAuth } from '../../context/AuthContext';
 import { SessionManager } from '../../lib/auth/sessionManager';
 import { createUserProfile } from '../../lib/auth/mobileAuthService';
 import { Ionicons } from '@expo/vector-icons';
-import type { UserRole } from '../../../types/user';
+import type { UserRole } from '../../../lib/types/core/user';
 
 const RoleSelectionScreen: React.FC = () => {
   const router = useRouter();

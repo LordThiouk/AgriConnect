@@ -1,14 +1,25 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, FlatList, Alert, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { Alert, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useFocusEffect, useRouter } from 'expo-router';
-import { CollecteService } from '@/lib/services/collecte';
-import { ParticipantDisplay } from '@/types/collecte';
-import ContentWithHeader from '@/components/ContentWithHeader';
+import { CollecteService } from '../../../../../lib/services/collecte';
+import { ParticipantDisplay } from '../../../../../types/collecte';
 import { Feather } from '@expo/vector-icons';
+import { ScreenContainer } from '../../../../../components/ui';
+import { 
+  Box, 
+  Text, 
+  VStack, 
+  HStack, 
+  Pressable, 
+  Badge, 
+  useTheme,
+  ScrollView
+} from 'native-base';
 
 export default function IntervenantsScreen() {
   const { plotId } = useLocalSearchParams<{ plotId: string }>();
   const router = useRouter();
+  const theme = useTheme();
   const [participants, setParticipants] = useState<ParticipantDisplay[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -60,133 +71,133 @@ export default function IntervenantsScreen() {
   };
 
   const handleEdit = (participant: ParticipantDisplay) => {
-    // Pour l'instant, on navigue vers add avec l'ID en paramètre
-    // TODO: Créer un écran d'édition dédié
-    router.push(`/(tabs)/parcelles/${plotId}/intervenants/add?editId=${participant.id}`);
+    router.push(`/(tabs)/parcelles/${plotId}/intervenants/${participant.id}/edit`);
   };
 
-  const renderItem = ({ item }: { item: ParticipantDisplay }) => (
-    <View style={styles.itemContainer}>
-      <View style={styles.itemText}>
-        <Text style={styles.itemName}>{item.name}</Text>
-        <Text style={styles.itemRole}>{item.role}{item.age ? `, ${item.age} ans` : ''}</Text>
-        {item.tags && item.tags.length > 0 && <Text style={styles.itemTags}>{item.tags.join(', ')}</Text>}
-      </View>
-      <View style={styles.itemActions}>
-        <TouchableOpacity onPress={() => handleEdit(item)} style={styles.actionButton}>
-          <Feather name="edit" size={20} color="#3D944B" />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.actionButton}>
-          <Feather name="trash-2" size={20} color="#E53935" />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+  const renderParticipantItem = (item: ParticipantDisplay) => {
+    const getRoleColorScheme = (role: string) => {
+      switch (role?.toLowerCase()) {
+        case 'producteur':
+          return 'success';
+        case 'agent':
+          return 'info';
+        case 'ouvrier':
+          return 'warning';
+        case 'superviseur':
+          return 'purple';
+        default:
+          return 'gray';
+      }
+    };
+
+    return (
+      <Box
+        bg="white"
+        mx={4}
+        my={2}
+        p={4}
+        borderRadius="lg"
+        borderWidth={1}
+        borderColor="gray.200"
+        shadow={1}
+      >
+        <HStack alignItems="center" justifyContent="space-between">
+          <HStack alignItems="center" space={3} flex={1}>
+            <Box
+              w={10}
+              h={10}
+              borderRadius="full"
+              bg="primary.100"
+              alignItems="center"
+              justifyContent="center"
+            >
+              <Feather name="user" size={20} color={theme.colors.primary?.[500] || '#3D944B'} />
+            </Box>
+            <VStack flex={1}>
+              <Text fontSize="md" fontWeight="semibold" color="gray.800" numberOfLines={1}>
+                {item.name}
+              </Text>
+              <HStack alignItems="center" space={2} mt={1}>
+                <Badge colorScheme={getRoleColorScheme(item.role)} borderRadius="full" px={2} py={1}>
+                  <Text fontSize="xs" fontWeight="medium" color="white">
+                    {item.role}
+                  </Text>
+                </Badge>
+                {item.age && (
+                  <Text fontSize="xs" color="gray.500">
+                    {item.age} ans
+                  </Text>
+                )}
+              </HStack>
+              {item.tags && item.tags.length > 0 && (
+                <Text fontSize="xs" color="gray.500" fontStyle="italic" mt={1}>
+                  {item.tags.join(', ')}
+                </Text>
+              )}
+            </VStack>
+          </HStack>
+          <HStack space={2}>
+            <Pressable
+              onPress={() => handleEdit(item)}
+              p={2}
+              borderRadius="md"
+              bg="blue.50"
+              _pressed={{ bg: 'blue.100' }}
+            >
+              <Feather name="edit" size={16} color={theme.colors.blue?.[500] || '#3B82F6'} />
+            </Pressable>
+            <Pressable
+              onPress={() => handleDelete(item.id)}
+              p={2}
+              borderRadius="md"
+              bg="red.50"
+              _pressed={{ bg: 'red.100' }}
+            >
+              <Feather name="trash-2" size={16} color={theme.colors.red?.[500] || '#E53935'} />
+            </Pressable>
+          </HStack>
+        </HStack>
+      </Box>
+    );
+  };
 
   return (
-    <ContentWithHeader style={{ flex: 1 }}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Feather name="arrow-left" size={24} color="#3D944B" />
+    <ScreenContainer 
+      title="Intervenants"
+      showSubHeader={true}
+      showBackButton={true}
+      subHeaderActions={
+        <TouchableOpacity onPress={handleAdd} style={{ padding: 8 }}>
+          <Feather name="plus" size={24} color={theme.colors.primary?.[500] || '#3D944B'} />
         </TouchableOpacity>
-        <Text style={styles.title}>Intervenants</Text>
-        <TouchableOpacity onPress={handleAdd} style={styles.addButton}>
-          <Feather name="plus" size={24} color="#3D944B" />
-        </TouchableOpacity>
-      </View>
-
+      }
+      animationEnabled={true}
+    >
       {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3D944B" />
-        </View>
+        <Box flex={1} justifyContent="center" alignItems="center">
+          <ActivityIndicator size="large" color={theme.colors.primary?.[500] || '#3D944B'} />
+          <Text mt={4} fontSize="md" color="gray.600">Chargement...</Text>
+        </Box>
       ) : (
-        <FlatList
-          data={participants}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
-          ListEmptyComponent={<Text style={styles.emptyText}>Aucun intervenant enregistré.</Text>}
-          refreshing={loading}
-          onRefresh={loadParticipants}
-          style={styles.list}
-        />
+        <ScrollView flex={1} bg="gray.50">
+          {participants.length === 0 ? (
+            <Box flex={1} justifyContent="center" alignItems="center" py={20}>
+              <Feather name="users" size={48} color={theme.colors.gray?.[400] || '#9CA3AF'} />
+              <Text mt={4} fontSize="lg" fontWeight="medium" color="gray.600">
+                Aucun intervenant enregistré
+              </Text>
+              <Text mt={2} fontSize="sm" color="gray.500" textAlign="center">
+                Ajoutez votre premier intervenant pour commencer
+              </Text>
+            </Box>
+          ) : (
+            <VStack space={2} py={4}>
+              {participants.map((participant) => renderParticipantItem(participant))}
+            </VStack>
+          )}
+        </ScrollView>
       )}
-
-    </ContentWithHeader>
+    </ScreenContainer>
   );
 }
 
-const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  backButton: {
-    padding: 8,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    flex: 1,
-    textAlign: 'center',
-  },
-  addButton: {
-    padding: 8,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  list: {
-    flex: 1,
-  },
-  itemContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  itemText: {
-    flex: 1,
-  },
-  itemName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 4,
-  },
-  itemRole: {
-    color: '#6b7280',
-    fontSize: 14,
-  },
-  itemTags: {
-    color: '#9ca3af',
-    fontStyle: 'italic',
-    fontSize: 12,
-    marginTop: 2,
-  },
-  itemActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  actionButton: {
-    padding: 8,
-    borderRadius: 4,
-    backgroundColor: '#f3f4f6',
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: '#9ca3af',
-    fontSize: 16,
-    marginTop: 40,
-  },
-});

@@ -1,7 +1,20 @@
 import React from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { FlatList } from 'react-native';
 import { useRouter } from 'expo-router';
 import { OfflineQueueService } from '../../../../lib/services/offlineQueue';
+import { ScreenContainer, Card, Badge, Button } from '../../../../components/ui';
+import { 
+  Box, 
+  Text, 
+  HStack, 
+  VStack, 
+  Pressable,
+  useTheme,
+  Divider,
+  Spinner,
+  Center
+} from 'native-base';
+import { Ionicons } from '@expo/vector-icons';
 
 type FicheItem = {
   id: string;
@@ -12,91 +25,187 @@ type FicheItem = {
 
 const mockData: FicheItem[] = [];
 
+// Composant pour l'état vide
+const EmptyState: React.FC = () => {
+  const router = useRouter();
+  
+  return (
+    <Center flex={1} px={8}>
+      <VStack space={6} alignItems="center">
+        <Box
+          bg="primary.100"
+          borderRadius="full"
+          p={6}
+        >
+          <Ionicons name="document-outline" size={48} color="#3D944B" />
+        </Box>
+        
+        <VStack space={3} alignItems="center">
+          <Text fontSize="xl" fontWeight="bold" color="gray.800" textAlign="center">
+            Aucune fiche
+          </Text>
+          <Text fontSize="md" color="gray.600" textAlign="center">
+            Créez votre première fiche d'exploitation pour commencer.
+          </Text>
+        </VStack>
+        
+        <Button
+          title="Créer une fiche"
+          variant="primary"
+          onPress={() => router.push('/(tabs)/collecte/fiches/create')}
+          leftIcon={<Ionicons name="add" size={20} color="white" />}
+        />
+      </VStack>
+    </Center>
+  );
+};
+
+// Composant pour une carte de fiche
+const FicheCard: React.FC<{ 
+  item: FicheItem; 
+  onPress: () => void;
+}> = ({ item, onPress }) => {
+  const theme = useTheme();
+  
+  return (
+    <Pressable onPress={onPress}>
+      {({ isPressed }) => (
+        <Card
+          bg="white"
+          p={4}
+          mb={3}
+          shadow={2}
+          opacity={isPressed ? 0.8 : 1}
+          transform={[{ scale: isPressed ? 0.98 : 1 }]}
+        >
+          <HStack justifyContent="space-between" alignItems="flex-start">
+            <VStack flex={1} space={2}>
+              <Text fontSize="lg" fontWeight="semibold" color="gray.800">
+                {item.name}
+              </Text>
+              <Text fontSize="sm" color="gray.600">
+                Mis à jour: {item.updatedAt}
+              </Text>
+            </VStack>
+            
+            <Badge
+              colorScheme={item.status === 'validated' ? 'success' : 'warning'}
+              borderRadius="full"
+              px={3}
+              py={1}
+            >
+              <Text fontSize="xs" fontWeight="medium" color="white">
+                {item.status === 'validated' ? 'Validée' : 'Brouillon'}
+              </Text>
+            </Badge>
+          </HStack>
+        </Card>
+      )}
+    </Pressable>
+  );
+};
+
+// Composant pour l'indicateur de synchronisation
+const SyncIndicator: React.FC<{ count: number }> = ({ count }) => {
+  if (count === 0) return null;
+  
+  return (
+    <Badge
+      colorScheme="warning"
+      borderRadius="full"
+      px={3}
+      py={1}
+      position="absolute"
+      top={-8}
+      right={-8}
+      zIndex={1}
+    >
+      <HStack alignItems="center" space={1}>
+        <Ionicons name="sync" size={12} color="white" />
+        <Text fontSize="xs" fontWeight="medium" color="white">
+          {count}
+        </Text>
+      </HStack>
+    </Badge>
+  );
+};
+
 const FichesIndexScreen: React.FC = () => {
   const router = useRouter();
+  const theme = useTheme();
   const [pendingCount, setPendingCount] = React.useState(0);
 
   React.useEffect(() => {
-    const update = () => setPendingCount(OfflineQueueService.list().filter(i => i.status === 'pending').length);
+    const update = () => setPendingCount(
+      OfflineQueueService.list().filter(i => i.status === 'pending').length
+    );
     update();
     const id = setInterval(update, 3000);
     return () => clearInterval(id);
   }, []);
 
-  const renderItem = ({ item }: { item: FicheItem }) => (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() => router.push(`/(tabs)/collecte/fiches/${item.id}`)}
-    >
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle}>{item.name}</Text>
-        <View style={[styles.badge, item.status === 'validated' ? styles.badgeValidated : styles.badgeDraft]}>
-          <Text style={styles.badgeText}>{item.status === 'validated' ? 'Validée' : 'Brouillon'}</Text>
-        </View>
-      </View>
-      <Text style={styles.cardSubtitle}>Mis à jour: {item.updatedAt}</Text>
-    </TouchableOpacity>
-  );
+  const handleFichePress = (item: FicheItem) => {
+    router.push(`/(tabs)/collecte/fiches/${item.id}`);
+  };
+
+  const handleCreateFiche = () => {
+    router.push('/(tabs)/collecte/fiches/create');
+  };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Text style={styles.title}>Mes Fiches d&apos;exploitation</Text>
+    <ScreenContainer 
+      title="Mes Fiches d'exploitation"
+      showSubHeader={false}
+      showBackButton={false}
+      contentPadding={4}
+    >
+      {/* Header avec bouton d'action */}
+      <HStack justifyContent="space-between" alignItems="center" mb={4}>
+        <VStack flex={1}>
+          <Text fontSize="lg" fontWeight="bold" color="gray.800">
+            Mes Fiches d'exploitation
+          </Text>
           {pendingCount > 0 && (
-            <View style={styles.syncBadge}>
-              <Text style={styles.syncBadgeText}>À synchroniser: {pendingCount}</Text>
-            </View>
+            <HStack alignItems="center" space={2} mt={1}>
+              <Ionicons name="sync" size={16} color={theme.colors.warning?.[500]} />
+              <Text fontSize="sm" color="warning.600">
+                À synchroniser: {pendingCount}
+              </Text>
+            </HStack>
           )}
-        </View>
-        <TouchableOpacity style={styles.addButton} onPress={() => router.push('/(tabs)/collecte/fiches/create')}>
-          <Text style={styles.addButtonText}>+ Nouvelle fiche</Text>
-        </TouchableOpacity>
-      </View>
+        </VStack>
+        
+        <Button
+          title="Nouvelle fiche"
+          variant="primary"
+          size="sm"
+          onPress={handleCreateFiche}
+          leftIcon={<Ionicons name="add" size={16} color="white" />}
+        />
+      </HStack>
 
+      {/* Liste des fiches ou état vide */}
       {mockData.length === 0 ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyTitle}>Aucune fiche</Text>
-          <Text style={styles.emptySubtitle}>Créez votre première fiche d&apos;exploitation pour commencer.</Text>
-          <TouchableOpacity style={styles.primaryButton} onPress={() => router.push('/(tabs)/collecte/fiches/create')}>
-            <Text style={styles.primaryButtonText}>Créer une fiche</Text>
-          </TouchableOpacity>
-        </View>
+        <EmptyState />
       ) : (
         <FlatList
           data={mockData}
           keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          contentContainerStyle={styles.list}
+          renderItem={({ item }) => (
+            <Box position="relative">
+              <FicheCard 
+                item={item} 
+                onPress={() => handleFichePress(item)} 
+              />
+              <SyncIndicator count={pendingCount} />
+            </Box>
+          )}
+          contentContainerStyle={{ paddingBottom: 20 }}
+          showsVerticalScrollIndicator={false}
         />
       )}
-    </View>
+    </ScreenContainer>
   );
 };
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
-  header: { padding: 16, backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#eef2f7' },
-  title: { fontSize: 18, fontWeight: 'bold', color: '#111827' },
-  addButton: { marginTop: 8, alignSelf: 'flex-start', backgroundColor: '#10b981', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8 },
-  addButtonText: { color: '#ffffff', fontWeight: '600' },
-  list: { padding: 16 },
-  card: { backgroundColor: '#ffffff', padding: 16, borderRadius: 12, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  cardTitle: { fontSize: 16, fontWeight: '600', color: '#111827' },
-  cardSubtitle: { marginTop: 6, fontSize: 12, color: '#6b7280' },
-  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
-  badgeValidated: { backgroundColor: '#dcfce7' },
-  badgeDraft: { backgroundColor: '#f3f4f6' },
-  badgeText: { fontSize: 12, color: '#111827' },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 6 },
-  emptySubtitle: { fontSize: 14, color: '#6b7280', textAlign: 'center', marginBottom: 16 },
-  primaryButton: { backgroundColor: '#10b981', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10 },
-  primaryButtonText: { color: '#ffffff', fontWeight: '700' },
-  syncBadge: { backgroundColor: '#fef3c7', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
-  syncBadgeText: { color: '#92400e', fontWeight: '600' }
-});
-
 export default FichesIndexScreen;
-

@@ -20,7 +20,8 @@ import {
   Trash2,
   UserCheck,
   TrendingUp,
-  Activity
+  Activity,
+  Clock
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -45,7 +46,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import AgentModal from '../../components/Agents/AgentModal';
 import AgentDetailsModal from '../../components/Agents/AgentDetailsModal';
 import DeleteAgentModal from '../../components/Agents/DeleteAgentModal';
-import AgentProducerAssignmentModal from '../../components/Agents/AgentProducerAssignmentModal';
+import AgentAssignmentModal from '../../components/Agents/AgentAssignmentModal';
 
 // Type assertions pour résoudre le conflit de types
 const UsersIcon = Users as any;
@@ -187,6 +188,17 @@ const Agents: React.FC = () => {
         totalVisits: 0,
         totalProducers: 0,
         totalPlots: 0,
+        totalOperations: 0,
+        totalObservations: 0,
+        visitsThisMonth: 0,
+        avgVisitsPerProducer: 0,
+        lastSyncDate: null,
+        dataCompletionRate: 0,
+        photosPerPlot: 0,
+        gpsAccuracyRate: 0,
+        avgVisitDuration: 0,
+        avgDataEntryTime: 0,
+        syncSuccessRate: 0,
         avgVisitsPerMonth: 0,
         dataQualityRate: 0
       };
@@ -205,9 +217,18 @@ const Agents: React.FC = () => {
           totalVisits: performance.totalVisits,
           totalProducers: performance.totalProducers,
           totalPlots: performance.totalPlots,
+          totalOperations: performance.totalOperations,
+          totalObservations: performance.totalObservations,
           avgVisitsPerMonth: performance.avgVisitsPerMonth,
+          avgVisitsPerProducer: performance.avgVisitsPerProducer,
           dataQualityRate: performance.dataQualityRate,
-          visitsThisMonth: performance.totalVisits // Approximation pour ce mois
+          dataCompletionRate: performance.dataCompletionRate,
+          photosPerPlot: performance.photosPerPlot,
+          gpsAccuracyRate: performance.gpsAccuracyRate,
+          avgVisitDuration: performance.avgVisitDuration,
+          avgDataEntryTime: performance.avgDataEntryTime,
+          syncSuccessRate: performance.syncSuccessRate,
+          visitsThisMonth: performance.visitsThisMonth
         };
       });
 
@@ -665,7 +686,7 @@ const Agents: React.FC = () => {
             </div>
 
             {/* KPI Cards Performance */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
               <Card>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
@@ -694,12 +715,10 @@ const Agents: React.FC = () => {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Moyenne Visites/Agent</p>
-                      <p className="text-2xl font-bold text-purple-600">
-                        {agents.length > 0 ? (agents.reduce((sum, agent) => sum + (agent.totalVisits || 0), 0) / agents.length).toFixed(1) : '0.0'}
-                      </p>
+                      <p className="text-sm font-medium text-gray-600">Total Opérations</p>
+                      <p className="text-2xl font-bold text-indigo-600">{agents.reduce((sum, agent) => sum + (agent.totalOperations || 0), 0)}</p>
                     </div>
-                    <BarChart3Icon className="h-8 w-8 text-purple-600" />
+                    <BarChart3Icon className="h-8 w-8 text-indigo-600" />
                   </div>
                 </CardContent>
               </Card>
@@ -710,10 +729,67 @@ const Agents: React.FC = () => {
                     <div>
                       <p className="text-sm font-medium text-gray-600">Taux Qualité</p>
                       <p className="text-2xl font-bold text-orange-600">
-                        {agents.length > 0 ? (agents.reduce((sum, agent) => sum + (agent.dataQualityRate || 0), 0) / agents.length * 100).toFixed(1) : '0.0'}%
+                        {agents.length > 0 ? (agents.reduce((sum, agent) => sum + (agent.dataQualityRate || 0), 0) / agents.length).toFixed(1) : '0.0'}%
                       </p>
                     </div>
                     <TrendingUpIcon className="h-8 w-8 text-orange-600" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* KPI Cards Performance - Ligne 2 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Total Observations</p>
+                      <p className="text-2xl font-bold text-teal-600">{agents.reduce((sum, agent) => sum + (agent.totalObservations || 0), 0)}</p>
+                    </div>
+                    <ActivityIcon className="h-8 w-8 text-teal-600" />
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Durée Moy. Visite</p>
+                      <p className="text-2xl font-bold text-emerald-600">
+                        {agents.length > 0 ? (agents.reduce((sum, agent) => sum + (agent.avgVisitDuration || 0), 0) / agents.length).toFixed(0) : '0'} min
+                      </p>
+                    </div>
+                    <Clock className="h-8 w-8 text-emerald-600" />
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Photos/Parcelle</p>
+                      <p className="text-2xl font-bold text-amber-600">
+                        {agents.length > 0 ? (agents.reduce((sum, agent) => sum + (agent.photosPerPlot || 0), 0) / agents.length).toFixed(1) : '0.0'}
+                      </p>
+                    </div>
+                    <BarChart3Icon className="h-8 w-8 text-amber-600" />
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Taux Sync Réussie</p>
+                      <p className="text-2xl font-bold text-rose-600">
+                        {agents.length > 0 ? (agents.reduce((sum, agent) => sum + (agent.syncSuccessRate || 0), 0) / agents.length).toFixed(1) : '0.0'}%
+                      </p>
+                    </div>
+                    <TrendingUpIcon className="h-8 w-8 text-rose-600" />
                   </div>
                 </CardContent>
               </Card>
@@ -742,7 +818,9 @@ const Agents: React.FC = () => {
                           <th className="text-left py-3 px-4 font-medium text-gray-600">Région</th>
                           <th className="text-center py-3 px-4 font-medium text-gray-600">Producteurs</th>
                           <th className="text-center py-3 px-4 font-medium text-gray-600">Visites</th>
-                          <th className="text-center py-3 px-4 font-medium text-gray-600">Visites/Mois</th>
+                          <th className="text-center py-3 px-4 font-medium text-gray-600">Opérations</th>
+                          <th className="text-center py-3 px-4 font-medium text-gray-600">Observations</th>
+                          <th className="text-center py-3 px-4 font-medium text-gray-600">Durée Moy.</th>
                           <th className="text-center py-3 px-4 font-medium text-gray-600">Qualité</th>
                           <th className="text-center py-3 px-4 font-medium text-gray-600">Statut</th>
                         </tr>
@@ -766,16 +844,18 @@ const Agents: React.FC = () => {
                             <td className="py-3 px-4 text-gray-600">{agent.region || 'N/A'}</td>
                             <td className="py-3 px-4 text-center text-gray-600">{agent.totalProducers || 0}</td>
                             <td className="py-3 px-4 text-center text-gray-600">{agent.totalVisits || 0}</td>
-                            <td className="py-3 px-4 text-center text-gray-600">{agent.avgVisitsPerMonth?.toFixed(1) || '0.0'}</td>
+                            <td className="py-3 px-4 text-center text-gray-600">{agent.totalOperations || 0}</td>
+                            <td className="py-3 px-4 text-center text-gray-600">{agent.totalObservations || 0}</td>
+                            <td className="py-3 px-4 text-center text-gray-600">{agent.avgVisitDuration?.toFixed(0) || '0'} min</td>
                             <td className="py-3 px-4 text-center">
                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                (agent.dataQualityRate || 0) >= 0.8 
+                                (agent.dataQualityRate || 0) >= 80 
                                   ? 'bg-green-100 text-green-800' 
-                                  : (agent.dataQualityRate || 0) >= 0.6 
+                                  : (agent.dataQualityRate || 0) >= 60 
                                     ? 'bg-yellow-100 text-yellow-800' 
                                     : 'bg-red-100 text-red-800'
                               }`}>
-                                {((agent.dataQualityRate || 0) * 100).toFixed(1)}%
+                                {(agent.dataQualityRate || 0).toFixed(1)}%
                               </span>
                             </td>
                             <td className="py-3 px-4 text-center">
@@ -823,8 +903,9 @@ const Agents: React.FC = () => {
                         <span className="text-sm font-medium text-gray-600">{region}</span>
                         <div className="flex items-center space-x-2">
                           <div className="w-20 bg-gray-200 rounded-full h-2">
+                            {/* eslint-disable-next-line react/forbid-dom-props */}
                             <div 
-                              className="bg-blue-600 h-2 rounded-full" 
+                              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                               style={{ width: `${Math.max(0, (stats.active / stats.total) * 100)}%` }}
                             ></div>
                           </div>
@@ -949,7 +1030,7 @@ const Agents: React.FC = () => {
         loading={false}
       />
 
-      <AgentProducerAssignmentModal
+      <AgentAssignmentModal
         isOpen={assignmentModalOpen}
         onClose={handleModalClose}
         agent={selectedAgent}

@@ -33,6 +33,8 @@ interface ObservationModalProps {
   onSave: (observation: Observation) => void;
   observation?: Observation | null;
   producerId?: string;
+  plotId?: string;
+  cropId?: string;
 }
 
 const ObservationModal: React.FC<ObservationModalProps> = ({
@@ -40,7 +42,9 @@ const ObservationModal: React.FC<ObservationModalProps> = ({
   onClose,
   onSave,
   observation,
-  producerId
+  producerId,
+  plotId,
+  cropId
 }) => {
   const [formData, setFormData] = useState({
     observation_type: '',
@@ -119,6 +123,8 @@ const ObservationModal: React.FC<ObservationModalProps> = ({
 
     if (!formData.observation_type) newErrors.observation_type = 'Le type d\'observation est requis';
     if (!formData.observation_date) newErrors.observation_date = 'La date est requise';
+    if (!plotId) newErrors.plotId = 'La parcelle est requise';
+    if (!cropId) newErrors.cropId = 'La culture est requise';
 
     // Validate emergence_percent if provided
     if (formData.emergence_percent) {
@@ -148,9 +154,9 @@ const ObservationModal: React.FC<ObservationModalProps> = ({
 
       const observationData = {
         ...formData,
-        crop_id: 'crop-placeholder', // This should come from the selected crop
-        plot_id: 'plot-placeholder', // This should come from the selected plot
-        observed_by: 'current-user-id', // This should come from auth context
+        crop_id: cropId!, // Utiliser le crop_id fourni en prop
+        plot_id: plotId!, // Utiliser le plot_id fourni en prop
+        observed_by: null, // Valeur null autorisée selon nos tests
         emergence_percent: formData.emergence_percent ? parseInt(formData.emergence_percent) : undefined,
         severity: formData.severity ? parseInt(formData.severity) : undefined,
         affected_area_percent: formData.affected_area_percent ? parseFloat(formData.affected_area_percent) : undefined
@@ -158,9 +164,9 @@ const ObservationModal: React.FC<ObservationModalProps> = ({
 
       let savedObservation: Observation;
       if (observation) {
-        savedObservation = await ObservationsRpcService.updateObservation(observation.id, observationData);
+        savedObservation = await ObservationsRpcService.updateObservation(observation.id, observationData as any) as Observation;
       } else {
-        savedObservation = await ObservationsRpcService.createObservation(observationData);
+        savedObservation = await ObservationsRpcService.createObservation(observationData as any) as Observation;
       }
 
       onSave(savedObservation);
@@ -197,6 +203,15 @@ const ObservationModal: React.FC<ObservationModalProps> = ({
             {observation ? 'Modifiez les informations de l\'observation' : 'Enregistrez une nouvelle observation terrain'}
           </DialogDescription>
         </DialogHeader>
+
+        {/* Messages d'erreur pour les props manquantes */}
+        {(!plotId || !cropId) && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-4">
+            <p className="text-sm text-yellow-800">
+              ⚠️ Une parcelle et une culture doivent être sélectionnées avant de créer une observation.
+            </p>
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto py-4">
           <div className="space-y-6">
@@ -286,25 +301,51 @@ const ObservationModal: React.FC<ObservationModalProps> = ({
               </Card>
             )}
 
-            {/* Maladie ou Ravageur */}
-            {(formData.observation_type === 'maladie' || formData.observation_type === 'ravageur') && (
+            {/* Développement */}
+            {formData.observation_type === 'développement' && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <TrendingUpIcon className="h-5 w-5" />
+                    Informations sur le développement
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div>
+                    <Label htmlFor="emergence_percent">Pourcentage de levée (%)</Label>
+                    <Input
+                      id="emergence_percent"
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={formData.emergence_percent}
+                      onChange={(e) => handleInputChange('emergence_percent', e.target.value)}
+                      placeholder="Ex: 85"
+                      className={errors.emergence_percent ? 'border-red-500' : ''}
+                    />
+                    {errors.emergence_percent && <p className="text-sm text-red-500 mt-1">{errors.emergence_percent}</p>}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Maladie */}
+            {formData.observation_type === 'maladie' && (
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
                     <AlertTriangleIcon className="h-5 w-5" />
-                    Détails de la {formData.observation_type === 'maladie' ? 'maladie' : 'ravageur'}
+                    Détails de la maladie
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label htmlFor="pest_disease_name">
-                      Nom de la {formData.observation_type === 'maladie' ? 'maladie' : 'ravageur'}
-                    </Label>
+                    <Label htmlFor="pest_disease_name">Nom de la maladie</Label>
                     <Input
                       id="pest_disease_name"
                       value={formData.pest_disease_name}
                       onChange={(e) => handleInputChange('pest_disease_name', e.target.value)}
-                      placeholder={`Ex: ${formData.observation_type === 'maladie' ? 'Rouille du maïs' : 'Criquet pèlerin'}`}
+                      placeholder="Ex: Rouille du maïs, Mildiou..."
                     />
                   </div>
 
@@ -339,6 +380,116 @@ const ObservationModal: React.FC<ObservationModalProps> = ({
                         value={formData.affected_area_percent}
                         onChange={(e) => handleInputChange('affected_area_percent', e.target.value)}
                         placeholder="Ex: 15.5"
+                        className={errors.affected_area_percent ? 'border-red-500' : ''}
+                      />
+                      {errors.affected_area_percent && <p className="text-sm text-red-500 mt-1">{errors.affected_area_percent}</p>}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Ravageur */}
+            {formData.observation_type === 'ravageur' && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <AlertTriangleIcon className="h-5 w-5" />
+                    Détails du ravageur
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label htmlFor="pest_disease_name">Nom du ravageur</Label>
+                    <Input
+                      id="pest_disease_name"
+                      value={formData.pest_disease_name}
+                      onChange={(e) => handleInputChange('pest_disease_name', e.target.value)}
+                      placeholder="Ex: Criquet pèlerin, Chenilles..."
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="severity">Gravité</Label>
+                      <Select
+                        value={formData.severity}
+                        onValueChange={(value) => handleInputChange('severity', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionner la gravité" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {severityLevels.map(level => (
+                            <SelectItem key={level.value} value={level.value}>
+                              {level.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="affected_area_percent">Zone affectée (%)</Label>
+                      <Input
+                        id="affected_area_percent"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={formData.affected_area_percent}
+                        onChange={(e) => handleInputChange('affected_area_percent', e.target.value)}
+                        placeholder="Ex: 15.5"
+                        className={errors.affected_area_percent ? 'border-red-500' : ''}
+                      />
+                      {errors.affected_area_percent && <p className="text-sm text-red-500 mt-1">{errors.affected_area_percent}</p>}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Stress hydrique et nutritionnel */}
+            {(formData.observation_type === 'stress_hydrique' || formData.observation_type === 'stress_nutritionnel') && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <AlertTriangleIcon className="h-5 w-5" />
+                    Détails du {formData.observation_type === 'stress_hydrique' ? 'stress hydrique' : 'stress nutritionnel'}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="severity">Gravité</Label>
+                      <Select
+                        value={formData.severity}
+                        onValueChange={(value) => handleInputChange('severity', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionner la gravité" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {severityLevels.map(level => (
+                            <SelectItem key={level.value} value={level.value}>
+                              {level.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="affected_area_percent">Zone affectée (%)</Label>
+                      <Input
+                        id="affected_area_percent"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={formData.affected_area_percent}
+                        onChange={(e) => handleInputChange('affected_area_percent', e.target.value)}
+                        placeholder="Ex: 25.0"
                         className={errors.affected_area_percent ? 'border-red-500' : ''}
                       />
                       {errors.affected_area_percent && <p className="text-sm text-red-500 mt-1">{errors.affected_area_percent}</p>}

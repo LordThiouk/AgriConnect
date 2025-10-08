@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { AlertTriangle, XCircle, CheckCircle, Info, Clock, AlertCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 // Type assertions pour résoudre le conflit de types
 const AlertTriangleIcon = AlertTriangle as any;
@@ -29,6 +30,11 @@ interface AlertsPanelProps {
 }
 
 const AlertsPanel: React.FC<AlertsPanelProps> = ({ alerts, onResolve, onDismiss }) => {
+  const navigate = useNavigate();
+
+  const handleViewAllAlerts = () => {
+    navigate('/alerts');
+  };
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'high':
@@ -90,35 +96,35 @@ const AlertsPanel: React.FC<AlertsPanelProps> = ({ alerts, onResolve, onDismiss 
             alerts.map((alert) => (
               <div
                 key={alert.id}
-                className={`p-4 rounded-lg border-l-4 ${
+                className={`p-3 sm:p-4 rounded-lg border-l-4 ${
                   alert.type === 'error' ? 'border-red-500 bg-red-50' :
                   alert.type === 'warning' ? 'border-yellow-500 bg-yellow-50' :
                   alert.type === 'success' ? 'border-green-500 bg-green-50' :
                   'border-blue-500 bg-blue-50'
                 }`}
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start space-x-3 flex-1">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                  <div className="flex items-start space-x-3 flex-1 min-w-0">
                     <div className="flex-shrink-0 mt-1">
                       {getTypeIcon(alert.type)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2 mb-1">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 mb-1 gap-1">
                         <h4 className="text-sm font-medium text-gray-900 truncate">
                           {alert.title}
                         </h4>
                         <Badge 
                           variant="outline" 
-                          className={`text-xs ${getPriorityColor(alert.priority)}`}
+                          className={`text-xs ${getPriorityColor(alert.priority)} w-fit`}
                         >
                           {alert.priority === 'high' ? 'Élevée' : 
                            alert.priority === 'medium' ? 'Moyenne' : 'Faible'}
                         </Badge>
                       </div>
-                      <p className="text-sm text-gray-600 mb-2">
+                      <p className="text-sm text-gray-600 mb-2 break-words">
                         {alert.message}
                       </p>
-                      <div className="flex items-center space-x-4 text-xs text-gray-500">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 gap-2 text-xs text-gray-500">
                         <div className="flex items-center space-x-1">
                           <ClockIcon className="h-3 w-3" />
                           <span>{alert.timestamp}</span>
@@ -129,12 +135,12 @@ const AlertsPanel: React.FC<AlertsPanelProps> = ({ alerts, onResolve, onDismiss 
                   </div>
                   
                   {alert.status === 'pending' && (
-                    <div className="flex space-x-2 ml-4">
+                    <div className="flex flex-col sm:flex-row gap-2 sm:ml-4 sm:space-x-2">
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => onResolve?.(alert.id)}
-                        className="text-green-600 border-green-300 hover:bg-green-50"
+                        className="text-green-600 border-green-300 hover:bg-green-50 w-full sm:w-auto"
                       >
                         <CheckCircleIcon className="h-3 w-3 mr-1" />
                         Résoudre
@@ -143,7 +149,7 @@ const AlertsPanel: React.FC<AlertsPanelProps> = ({ alerts, onResolve, onDismiss 
                         size="sm"
                         variant="outline"
                         onClick={() => onDismiss?.(alert.id)}
-                        className="text-gray-600 border-gray-300 hover:bg-gray-50"
+                        className="text-gray-600 border-gray-300 hover:bg-gray-50 w-full sm:w-auto"
                       >
                         <XCircleIcon className="h-3 w-3 mr-1" />
                         Ignorer
@@ -158,7 +164,11 @@ const AlertsPanel: React.FC<AlertsPanelProps> = ({ alerts, onResolve, onDismiss 
         
         {alerts.length > 0 && (
           <div className="mt-4 pt-4 border-t border-gray-200">
-            <Button variant="outline" className="w-full">
+            <Button 
+              variant="outline" 
+              className="w-full"
+              onClick={handleViewAllAlerts}
+            >
               Voir toutes les alertes
             </Button>
           </div>

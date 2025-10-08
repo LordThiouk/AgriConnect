@@ -61,6 +61,11 @@ export class CooperativesService {
       if (filters.commune) {
         query = query.eq('commune', filters.commune);
       }
+      if (filters.hasGeo === 'true') {
+        query = query.not('latitude', 'is', null).not('longitude', 'is', null);
+      } else if (filters.hasGeo === 'false') {
+        query = query.or('latitude.is.null,longitude.is.null');
+      }
 
       // Pagination
       const from = (page - 1) * limit;

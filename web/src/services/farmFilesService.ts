@@ -65,6 +65,23 @@ export interface FarmFilesResponse {
   totalPages: number;
 }
 
+export interface ProducerPlot {
+  id: string;
+  name_season_snapshot: string;
+  area_hectares: number;
+  soil_type?: string;
+  status: string;
+  farm_file_id: string;
+}
+
+export interface ProducerCrop {
+  id: string;
+  crop_type: string;
+  variety: string;
+  plot_id: string;
+  status: string;
+}
+
 export class FarmFilesService {
   static async getFarmFiles(
     filters: FarmFileFilters = {},
@@ -197,6 +214,112 @@ export class FarmFilesService {
     }
   }
 
+  // Récupérer les parcelles d'un producteur spécifique
+  static async getProducerPlots(producerId: string): Promise<ProducerPlot[]> {
+    try {
+      if (useMockData) {
+        // Données de test
+        return [
+          {
+            id: 'd5d5d2fa-3aef-417e-8e00-cd913a4d38bd',
+            name_season_snapshot: 'Parcelle Test 1',
+            area_hectares: 1.2,
+            soil_type: 'Sableux',
+            status: 'active',
+            farm_file_id: 'test-farm-file-1'
+          },
+          {
+            id: 'test-plot-2',
+            name_season_snapshot: 'Parcelle Test 2',
+            area_hectares: 0.8,
+            soil_type: 'Argileux',
+            status: 'active',
+            farm_file_id: 'test-farm-file-1'
+          }
+        ];
+      }
+
+      if (!supabase) {
+        throw new Error('Supabase client not initialized');
+      }
+
+      // Récupérer les fiches d'exploitation du producteur (draft et validated)
+      const { data: farmFiles, error: farmFilesError } = await supabase
+        .from('farm_files')
+        .select('id')
+        .eq('responsible_producer_id', producerId)
+        .in('status', ['draft', 'validated']);
+
+      if (farmFilesError) {
+        throw farmFilesError;
+      }
+
+      if (!farmFiles || farmFiles.length === 0) {
+        return [];
+      }
+
+      const farmFileIds = farmFiles.map(ff => ff.id);
+
+      // Récupérer les parcelles des fiches d'exploitation
+      const { data: plots, error: plotsError } = await supabase
+        .from('plots')
+        .select('id, name_season_snapshot, area_hectares, soil_type, status, farm_file_id')
+        .in('farm_file_id', farmFileIds);
+
+      if (plotsError) {
+        throw plotsError;
+      }
+
+      return plots || [];
+    } catch (error) {
+      console.error('Error fetching producer plots:', error);
+      throw error;
+    }
+  }
+
+  // Récupérer les cultures d'une parcelle spécifique
+  static async getPlotCrops(plotId: string): Promise<ProducerCrop[]> {
+    try {
+      if (useMockData) {
+        // Données de test
+        return [
+          {
+            id: 'f02f9cd0-9df3-44ae-a832-6d4c5fcdd270',
+            crop_type: 'Other',
+            variety: 'tomates',
+            plot_id: plotId,
+            status: 'en_cours'
+          },
+          {
+            id: '0bbb60ab-3c2e-4521-9d6a-450c4b41bbc3',
+            crop_type: 'Maize',
+            variety: 'variété test',
+            plot_id: plotId,
+            status: 'en_cours'
+          }
+        ];
+      }
+
+      if (!supabase) {
+        throw new Error('Supabase client not initialized');
+      }
+
+      const { data: crops, error: cropsError } = await supabase
+        .from('crops')
+        .select('id, crop_type, variety, plot_id, status')
+        .eq('plot_id', plotId);
+
+      if (cropsError) {
+        throw cropsError;
+      }
+
+      return crops || [];
+    } catch (error) {
+      console.error('Error fetching plot crops:', error);
+      throw error;
+    }
+  }
+
   static async getFarmFileById(id: string): Promise<FarmFile> {
     try {
       if (useMockData) {
@@ -315,8 +438,10 @@ export class FarmFilesService {
 
   static async deleteFarmFile(id: string): Promise<void> {
     try {
+      console.log(`🗑️ Suppression de la fiche d'exploitation ${id}`);
+
       if (useMockData) {
-        // Mock deletion
+        console.log(`Deleting farm file ${id} (mock)`);
         return;
       }
 
@@ -324,12 +449,86 @@ export class FarmFilesService {
         throw new Error('Supabase client not initialized');
       }
 
+      // 1. D'abord, nettoyer tous les crops avec farm_file_plot_id NULL (problématiques)
+      console.log('🧹 Nettoyage des crops problématiques...');
+      const { error: cleanupError } = await supabase
+        .from('crops')
+        .delete()
+        .is('plot_id', null);
+
+      if (cleanupError) {
+        console.error('Erreur lors du nettoyage des crops problématiques:', cleanupError);
+        throw cleanupError;
+      }
+
+      // 2. Récupérer toutes les parcelles liées
+      const { data: farmFilePlots, error: farmFilePlotsError } = await supabase
+        .from('plots')
+        .select('id')
+        .eq('farm_file_id', id);
+
+      if (farmFilePlotsError) {
+        console.error('Erreur lors de la récupération des parcelles de fiches:', farmFilePlotsError);
+        throw farmFilePlotsError;
+      }
+
+      if (farmFilePlots && farmFilePlots.length > 0) {
+        console.log(`🌾 ${farmFilePlots.length} parcelles de fiches trouvées`);
+
+        // 3. Supprimer toutes les observations liées
+        const { error: observationsDeleteError } = await supabase
+          .from('observations')
+          .delete()
+          .in('plot_id', farmFilePlots.map(ffp => ffp.id));
+
+        if (observationsDeleteError) {
+          console.error('Erreur lors de la suppression des observations:', observationsDeleteError);
+          throw observationsDeleteError;
+        }
+
+        // 4. Supprimer toutes les opérations liées
+        const { error: operationsDeleteError } = await supabase
+          .from('operations')
+          .delete()
+          .in('plot_id', farmFilePlots.map(ffp => ffp.id));
+
+        if (operationsDeleteError) {
+          console.error('Erreur lors de la suppression des opérations:', operationsDeleteError);
+          throw operationsDeleteError;
+        }
+
+        // 5. Supprimer toutes les cultures liées
+        const { error: cropsDeleteError } = await supabase
+          .from('crops')
+          .delete()
+          .in('plot_id', farmFilePlots.map(ffp => ffp.id));
+
+        if (cropsDeleteError) {
+          console.error('Erreur lors de la suppression des cultures:', cropsDeleteError);
+          throw cropsDeleteError;
+        }
+
+        // 6. Supprimer toutes les parcelles
+        const { error: farmFilePlotsDeleteError } = await supabase
+          .from('plots')
+          .delete()
+          .eq('farm_file_id', id);
+
+        if (farmFilePlotsDeleteError) {
+          console.error('Erreur lors de la suppression des parcelles de fiches:', farmFilePlotsDeleteError);
+          throw farmFilePlotsDeleteError;
+        }
+      }
+
+      // 7. Enfin, supprimer la fiche d'exploitation
       const { error } = await supabase
         .from('farm_files')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
+
+      console.log(`✅ Fiche d'exploitation ${id} et toutes ses données liées supprimées avec succès`);
     } catch (error) {
       console.error('Error deleting farm file:', error);
       throw error;
@@ -355,7 +554,7 @@ export class FarmFilesService {
         .select('region')
         .not('region', 'is', null);
 
-      const regions = [...new Set(regionsData?.map(r => r.region) || [])];
+      const regions: string[] = [...new Set(regionsData?.map(r => r.region).filter(Boolean) as string[] || [])];
 
       return {
         regions,

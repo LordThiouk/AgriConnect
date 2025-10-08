@@ -1,27 +1,59 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, TextInput } from 'react-native';
+import React, { useState } from 'react';
+import { Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { CollecteService } from '@/lib/services/collecte';
-import ContentWithHeader from '@/components/ContentWithHeader';
-import { Feather } from '@expo/vector-icons';
-import { useAuth } from '@/context/AuthContext';
+import { CollecteService } from '../../../../../lib/services/collecte';
+import { useAuth } from '../../../../../context/AuthContext';
+import { 
+  FormContainer, 
+  FormFooter, 
+  Card, 
+  FormField, 
+  FormInput, 
+  FormSelect, 
+  FormDatePicker,
+  ScreenContainer
+} from '../../../../../components/ui';
+import { 
+  Box, 
+  HStack, 
+  Pressable, 
+  Text,
+  useTheme,
+  ScrollView
+} from 'native-base';
 
-const FormField = ({ label, children, required = false }: { label: string; children: React.ReactNode; required?: boolean }) => (
-  <View style={styles.fieldContainer}>
-    <Text style={styles.fieldLabel}>
-      {label}
-      {required && <Text style={styles.required}> *</Text>}
-    </Text>
-    {children}
-  </View>
-);
+interface IntervenantFormData {
+  name: string;
+  role: string;
+  sex: string;
+  birthdate: string;
+  cni: string;
+  is_young: boolean;
+  literacy: boolean;
+  languages: string;
+}
+
+const roleOptions = [
+  { value: 'producteur', label: 'Producteur' },
+  { value: 'agent', label: 'Agent' },
+  { value: 'ouvrier', label: 'Ouvrier' },
+  { value: 'superviseur', label: 'Superviseur' },
+  { value: 'autre', label: 'Autre' },
+];
+
+const sexOptions = [
+  { value: 'M', label: 'Masculin' },
+  { value: 'F', label: 'Féminin' },
+];
 
 export default function AddIntervenantScreen() {
   const { plotId } = useLocalSearchParams<{ plotId: string }>();
   const router = useRouter();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
+  const theme = useTheme();
+
+  const [formData, setFormData] = useState<IntervenantFormData>({
     name: '',
     role: '',
     sex: '',
@@ -32,6 +64,13 @@ export default function AddIntervenantScreen() {
     languages: ''
   });
 
+  const handleInputChange = (field: keyof IntervenantFormData, value: string | boolean) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
   const handleSave = async () => {
     if (!formData.name || !formData.role) {
       Alert.alert('Erreur', 'Veuillez remplir tous les champs obligatoires');
@@ -40,6 +79,19 @@ export default function AddIntervenantScreen() {
 
     try {
       setLoading(true);
+      
+      // Récupérer le profile.id depuis l'auth user.id
+      const { data: agentProfile, error: agentError } = await CollecteService.supabase
+        .from('profiles')
+        .select('id')
+        .eq('user_id', user?.id || '')
+        .eq('role', 'agent')
+        .single();
+
+      if (agentError || !agentProfile) {
+        Alert.alert('Erreur', 'Agent non trouvé');
+        return;
+      }
       
       const intervenantData = {
         plot_id: plotId!,
@@ -51,7 +103,7 @@ export default function AddIntervenantScreen() {
         is_young: formData.is_young,
         literacy: formData.literacy,
         languages: formData.languages ? formData.languages.split(',').map(s => s.trim()) : null,
-        created_by: user?.id || ''
+        created_by: agentProfile.id
       };
 
       await CollecteService.addParticipant(intervenantData);
@@ -59,14 +111,8 @@ export default function AddIntervenantScreen() {
       Alert.alert(
         'Succès',
         'Intervenant ajouté avec succès',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.back()
-          }
-        ]
+        [{ text: 'OK', onPress: () => router.back() }]
       );
-      
     } catch (error) {
       console.error('Erreur lors de l\'ajout de l\'intervenant:', error);
       Alert.alert('Erreur', 'Impossible d\'ajouter l\'intervenant');
@@ -76,206 +122,137 @@ export default function AddIntervenantScreen() {
   };
 
   return (
-    <ContentWithHeader style={{ flex: 1 }}>
-      <ScrollView style={styles.container}>
-        <View style={styles.form}>
-          <FormField label="Nom complet" required>
-            <TextInput
-              style={styles.input}
-              value={formData.name}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
-              placeholder="Nom et prénom"
-            />
-          </FormField>
+    <ScreenContainer 
+      title=""
+      subtitle=""
+      showSubHeader={false}
+      showBackButton={false}
+      animationEnabled={false}
+    >
+      <FormContainer 
+        title="Nouvel Intervenant" 
+        subtitle="Ajouter un intervenant à cette parcelle"
+      >
+        <ScrollView 
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Card>
+            <FormField label="Nom complet" required>
+              <FormInput
+                value={formData.name}
+                onChangeText={(value) => handleInputChange('name', value)}
+                placeholder="Nom et prénom"
+              />
+            </FormField>
 
-          <FormField label="Rôle" required>
-            <TextInput
-              style={styles.input}
-              value={formData.role}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, role: text }))}
-              placeholder="Rôle de l'intervenant"
-            />
-          </FormField>
+            <FormField label="Rôle" required>
+              <FormSelect
+                value={formData.role}
+                onValueChange={(value) => handleInputChange('role', value)}
+                options={roleOptions.map(opt => ({ value: opt.value, label: opt.label }))}
+                placeholder="Sélectionner un rôle"
+              />
+            </FormField>
 
-          <View style={styles.row}>
-            <View style={styles.halfField}>
-              <FormField label="Sexe">
-                <TextInput
-                  style={styles.input}
-                  value={formData.sex}
-                  onChangeText={(text) => setFormData(prev => ({ ...prev, sex: text }))}
-                  placeholder="M/F"
-                />
-              </FormField>
-            </View>
-            <View style={styles.halfField}>
-              <FormField label="Date de naissance">
-                <TextInput
-                  style={styles.input}
-                  value={formData.birthdate}
-                  onChangeText={(text) => setFormData(prev => ({ ...prev, birthdate: text }))}
-                  placeholder="YYYY-MM-DD"
-                />
-              </FormField>
-            </View>
-          </View>
+            <HStack space={4}>
+              <Box flex={1}>
+                <FormField label="Sexe">
+                  <FormSelect
+                    value={formData.sex}
+                    onValueChange={(value) => handleInputChange('sex', value)}
+                    options={sexOptions.map(opt => ({ value: opt.value, label: opt.label }))}
+                    placeholder="Sélectionner"
+                  />
+                </FormField>
+              </Box>
+              <Box flex={1}>
+                <FormField label="Date de naissance">
+                  <FormDatePicker
+                    value={formData.birthdate}
+                    onChange={(value: string) => handleInputChange('birthdate', value)}
+                  />
+                </FormField>
+              </Box>
+            </HStack>
 
-          <FormField label="CNI">
-            <TextInput
-              style={styles.input}
-              value={formData.cni}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, cni: text }))}
-              placeholder="Numéro de CNI"
-            />
-          </FormField>
+            <FormField label="CNI">
+              <FormInput
+                value={formData.cni}
+                onChangeText={(value) => handleInputChange('cni', value)}
+                placeholder="Numéro de CNI"
+              />
+            </FormField>
 
-          <View style={styles.row}>
-            <View style={styles.halfField}>
-              <FormField label="Jeune">
-                <TouchableOpacity
-                  style={[styles.checkbox, formData.is_young && styles.checkboxChecked]}
-                  onPress={() => setFormData(prev => ({ ...prev, is_young: !prev.is_young }))}
-                >
-                  <Text style={[styles.checkboxText, formData.is_young && styles.checkboxTextChecked]}>
-                    {formData.is_young ? 'Oui' : 'Non'}
-                  </Text>
-                </TouchableOpacity>
-              </FormField>
-            </View>
-            <View style={styles.halfField}>
-              <FormField label="Alphabétisé">
-                <TouchableOpacity
-                  style={[styles.checkbox, formData.literacy && styles.checkboxChecked]}
-                  onPress={() => setFormData(prev => ({ ...prev, literacy: !prev.literacy }))}
-                >
-                  <Text style={[styles.checkboxText, formData.literacy && styles.checkboxTextChecked]}>
-                    {formData.literacy ? 'Oui' : 'Non'}
-                  </Text>
-                </TouchableOpacity>
-              </FormField>
-            </View>
-          </View>
+            <HStack space={4}>
+              <Box flex={1}>
+                <FormField label="Jeune">
+                  <Pressable
+                    onPress={() => handleInputChange('is_young', !formData.is_young)}
+                    _pressed={{ opacity: 0.8 }}
+                  >
+                    <Box
+                      bg={formData.is_young ? (theme.colors.primary?.[500] || '#3D944B') : 'gray.100'}
+                      borderRadius="md"
+                      p={3}
+                      alignItems="center"
+                      borderWidth={1}
+                      borderColor={formData.is_young ? (theme.colors.primary?.[500] || '#3D944B') : 'gray.200'}
+                    >
+                      <Text
+                        color={formData.is_young ? 'white' : 'gray.600'}
+                        fontSize="md"
+                        fontWeight="semibold"
+                      >
+                        {formData.is_young ? 'Oui' : 'Non'}
+                      </Text>
+                    </Box>
+                  </Pressable>
+                </FormField>
+              </Box>
+              <Box flex={1}>
+                <FormField label="Alphabétisé">
+                  <Pressable
+                    onPress={() => handleInputChange('literacy', !formData.literacy)}
+                    _pressed={{ opacity: 0.8 }}
+                  >
+                    <Box
+                      bg={formData.literacy ? (theme.colors.primary?.[500] || '#3D944B') : 'gray.100'}
+                      borderRadius="md"
+                      p={3}
+                      alignItems="center"
+                      borderWidth={1}
+                      borderColor={formData.literacy ? (theme.colors.primary?.[500] || '#3D944B') : 'gray.200'}
+                    >
+                      <Text
+                        color={formData.literacy ? 'white' : 'gray.600'}
+                        fontSize="md"
+                        fontWeight="semibold"
+                      >
+                        {formData.literacy ? 'Oui' : 'Non'}
+                      </Text>
+                    </Box>
+                  </Pressable>
+                </FormField>
+              </Box>
+            </HStack>
 
-          <FormField label="Langues parlées">
-            <TextInput
-              style={styles.input}
-              value={formData.languages}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, languages: text }))}
-              placeholder="Français, Wolof, Sérère (séparées par des virgules)"
-            />
-          </FormField>
-        </View>
+            <FormField label="Langues parlées">
+              <FormInput
+                value={formData.languages}
+                onChangeText={(value) => handleInputChange('languages', value)}
+                placeholder="Français, Wolof, Sérère (séparées par des virgules)"
+              />
+            </FormField>
+          </Card>
+        </ScrollView>
 
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={[styles.button, styles.cancelButton]}
-            onPress={() => router.back()}
-          >
-            <Text style={styles.cancelButtonText}>Annuler</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.button, styles.saveButton, loading && styles.disabledButton]}
-            onPress={handleSave}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.saveButtonText}>Enregistrer</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </ContentWithHeader>
+        <FormFooter 
+          onCancel={() => router.back()}
+          onSave={handleSave}
+          loading={loading}
+        />
+      </FormContainer>
+    </ScreenContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f9fafb',
-  },
-  form: {
-    padding: 16,
-  },
-  fieldContainer: {
-    marginBottom: 16,
-  },
-  fieldLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 6,
-  },
-  required: {
-    color: '#ef4444',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: '#fff',
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  halfField: {
-    flex: 1,
-  },
-  checkbox: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    padding: 12,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-  },
-  checkboxChecked: {
-    backgroundColor: '#3D944B',
-    borderColor: '#3D944B',
-  },
-  checkboxText: {
-    color: '#374151',
-    fontSize: 16,
-  },
-  checkboxTextChecked: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    padding: 16,
-    gap: 12,
-  },
-  button: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  cancelButton: {
-    backgroundColor: '#f3f4f6',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-  },
-  cancelButtonText: {
-    color: '#374151',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  saveButton: {
-    backgroundColor: '#3D944B',
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  disabledButton: {
-    opacity: 0.6,
-  },
-});

@@ -4,11 +4,13 @@ import { useToast } from '../../context/ToastContext';
 import Layout from '../../components/Layout/Layout';
 import SearchBar from '../../components/Producers/SearchBar';
 import FilterDropdown from '../../components/Producers/FilterDropdown';
+import AdvancedFilters from '../../components/Producers/AdvancedFilters';
 import ProducersTable from '../../components/Producers/ProducersTable';
-import Pagination from '../../components/Producers/Pagination';
+import StandardPagination from '../../components/ui/StandardPagination';
 import ProducerModal from '../../components/Producers/ProducerModal';
 import ProducerDetailsModal from '../../components/Producers/ProducerDetailsModal';
 import AgentAssignmentModal from '../../components/Producers/AgentAssignmentModal';
+import DeleteConfirmationModal from '../../components/Producers/DeleteConfirmationModal';
 import { ProducersService, Producer, ProducerFilters } from '../../services/producersService';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
@@ -34,13 +36,15 @@ const Producers: React.FC = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isAgentModalOpen, setIsAgentModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedProducer, setSelectedProducer] = useState<Producer | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   
   // Filters state
   const [filters, setFilters] = useState<ProducerFilters>({
     search: '',
-    region: '',
-    status: 'active' as 'active' | 'inactive'
+    region: ''
+    // status: 'active' as 'active' | 'inactive' // Utilise is_active directement
   });
   
   // Pagination state
@@ -51,8 +55,9 @@ const Producers: React.FC = () => {
   
   // Filter options
   const [regions, setRegions] = useState<string[]>([]);
+  const [cooperatives, setCooperatives] = useState<Array<{id: string, name: string}>>([]);
   const [cooperativesCount, setCooperativesCount] = useState<number>(0);
-  const statusOptions = ['active', 'inactive'];
+  // const statusOptions = ['active', 'inactive']; // Utilise is_active directement
 
   useEffect(() => {
     fetchProducers();
@@ -85,6 +90,12 @@ const Producers: React.FC = () => {
     try {
       const options = await ProducersService.getFilterOptions();
       setRegions(options.regions);
+      
+      // Récupérer les coopératives pour les filtres
+      const { CooperativesService } = await import('../../services/cooperativesService');
+      const cooperativesResult = await CooperativesService.getCooperatives({}, 1, 1000);
+      const cooperativesData = cooperativesResult.data.map(c => ({ id: c.id, name: c.name }));
+      setCooperatives(cooperativesData);
     } catch (err) {
       console.error('Error fetching filter options:', err);
     }
@@ -147,22 +158,46 @@ const Producers: React.FC = () => {
     setIsAddModalOpen(false);
     setIsEditModalOpen(false);
     fetchProducers();
+    fetchFilterOptions(); // Rafraîchir les options de filtre
     showToast({
       type: 'success',
       title: 'Producteur sauvegardé avec succès'
     });
   };
 
-  const handleDeleteProducer = () => {
-    fetchProducers();
-    showToast({
-      type: 'success',
-      title: 'Producteur supprimé avec succès'
-    });
+  const handleDeleteProducer = (producer: Producer) => {
+    setSelectedProducer(producer);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDeleteProducer = async () => {
+    if (!selectedProducer) return;
+
+    setDeleteLoading(true);
+    try {
+      await ProducersService.deleteProducer(selectedProducer.id);
+      fetchProducers();
+      fetchFilterOptions(); // Rafraîchir les options de filtre
+      setIsDeleteModalOpen(false);
+      setSelectedProducer(null);
+      showToast({
+        type: 'success',
+        title: 'Producteur supprimé avec succès'
+      });
+    } catch (error) {
+      console.error('Error deleting producer:', error);
+      showToast({
+        type: 'error',
+        title: 'Erreur lors de la suppression du producteur'
+      });
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   const handleRefresh = () => {
     fetchProducers();
+    fetchFilterOptions(); // Rafraîchir les options de filtre
     showToast({
       type: 'success',
       title: 'Données actualisées'
@@ -187,39 +222,40 @@ const Producers: React.FC = () => {
     <Layout>
       {/* Header */}
       <div className="mb-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <UsersIcon className="h-6 w-6" />
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <UsersIcon className="h-5 w-5 sm:h-6 sm:w-6" />
               Gestion des Producteurs
             </h1>
-            <p className="text-gray-600 mt-1">
+            <p className="text-gray-600 mt-1 text-sm sm:text-base">
               Gérez et supervisez vos producteurs membres
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <Button
               variant="outline"
               onClick={handleRefresh}
               disabled={loading}
-              className="flex items-center gap-2"
+              className="flex items-center justify-center gap-2 w-full sm:w-auto"
             >
               <RefreshCwIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               Actualiser
             </Button>
             <Button
               onClick={handleAddProducer}
-              className="flex items-center gap-2"
+              className="flex items-center justify-center gap-2 w-full sm:w-auto"
             >
               <PlusIcon className="h-4 w-4" />
-              Nouveau Producteur
+              <span className="hidden sm:inline">Nouveau Producteur</span>
+              <span className="sm:hidden">Ajouter</span>
             </Button>
           </div>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center">
@@ -266,36 +302,27 @@ const Producers: React.FC = () => {
         </Card>
       </div>
 
-      {/* Filters */}
-      <Card className="mb-6">
+      {/* Search Bar */}
+      <Card className="mb-4">
         <CardContent className="p-4">
-          <div className="flex flex-col lg:flex-row gap-4">
-            <div className="flex-1">
-              <SearchBar
-                value={filters.search || ''}
-                onChange={handleSearchChange}
-                placeholder="Rechercher un producteur..."
-              />
-            </div>
-            <div className="flex gap-2">
-              <FilterDropdown
-                label="Région"
-                value={filters.region || 'all'}
-                options={regions}
-                onChange={(value) => handleFilterChange('region', value)}
-                placeholder="Toutes les régions"
-              />
-              <FilterDropdown
-                label="Statut"
-                value={filters.status || 'all'}
-                options={statusOptions}
-                onChange={(value) => handleFilterChange('status', value)}
-                placeholder="Tous les statuts"
-              />
-            </div>
-          </div>
+          <SearchBar
+            value={filters.search || ''}
+            onChange={handleSearchChange}
+            placeholder="Rechercher un producteur..."
+          />
         </CardContent>
       </Card>
+
+      {/* Advanced Filters */}
+      <AdvancedFilters
+        filters={filters}
+        onFiltersChange={(newFilters) => {
+          setFilters(newFilters);
+          setCurrentPage(1); // Reset to first page when filters change
+        }}
+        regions={regions}
+        cooperatives={cooperatives}
+      />
 
       {/* Producers Table */}
       <Card>
@@ -306,6 +333,7 @@ const Producers: React.FC = () => {
             onView={handleViewProducer}
             onEdit={handleEditProducer}
             onDownload={() => {}}
+            onDelete={handleDeleteProducer}
             onManageAgents={handleManageAgents}
           />
         </CardContent>
@@ -314,13 +342,13 @@ const Producers: React.FC = () => {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="mt-4">
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={totalItems}
-            itemsPerPage={itemsPerPage}
-            onPageChange={handlePageChange}
-          />
+            <StandardPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={itemsPerPage}
+              onPageChange={handlePageChange}
+            />
         </div>
       )}
 
@@ -355,6 +383,17 @@ const Producers: React.FC = () => {
         producerId={selectedProducer?.id || ''}
         producerName={selectedProducer ? `${selectedProducer.first_name} ${selectedProducer.last_name}` : ''}
         onAgentAssigned={handleAgentAssigned}
+      />
+
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setSelectedProducer(null);
+        }}
+        onConfirm={confirmDeleteProducer}
+        producerName={selectedProducer ? `${selectedProducer.first_name} ${selectedProducer.last_name}` : undefined}
+        loading={deleteLoading}
       />
     </Layout>
   );

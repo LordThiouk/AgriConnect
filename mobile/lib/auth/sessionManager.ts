@@ -6,7 +6,7 @@
 
 import { MobileAuthService } from './mobileAuthService';
 import type { Session } from '@supabase/supabase-js';
-import type { UserRole } from '../../../types/user';
+import type { UserRole } from '../../../lib/types/core/user';
 
 export interface SessionStatus {
   isValid: boolean;

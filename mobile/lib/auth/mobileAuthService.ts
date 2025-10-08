@@ -5,7 +5,7 @@
 
 import { supabase } from '../supabase';
 import type { User, Session, AuthError } from '@supabase/supabase-js';
-import type { UserRole } from '../../../types/user';
+import type { UserRole } from '../../../lib/types/core/user';
 
 /**
  * Normalise le numéro de téléphone au format E.164

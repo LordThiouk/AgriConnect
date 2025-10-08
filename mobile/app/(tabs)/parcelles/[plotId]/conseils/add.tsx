@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TextInput, Button, Alert, ActivityI
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '../../../../../context/AuthContext';
 import { CollecteService } from '../../../../../lib/services/collecte';
-import CompatiblePicker from '../../../../../components/CompatiblePicker';
+import { FormSelect } from '../../../../../components/ui';
 import { RecommendationInsert } from '../../../../../types/collecte';
 
 const recommendationTypes = [
@@ -86,11 +86,12 @@ export default function AddRecommendationScreen() {
       />
       
       <Text style={styles.label}>Type de conseil</Text>
-      <CompatiblePicker
-        items={recommendationTypes}
+      <FormSelect
+        options={recommendationTypes}
         onValueChange={(value) => setType(value || '')}
-        selectedValue={type}
-        placeholder="Sélectionnez un type"
+        value={type}
+        placeholder="Sélectionner le type"
+        label="Type de conseil"
       />
 
       <Text style={styles.label}>Message / Recommandation</Text>

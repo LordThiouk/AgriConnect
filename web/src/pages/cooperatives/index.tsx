@@ -4,8 +4,9 @@ import { useToast } from '../../context/ToastContext';
 import Layout from '../../components/Layout/Layout';
 import SearchBar from '../../components/Cooperatives/SearchBar';
 import FilterDropdown from '../../components/Cooperatives/FilterDropdown';
+import AdvancedFilters from '../../components/Cooperatives/AdvancedFilters';
 import CooperativesTable from '../../components/Cooperatives/CooperativesTable';
-import Pagination from '../../components/Cooperatives/Pagination';
+import StandardPagination from '../../components/ui/StandardPagination';
 import CooperativeModal from '../../components/Cooperatives/CooperativeModal';
 import CooperativeDetailsModal from '../../components/Cooperatives/CooperativeDetailsModal';
 import CooperativeProducersModal from '../../components/Cooperatives/CooperativeProducersModal';
@@ -21,6 +22,12 @@ import { MapPin, Building2, Users, BarChart3, Plus, RefreshCw } from 'lucide-rea
 // Type assertions pour résoudre le conflit de types
 const MapPinIcon = MapPin as any;
 const Building2Icon = Building2 as any;
+
+// Type assertions pour les composants Tabs
+const TabsComponent = Tabs as any;
+const TabsListComponent = TabsList as any;
+const TabsTriggerComponent = TabsTrigger as any;
+const TabsContentComponent = TabsContent as any;
 const UsersIcon = Users as any;
 const BarChart3Icon = BarChart3 as any;
 const PlusIcon = Plus as any;
@@ -47,7 +54,10 @@ const Cooperatives: React.FC = () => {
     search: '',
     region: '',
     department: '',
-    commune: ''
+    commune: '',
+    hasGeo: '',
+    minProducers: '',
+    maxProducers: ''
   });
   
   // Pagination state
@@ -147,6 +157,8 @@ const Cooperatives: React.FC = () => {
     setIsAddModalOpen(false);
     setIsEditModalOpen(false);
     fetchCooperatives();
+    fetchFilterOptions(); // Rafraîchir les options de filtre
+    fetchTotalProducers(); // Rafraîchir le total des producteurs
     showToast({ type: 'success', title: 'Coopérative sauvegardée avec succès' });
   };
 
@@ -169,6 +181,8 @@ const Cooperatives: React.FC = () => {
       setIsDeleteModalOpen(false);
       setSelectedCooperative(null);
       fetchCooperatives();
+      fetchFilterOptions(); // Rafraîchir les options de filtre
+      fetchTotalProducers(); // Rafraîchir le total des producteurs
       showToast({ type: 'success', title: 'Coopérative supprimée avec succès' });
     } catch (error) {
       console.error('Error deleting cooperative:', error);
@@ -181,11 +195,15 @@ const Cooperatives: React.FC = () => {
 
   const handleCooperativeDeleted = (id?: string) => {
     fetchCooperatives();
+    fetchFilterOptions(); // Rafraîchir les options de filtre
+    fetchTotalProducers(); // Rafraîchir le total des producteurs
     showToast({ type: 'success', title: 'Coopérative supprimée avec succès' });
   };
 
   const handleRefresh = () => {
     fetchCooperatives();
+    fetchFilterOptions(); // Rafraîchir les options de filtre
+    fetchTotalProducers(); // Rafraîchir le total des producteurs
     showToast({ type: 'success', title: 'Données actualisées' });
   };
 
@@ -209,79 +227,82 @@ const Cooperatives: React.FC = () => {
     <Layout>
           {/* Header */}
           <div className="mb-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                  <Building2Icon className="h-6 w-6" />
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+                  <Building2Icon className="h-5 w-5 sm:h-6 sm:w-6" />
                   Gestion des Coopératives
                 </h1>
-                <p className="text-gray-600 mt-1">
+                <p className="text-sm sm:text-base text-gray-600 mt-1">
                   Gérez les coopératives agricoles et leurs informations
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 <Button
                   variant="outline"
                   onClick={handleRefresh}
                   disabled={loading}
-                  className="flex items-center gap-2"
+                  className="flex items-center justify-center gap-2 w-full sm:w-auto"
+                  size="sm"
                 >
                   <RefreshCwIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                  Actualiser
+                  <span className="hidden sm:inline">Actualiser</span>
                 </Button>
                 <Button
                   onClick={handleAddCooperative}
-                  className="flex items-center gap-2"
+                  className="flex items-center justify-center gap-2 w-full sm:w-auto"
+                  size="sm"
                 >
                   <PlusIcon className="h-4 w-4" />
-                  Nouvelle Coopérative
+                  <span className="hidden sm:inline">Nouvelle Coopérative</span>
+                  <span className="sm:hidden">Nouvelle</span>
                 </Button>
               </div>
             </div>
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
             <Card>
-              <CardContent className="p-4">
+              <CardContent className="p-3 sm:p-4">
                 <div className="flex items-center">
-                  <Building2Icon className="h-8 w-8 text-blue-600" />
-                  <div className="ml-3">
-                    <p className="text-sm font-medium text-gray-600">Total Coopératives</p>
-                    <p className="text-2xl font-bold text-gray-900">{totalItems}</p>
+                  <Building2Icon className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600 flex-shrink-0" />
+                  <div className="ml-2 sm:ml-3 min-w-0">
+                    <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Total Coopératives</p>
+                    <p className="text-lg sm:text-2xl font-bold text-gray-900">{totalItems}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
             <Card>
-              <CardContent className="p-4">
+              <CardContent className="p-3 sm:p-4">
                 <div className="flex items-center">
-                  <UsersIcon className="h-8 w-8 text-green-600" />
-                  <div className="ml-3">
-                    <p className="text-sm font-medium text-gray-600">Producteurs</p>
-                    <p className="text-2xl font-bold text-gray-900">{totalProducers}</p>
+                  <UsersIcon className="h-6 w-6 sm:h-8 sm:w-8 text-green-600 flex-shrink-0" />
+                  <div className="ml-2 sm:ml-3 min-w-0">
+                    <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Producteurs</p>
+                    <p className="text-lg sm:text-2xl font-bold text-gray-900">{totalProducers}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
             <Card>
-              <CardContent className="p-4">
+              <CardContent className="p-3 sm:p-4">
                 <div className="flex items-center">
-                  <MapPinIcon className="h-8 w-8 text-purple-600" />
-                  <div className="ml-3">
-                    <p className="text-sm font-medium text-gray-600">Régions</p>
-                    <p className="text-2xl font-bold text-gray-900">{regions.length}</p>
+                  <MapPinIcon className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600 flex-shrink-0" />
+                  <div className="ml-2 sm:ml-3 min-w-0">
+                    <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Régions</p>
+                    <p className="text-lg sm:text-2xl font-bold text-gray-900">{regions.length}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
             <Card>
-              <CardContent className="p-4">
+              <CardContent className="p-3 sm:p-4">
                 <div className="flex items-center">
-                  <BarChart3Icon className="h-8 w-8 text-orange-600" />
-                  <div className="ml-3">
-                    <p className="text-sm font-medium text-gray-600">Départements</p>
-                    <p className="text-2xl font-bold text-gray-900">{departments.length}</p>
+                  <BarChart3Icon className="h-6 w-6 sm:h-8 sm:w-8 text-orange-600 flex-shrink-0" />
+                  <div className="ml-2 sm:ml-3 min-w-0">
+                    <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Départements</p>
+                    <p className="text-lg sm:text-2xl font-bold text-gray-900">{departments.length}</p>
                   </div>
                 </div>
               </CardContent>
@@ -290,8 +311,8 @@ const Cooperatives: React.FC = () => {
 
           {/* Filters */}
           <Card className="mb-6">
-            <CardContent className="p-4">
-              <div className="flex flex-col lg:flex-row gap-4">
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex flex-col gap-4">
                 <div className="flex-1">
                   <SearchBar
                     value={filters.search || ''}
@@ -299,31 +320,47 @@ const Cooperatives: React.FC = () => {
                     placeholder="Rechercher une coopérative..."
                   />
                 </div>
-                <FilterDropdown
-                  filters={filters}
-                  onFiltersChange={setFilters}
-                  regions={regions}
-                  departments={departments}
-                  communes={communes}
-                />
+                <div className="w-full">
+                  <FilterDropdown
+                    filters={filters}
+                    onFiltersChange={setFilters}
+                    regions={regions}
+                    departments={departments}
+                    communes={communes}
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Main Content */}
-          <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as 'table' | 'map')}>
-            <TabsList className="mb-4">
-              <TabsTrigger value="table" className="flex items-center gap-2">
-                <BarChart3Icon className="h-4 w-4" />
-                Liste
-              </TabsTrigger>
-              <TabsTrigger value="map" className="flex items-center gap-2">
-                <MapPinIcon className="h-4 w-4" />
-                Carte
-              </TabsTrigger>
-            </TabsList>
+          {/* Advanced Filters */}
+          <AdvancedFilters
+            filters={filters}
+            onFiltersChange={(newFilters) => {
+              setFilters(newFilters);
+              setCurrentPage(1); // Reset to first page when filters change
+            }}
+            regions={regions}
+            departments={departments}
+            communes={communes}
+          />
 
-            <TabsContent value="table">
+          {/* Main Content */}
+          <TabsComponent value={viewMode} onValueChange={(value) => setViewMode(value as 'table' | 'map')}>
+            <TabsListComponent className="mb-4 w-full sm:w-auto">
+              <TabsTriggerComponent value="table" className="flex items-center gap-1 sm:gap-2 flex-1 sm:flex-none">
+                <BarChart3Icon className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Liste</span>
+                <span className="sm:hidden">Liste</span>
+              </TabsTriggerComponent>
+              <TabsTriggerComponent value="map" className="flex items-center gap-1 sm:gap-2 flex-1 sm:flex-none">
+                <MapPinIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Carte</span>
+                <span className="sm:hidden">Carte</span>
+              </TabsTriggerComponent>
+            </TabsListComponent>
+
+            <TabsContentComponent value="table">
               <Card>
                 <CardContent className="p-0">
                   <CooperativesTable
@@ -340,16 +377,18 @@ const Cooperatives: React.FC = () => {
 
               {totalPages > 1 && (
                 <div className="mt-4">
-                  <Pagination
+                  <StandardPagination
                     currentPage={currentPage}
                     totalPages={totalPages}
+                    totalItems={totalItems}
+                    itemsPerPage={itemsPerPage}
                     onPageChange={handlePageChange}
                   />
                 </div>
               )}
-            </TabsContent>
+            </TabsContentComponent>
 
-            <TabsContent value="map">
+            <TabsContentComponent value="map">
               <Card>
                 <CardContent className="p-4">
                   <CooperativesMap
@@ -360,8 +399,8 @@ const Cooperatives: React.FC = () => {
                   />
                 </CardContent>
               </Card>
-            </TabsContent>
-          </Tabs>
+            </TabsContentComponent>
+          </TabsComponent>
 
           {/* Modals */}
           <CooperativeModal

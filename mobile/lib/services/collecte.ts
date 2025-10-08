@@ -5,7 +5,7 @@
 
 import { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '../supabase-client';
-import { Database } from '../../../types/database';
+import { Database } from '../../types/database';
 import { 
   FarmFile, 
   FarmFileDisplay, 
@@ -19,7 +19,6 @@ import {
   CollecteFilters,
   CollecteSort,
   GlobalObservationDisplay,
-  GeneralNotificationDisplay,
   calculateCompletionStatus,
   calculateCompletionPercent,
   getSyncStatus,
@@ -48,7 +47,7 @@ export class CollecteService {
 
       // Appel de la fonction RPC
       const { data, error } = await (this.supabase as any)
-        .rpc('get_farm_files', { p_agent_id: agentId });
+        .rpc('get_farm_files', { p_agent_user_id: agentId });
 
       if (error) {
         console.error('❌ Erreur lors de la récupération des fiches via RPC:', error);
@@ -58,7 +57,7 @@ export class CollecteService {
       console.log('✅ Données RPC brutes récupérées:', data?.length || 0);
       
       // Le mappage doit utiliser les noms de colonnes exacts du RPC (snake_case)
-      const farmFilesDisplay: FarmFileDisplay[] = (data || []).map(rpcRow => {
+      const farmFilesDisplay: FarmFileDisplay[] = (data || []).map((rpcRow: any) => {
         return {
           id: rpcRow.id,
           name: rpcRow.farm_file_name,
@@ -200,6 +199,160 @@ export class CollecteService {
   }
 
   /**
+   * Ajoute une nouvelle opération
+   */
+  static async addOperation(operationData: any): Promise<any> {
+    try {
+      console.log('🚜 Ajout d\'une nouvelle opération:', operationData);
+      
+      const { data, error } = await this.supabase
+        .from('operations')
+        .insert(operationData)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Erreur lors de l\'ajout de l\'opération:', error);
+        throw error;
+      }
+
+      console.log('✅ Opération ajoutée avec succès:', data);
+      return data;
+    } catch (error) {
+      console.error('❌ Erreur lors de l\'ajout de l\'opération:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Met à jour une opération existante
+   */
+  static async updateOperation(operationId: string, operationData: any): Promise<any> {
+    try {
+      console.log('🚜 Mise à jour de l\'opération:', operationId, operationData);
+      
+      const { data, error } = await this.supabase
+        .from('operations')
+        .update(operationData)
+        .eq('id', operationId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Erreur lors de la mise à jour de l\'opération:', error);
+        throw error;
+      }
+
+      console.log('✅ Opération mise à jour avec succès:', data);
+      return data;
+    } catch (error) {
+      console.error('❌ Erreur lors de la mise à jour de l\'opération:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Supprime une opération
+   */
+  static async deleteOperation(operationId: string): Promise<void> {
+    try {
+      console.log('🚜 Suppression de l\'opération:', operationId);
+      
+      const { error } = await this.supabase
+        .from('operations')
+        .delete()
+        .eq('id', operationId);
+
+      if (error) {
+        console.error('❌ Erreur lors de la suppression de l\'opération:', error);
+        throw error;
+      }
+
+      console.log('✅ Opération supprimée avec succès');
+    } catch (error) {
+      console.error('❌ Erreur lors de la suppression de l\'opération:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Ajoute un nouvel intrant
+   */
+  static async addInput(inputData: any): Promise<any> {
+    try {
+      console.log('🌾 Ajout d\'un nouvel intrant:', inputData);
+      
+      const { data, error } = await this.supabase
+        .from('agricultural_inputs')
+        .insert(inputData)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Erreur lors de l\'ajout de l\'intrant:', error);
+        throw error;
+      }
+
+      console.log('✅ Intrant ajouté avec succès:', data);
+      return data;
+    } catch (error) {
+      console.error('❌ Erreur lors de l\'ajout de l\'intrant:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Met à jour un intrant existant
+   */
+  static async updateInput(inputId: string, inputData: any): Promise<any> {
+    try {
+      console.log('🌾 Mise à jour de l\'intrant:', inputId, inputData);
+      
+      const { data, error } = await this.supabase
+        .from('agricultural_inputs')
+        .update(inputData)
+        .eq('id', inputId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Erreur lors de la mise à jour de l\'intrant:', error);
+        throw error;
+      }
+
+      console.log('✅ Intrant mis à jour avec succès:', data);
+      return data;
+    } catch (error) {
+      console.error('❌ Erreur lors de la mise à jour de l\'intrant:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Supprime un intrant
+   */
+  static async deleteInput(inputId: string): Promise<void> {
+    try {
+      console.log('🌾 Suppression de l\'intrant:', inputId);
+      
+      const { error } = await this.supabase
+        .from('agricultural_inputs')
+        .delete()
+        .eq('id', inputId);
+
+      if (error) {
+        console.error('❌ Erreur lors de la suppression de l\'intrant:', error);
+        throw error;
+      }
+
+      console.log('✅ Intrant supprimé avec succès');
+    } catch (error) {
+      console.error('❌ Erreur lors de la suppression de l\'intrant:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Récupère les producteurs pour un agent
    */
   static async getProducers(agentId: string): Promise<ProducerDisplay[]> {
@@ -210,9 +363,10 @@ export class CollecteService {
 
       // Récupérer les producteurs assignés à l'agent
       const { data: assignments, error: assignErr } = await this.supabase
-        .from('agent_producer_assignments')
-        .select('producer_id')
-        .eq('agent_id', agentId);
+        .from('agent_assignments')
+        .select('assigned_to_id')
+        .eq('agent_id', agentId)
+        .eq('assigned_to_type', 'producer');
 
       if (assignErr) {
         console.error('❌ Erreur lors de la récupération des affectations:', assignErr);
@@ -222,7 +376,7 @@ export class CollecteService {
       console.log('📊 Assignments récupérées:', assignments?.length || 0);
       console.log('📋 Premières assignations:', assignments?.slice(0, 3));
 
-      const producerIds = (assignments || []).map(a => a.producer_id);
+      const producerIds = (assignments || []).map(a => a.assigned_to_id);
       console.log('🔍 Producer IDs extraits:', producerIds.slice(0, 5));
       
       if (producerIds.length === 0) {
@@ -307,16 +461,17 @@ export class CollecteService {
 
       // Plots liés à des producteurs assignés à l'agent (liste simple)
       const { data: assignments, error: assignErr } = await this.supabase
-        .from('agent_producer_assignments')
-        .select('producer_id')
-        .eq('agent_id', agentId);
+        .from('agent_assignments')
+        .select('assigned_to_id')
+        .eq('agent_id', agentId)
+        .eq('assigned_to_type', 'producer');
 
       if (assignErr) {
         console.error('❌ Erreur lors de la récupération des affectations:', assignErr);
         throw assignErr;
       }
 
-      const producerIds = (assignments || []).map(a => a.producer_id);
+      const producerIds = (assignments || []).map(a => a.assigned_to_id);
       console.log('🔍 Producer IDs pour la requête farm_files:', producerIds.slice(0, 5));
       
       if (producerIds.length === 0) {
@@ -325,7 +480,7 @@ export class CollecteService {
       }
 
       const { data, error } = await this.supabase
-        .from('farm_file_plots')
+        .from('plots')
         .select(`
           id,
           name_season_snapshot,
@@ -414,12 +569,12 @@ export class CollecteService {
   }
 
   /**
-   * Récupère les parcelles d'une fiche (farm_file_plots)
+   * Récupère les parcelles d'une fiche
    */
   static async getFarmFilePlots(farmFileId: string) {
     try {
       const { data, error } = await this.supabase
-        .from('farm_file_plots')
+        .from('plots')
         .select(`id, name_season_snapshot, area_hectares, cotton_variety`)
         .eq('farm_file_id', farmFileId)
         .order('name_season_snapshot', { ascending: true });
@@ -437,22 +592,25 @@ export class CollecteService {
 
   /**
    * Récupère les parcelles suivies par un agent (via coop de l'agent)
-   * Source: farm_file_plots (garantit rattachement à la fiche)
+   * Source: plots (table principale des parcelles)
+   * Utilise get_agent_plots_with_geolocation pour filtrage par assignments agent et calcul géolocalisation côté serveur
    */
   static async getAgentPlots(agentId: string, filters?: { query?: string, village?: string, crop?: string, status?: string }): Promise<PlotDisplay[]> {
     try {
       console.log('🌾 Récupération des parcelles via RPC pour l\'agent:', agentId, 'avec filtres:', filters);
 
-      // Utiliser la fonction RPC pour récupérer les parcelles
+      // Utiliser la nouvelle fonction RPC get_agent_plots_with_geolocation qui combine filtrage par assignments + géolocalisation serveur
       const { data: plots, error: rpcError } = await (this.supabase as any)
-        .rpc('get_agent_plots', { agent_auth_id: agentId });
+        .rpc('get_agent_plots_with_geolocation', {
+          p_agent_user_id: agentId
+        });
 
       if (rpcError) {
-        console.error('❌ Erreur lors de l\'appel RPC get_agent_plots:', rpcError);
+        console.error('❌ Erreur lors de l\'appel RPC get_agent_plots_with_geolocation:', rpcError);
         throw rpcError;
       }
 
-      console.log('📋 Parcelles récupérées via RPC:', plots?.length || 0, 'parcelles');
+      console.log('📋 Parcelles récupérées via RPC avec géolocalisation et filtrage agent:', plots?.length || 0, 'parcelles');
       console.log('📋 Détails des parcelles:', plots);
 
       if (!plots || plots.length === 0) {
@@ -461,25 +619,46 @@ export class CollecteService {
       }
 
       // Transformer les données RPC en format PlotDisplay
-      const plotsDisplay: PlotDisplay[] = plots.map((plot: any) => ({
-        id: plot.id,
-        name: plot.name_season_snapshot,
-        area: plot.area_hectares,
-        producerName: `${plot.producer_first_name || ''} ${plot.producer_last_name || ''}`.trim() || '—',
-        location: '', // À remplir si nécessaire
-        variety: '', // À remplir si nécessaire
-        soilType: '', // À remplir si nécessaire
-        waterSource: '', // À remplir si nécessaire
-        status: 'active' as 'preparation' | 'cultivated' | 'fallow',
-        cropsCount: 0,
-        lastOperation: undefined,
-        hasGps: !!plot.geom,
-      }));
+      const plotsDisplay: PlotDisplay[] = plots
+        .map((plot: any) => {
+          // Extraire les coordonnées du center_point JSON
+          let lat: number | undefined;
+          let lon: number | undefined;
+          
+          if (plot.center_point && plot.center_point.coordinates) {
+            lon = plot.center_point.coordinates[0]; // longitude en premier
+            lat = plot.center_point.coordinates[1]; // latitude en second
+          }
+          
+          // Constructions du nom du producteur
+          const producerName = plot.producer_name || '—';
+          
+          return {
+            id: plot.id,
+            name: plot.name_season_snapshot || plot.name || 'Parcelle sans nom',
+            area: plot.area_hectares || 0,
+            producerName,
+            location: plot.location || 'Localisation non renseignée',
+            variety: '', // À remplir via getCropsByPlotId
+            soilType: plot.soil_type || '', // Maintenant disponible directement
+            waterSource: plot.water_source || '', // Maintenant disponible directement
+            status: (plot.status as 'preparation' | 'cultivated' | 'fallow') || 'preparation',
+            cropsCount: 0,
+            lastOperation: undefined,
+            hasGps: plot.has_gps || false, // Utiliser le champ has_gps du RPC
+            lat,
+            lon,
+          };
+        })
+        .filter((plot: PlotDisplay) => 
+          // Ne garder que les parcelles avec coordonnées valides si GPS requis
+          !plot.hasGps || (plot.lat !== undefined && plot.lon !== undefined)
+        );
 
-      console.log('✅ Parcelles (agent) récupérées via RPC:', plotsDisplay.length);
+      console.log('✅ Parcelles transformées pour affichage avec GPS réel (filtrage agent assignations):', plotsDisplay.length);
       return plotsDisplay;
     } catch (error) {
-      console.error('❌ Erreur générale dans getAgentPlots (RPC):', error);
+      console.error('❌ Erreur générale dans getAgentPlots (RPC filtrée):', error);
       throw error;
     }
   }
@@ -491,11 +670,47 @@ export class CollecteService {
     try {
       console.log('💡 Récupération des conseils pour la parcelle:', plotId);
 
-      const { data, error } = await this.supabase
+      // D'abord récupérer le producer_id depuis plots
+      const { data: plotData, error: plotError } = await this.supabase
+        .from('plots')
+        .select('producer_id')
+        .eq('id', plotId)
+        .single();
+
+      if (plotError || !plotData) {
+        console.log('   ⚠️ Parcelle non trouvée, recherche sans producer_id filtré');
+        const { data: noFilters, error: noFiltersError } = await this.supabase
+          .from('recommendations')
+          .select('*')
+          .eq('plot_id', plotId)
+          .order('created_at', { ascending: false });
+
+        if (noFiltersError) {
+          console.error('❌ Erreur lors de la récupération des conseils:', noFiltersError);
+          throw noFiltersError;
+        }
+
+        return !noFilters ? [] : noFilters.map((r: any) => ({
+          id: r.id,
+          title: r.title,
+          message: r.message,
+          date: new Date(r.created_at || Date.now()).toLocaleDateString('fr-FR'),
+          status: (r.status || 'pending') as string,
+          type: r.recommendation_type,
+        }));
+      }
+
+      const producerId = plotData.producer_id;
+      console.log('   📋 Producer ID récupéré:', producerId);
+
+      // Recherche les recommandations avec ce producer_id et optionnellement matching ideal plotId ou null
+      let dataQuery = this.supabase
         .from('recommendations')
         .select('*')
-        .eq('plot_id', plotId)
+        .eq('producer_id', producerId)
         .order('created_at', { ascending: false });
+
+      const { data, error } = await dataQuery;
 
       if (error) {
         console.error('❌ Erreur lors de la récupération des conseils:', error);
@@ -504,14 +719,15 @@ export class CollecteService {
 
       if (!data) return [];
 
-      return data.map(r => ({
-        id: r.id,
-        title: r.title,
-        message: r.message,
-        date: new Date(r.created_at || Date.now()).toLocaleDateString('fr-FR'),
-        status: r.status || 'pending',
-        type: r.recommendation_type,
-      }));
+      return data
+        .map((r: any) => ({
+          id: r.id,
+          title: r.title,
+          message: r.message,
+          date: new Date(r.created_at || Date.now()).toLocaleDateString('fr-FR'),
+          status: (r.status || 'pending') as string,
+          type: r.recommendation_type,
+        }));
     } catch (error) {
       console.error('❌ Erreur générale dans getRecommendationsByPlotId:', error);
       throw error;
@@ -524,20 +740,55 @@ export class CollecteService {
   static async getLatestRecommendations(plotId: string): Promise<RecommendationDisplay[]> {
     try {
       console.log('💡 Récupération des derniers conseils pour la parcelle:', plotId);
+
+      // D'abord récupérer le producer_id depuis plots 
+      const { data: plotData, error: plotError } = await this.supabase
+        .from('plots')
+        .select('producer_id')
+        .eq('id', plotId)
+        .single();
+
+      if (plotError || !plotData) {
+        console.log('   ⚠️ Parcelle non trouvée, recherche des 3 dernières recommandations sans producer_id filtré');
+        
+        const { data: noFilters, error: noFiltersError } = await this.supabase
+          .from('recommendations')
+          .select('*')
+          .eq('plot_id', plotId)
+          .order('created_at', { ascending: false })
+          .limit(3);
+
+        if (noFiltersError) {
+          console.error('❌ Erreur récupération colonnes recommendations:', noFiltersError);
+          return [];
+        }
+        
+        return !noFilters ? [] : noFilters.map(rec => ({
+          id: rec.id,
+          title: rec.title,
+          message: rec.message,
+          type: rec.recommendation_type,
+          status: rec.status,
+          date: rec.created_at ? new Date(rec.created_at).toLocaleDateString('fr-FR') : 'N/A',
+        }));
+      }
+
+      const producerId = plotData.producer_id;
+      console.log('   📋 Producer ID récupéré:', producerId);
+
       const { data, error } = await this.supabase
         .from('recommendations')
         .select('*')
-        .eq('plot_id', plotId)
+        .eq('producer_id', producerId)
         .order('created_at', { ascending: false })
         .limit(3);
 
       if (error) {
-        console.error('❌ Erreur lors de la récupération des derniers conseils:', error);
-        throw error;
+        console.error('❌ Erreur récupération des derniers conseils via producer:', error);
+        return [];
       }
-      if (!data) return [];
       
-      return data.map(rec => ({
+      return !data ? [] : data.map(rec => ({
         id: rec.id,
         title: rec.title,
         message: rec.message,
@@ -567,13 +818,14 @@ export class CollecteService {
       if (!data) return [];
       
       // La RPC trie déjà par date, donc on prend juste les 3 premiers
-      return data.slice(0, 3).map(op => ({
+      return data.slice(0, 3).map((op: any) => ({
         id: op.id,
         type: op.operation_type,
         product: op.product_used,
         description: op.description,
         date: new Date(op.operation_date).toLocaleDateString('fr-FR'),
-        author: op.author_name,
+        author: op.author_name || '',
+        has_photos: op.has_photos || false
       }));
     } catch (err) {
       console.error('❌ Exception in getLatestOperations:', err);
@@ -595,13 +847,19 @@ export class CollecteService {
       }
       if (!data) return [];
       
-      return data.slice(0, 3).map(obs => ({
+      const observations = data.slice(0, 3).map((obs: any) => ({
         id: obs.id,
+        type: obs.observation_type as ObservationType,
         title: obs.observation_type ?? 'Observation',
+        description: obs.description || '',
         date: new Date(obs.observation_date).toLocaleDateString('fr-FR'),
         severity: (obs.severity || 1) as 1 | 2 | 3 | 4 | 5,
-        author: obs.author_name,
+        author: obs.author_name || '',
+        has_photos: obs.has_photos || false
       }));
+      
+      console.log('🔍 [DEBUG] Observations récupérées:', observations);
+      return observations;
     } catch (err) {
       console.error('❌ Exception in getLatestObservations:', err);
       return [];
@@ -627,12 +885,12 @@ export class CollecteService {
       }
       if (!data) return [];
       
-      return data.map(input => ({
+      return data.map((input: any) => ({
         id: input.id,
         category: input.category,
-        label: input.label,
-        quantity: input.quantity,
-        unit: input.unit,
+        label: input.label || '',
+        quantity: input.quantity || 0,
+        unit: input.unit || '',
         date: new Date(input.created_at).toLocaleDateString('fr-FR'),
       }));
     } catch (err) {
@@ -717,7 +975,7 @@ export class CollecteService {
   }
 
   /**
-   * Récupère les observations pour une parcelle (farm_file_plot)
+   * Récupère les observations pour une parcelle (plots)
    */
   static async getObservationsByPlotId(plotId: string): Promise<ObservationDisplay[]> {
     try {
@@ -730,7 +988,7 @@ export class CollecteService {
       }
       if (!data) return [];
       
-      return data.map(obs => ({
+      return data.map((obs: any) => ({
         id: obs.id,
         title: `Observation du ${new Date(obs.observation_date).toLocaleDateString('fr-FR')}`,
         date: new Date(obs.observation_date).toLocaleDateString('fr-FR'),
@@ -752,16 +1010,10 @@ export class CollecteService {
     try {
       console.log('🌾 Récupération de la parcelle via RPC:', plotId, 'pour agent:', agentId);
 
-      if (!agentId) {
-        console.warn('⚠️ Agent ID manquant, impossible de récupérer la parcelle');
-        return null;
-      }
-
-      // Utiliser la fonction RPC pour récupérer la parcelle
+      // Utiliser la fonction RPC pour récupérer la parcelle (pas besoin d'agentId pour cette RPC)
       const { data: plots, error: rpcError } = await (this.supabase as any)
         .rpc('get_plot_by_id', { 
-          p_plot_id: plotId, 
-          p_agent_auth_id: agentId 
+          p_plot_id: plotId
         });
 
       if (rpcError) {
@@ -777,19 +1029,33 @@ export class CollecteService {
       }
 
       const plot = plots[0];
+      
+      // Extraire les coordonnées du center_point JSON
+      let lat: number | undefined;
+      let lon: number | undefined;
+      
+      if (plot.center_point && plot.center_point.coordinates) {
+        lon = plot.center_point.coordinates[0]; // longitude en premier
+        lat = plot.center_point.coordinates[1]; // latitude en second
+      }
+      
       const plotDisplay: PlotDisplay = {
         id: plot.id,
-        name: plot.name_season_snapshot,
-        area: plot.area_hectares,
-        producerName: `${plot.producer_first_name || ''} ${plot.producer_last_name || ''}`.trim() || '—',
-        variety: '', // À remplir si nécessaire
-        soilType: '', // À remplir si nécessaire
-        waterSource: '', // À remplir si nécessaire
-        status: 'active' as 'preparation' | 'cultivated' | 'fallow',
-        cropsCount: 0, // TODO: A calculer
-        lastOperation: undefined, // TODO: A implémenter
-        hasGps: !!plot.geom,
-        createdBy: undefined, // À remplir si nécessaire
+        name: plot.name_season_snapshot || plot.name || 'Parcelle sans nom',
+        area: plot.area_hectares || 0,
+        producerName: plot.producer_name || '—',
+        variety: plot.cotton_variety || '',
+        soilType: plot.soil_type || '',
+        waterSource: plot.water_source || '',
+        status: (plot.status as 'preparation' | 'cultivated' | 'fallow') || 'preparation',
+        cropsCount: 0, // À remplir via getCropsByPlotId
+        lastOperation: undefined, // À remplir via getOperationsByPlotId
+        hasGps: plot.has_gps || false,
+        lat,
+        lon,
+        location: plot.location || 'Localisation non renseignée',
+        createdBy: undefined, // Non disponible dans le RPC
+        lastSync: plot.updated_at || undefined,
       };
 
       console.log('✅ Parcelle récupérée via RPC:', plotDisplay);
@@ -1049,13 +1315,13 @@ export class CollecteService {
 
       if (!data) return [];
       
-      return data.map(op => ({
+      return data.map((op: any) => ({
         id: op.id,
         type: op.operation_type,
         product: op.product_used,
         description: op.description,
         date: new Date(op.operation_date).toLocaleDateString('fr-FR'),
-        author: op.author_name,
+        author: op.author_name || '',
       }));
     } catch (err) {
       console.error('❌ Exception in getOperationsByPlotId:', err);
@@ -1099,13 +1365,16 @@ export class CollecteService {
         .update(updateData)
         .eq('id', operationId)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error("❌ Erreur lors de la mise à jour de l'opération:", error);
         throw error;
       }
-      if (!data) throw new Error('Aucune donnée retournée après la mise à jour.');
+      
+      if (!data) {
+        throw new Error('Opération non trouvée ou accès refusé');
+      }
 
       console.log('✅ Opération mise à jour:', data);
       return data;
@@ -1187,9 +1456,9 @@ export class CollecteService {
       return data.map(input => ({
         id: input.id,
         category: input.category,
-        label: input.label,
-        quantity: input.quantity,
-        unit: input.unit,
+        label: input.label || '',
+        quantity: input.quantity || 0,
+        unit: input.unit || '',
         date: new Date(input.created_at).toLocaleDateString('fr-FR'),
       }));
     } catch (err) {
@@ -1238,17 +1507,11 @@ export class CollecteService {
   static async getCropsByPlotId(plotId: string, agentId?: string): Promise<Crop[]> {
     try {
       console.log('🌾 Récupération de toutes les cultures pour la parcelle:', plotId);
-      
-      if (!agentId) {
-        console.warn('⚠️ Agent ID manquant, impossible de récupérer les cultures');
-        return [];
-      }
 
-      // Utiliser la fonction RPC pour récupérer les cultures
+      // Utiliser la fonction RPC pour récupérer les cultures (pas besoin d'agentId pour cette RPC)
       const { data, error } = await (this.supabase as any)
         .rpc('get_crops_by_plot_id', {
-          p_plot_id: plotId,
-          p_agent_auth_id: agentId
+          p_plot_id: plotId
         });
 
       if (error) {
@@ -1816,6 +2079,228 @@ export class CollecteService {
     } catch (err) {
       console.error('❌ Exception in deleteObservation:', err);
       throw err;
+    }
+  }
+
+  // ===== MÉTHODES CRUD POUR LES VISITES =====
+  // Version: 1.0 - Méthodes CRUD pour les visites
+
+  /**
+   * Supprime une visite
+   */
+  static async deleteVisit(visitId: string): Promise<void> {
+    try {
+      console.log(`🗑️ Suppression de la visite: ${visitId}`);
+      const { error } = await this.supabase
+        .from('visits')
+        .delete()
+        .eq('id', visitId);
+
+      if (error) {
+        console.error("❌ Erreur lors de la suppression de la visite:", error);
+        throw error;
+      }
+      console.log('✅ Visite supprimée');
+    } catch (err) {
+      console.error('❌ Exception in deleteVisit:', err);
+      throw err;
+    }
+  }
+
+  /**
+   * Met à jour le statut d'une visite
+   */
+  static async updateVisitStatus(visitId: string, status: string): Promise<void> {
+    try {
+      console.log(`📝 Mise à jour du statut de la visite: ${visitId} -> ${status}`);
+      const { error } = await this.supabase
+        .from('visits')
+        .update({ 
+          status,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', visitId);
+
+      if (error) {
+        console.error("❌ Erreur lors de la mise à jour de la visite:", error);
+        throw error;
+      }
+      console.log('✅ Statut de la visite mis à jour');
+    } catch (err) {
+      console.error('❌ Exception in updateVisitStatus:', err);
+      throw err;
+    }
+  }
+
+  /**
+   * Récupère une visite par son ID
+   */
+  static async getVisitById(visitId: string): Promise<any> {
+    try {
+      console.log(`🔍 Récupération de la visite: ${visitId}`);
+      const { data, error } = await this.supabase
+        .from('visits')
+        .select(`
+          *,
+          agent:profiles!agent_id (
+            id,
+            phone,
+            display_name
+          ),
+          producer:producers!producer_id (
+            id,
+            first_name,
+            last_name,
+            phone
+          ),
+          plot:plots!plot_id (
+            id,
+            name_season_snapshot,
+            area_hectares
+          )
+        `)
+        .eq('id', visitId)
+        .maybeSingle();
+
+      if (error) {
+        console.error("❌ Erreur lors de la récupération de la visite:", error);
+        throw error;
+      }
+
+      if (!data) {
+        console.warn(`⚠️ Aucune visite trouvée avec l'ID ${visitId} (RLS ou visite inexistante)`);
+        return null;
+      }
+
+      console.log('✅ Visite récupérée:', data);
+      return data;
+    } catch (err) {
+      console.error('❌ Exception in getVisitById:', err);
+      throw err;
+    }
+  }
+
+  /**
+   * Met à jour une visite complète via RPC
+   */
+  static async updateVisit(visitId: string, visitData: any): Promise<any> {
+    try {
+      console.log(`📝 Mise à jour de la visite via RPC: ${visitId}`);
+      
+      const { data, error } = await this.supabase
+        .rpc('update_visit', {
+          p_visit_id: visitId,
+          p_visit_data: visitData
+        });
+
+      if (error) {
+        console.error("❌ Erreur lors de la mise à jour de la visite:", error);
+        throw error;
+      }
+      
+      if (!data || !data.success) {
+        throw new Error(data?.error || 'Échec de la mise à jour de la visite');
+      }
+      
+      console.log('✅ Visite mise à jour via RPC');
+      return data.data;
+    } catch (err) {
+      console.error('❌ Exception in updateVisit:', err);
+      throw err;
+    }
+  }
+
+  /**
+   * Supprime une visite via RPC
+   */
+  static async deleteVisit(visitId: string): Promise<any> {
+    try {
+      console.log(`🗑️ Suppression de la visite via RPC: ${visitId}`);
+      
+      const { data, error } = await this.supabase
+        .rpc('delete_visit', {
+          p_visit_id: visitId
+        });
+
+      if (error) {
+        console.error("❌ Erreur lors de la suppression de la visite:", error);
+        throw error;
+      }
+      
+      if (!data || !data.success) {
+        throw new Error(data?.error || 'Échec de la suppression de la visite');
+      }
+      
+      console.log('✅ Visite supprimée via RPC');
+      return data.data;
+    } catch (err) {
+      console.error('❌ Exception in deleteVisit:', err);
+      throw err;
+    }
+  }
+
+  /**
+   * Crée une visite via RPC
+   */
+  static async createVisit(agentId: string, visitData: any): Promise<any> {
+    try {
+      console.log(`📝 Création de la visite via RPC pour l'agent: ${agentId}`);
+      
+      const { data, error } = await this.supabase
+        .rpc('create_visit', {
+          p_agent_id: agentId,
+          p_visit_data: visitData
+        });
+
+      if (error) {
+        console.error("❌ Erreur lors de la création de la visite:", error);
+        throw error;
+      }
+      
+      if (!data || !data.success) {
+        throw new Error(data?.error || 'Échec de la création de la visite');
+      }
+      
+      console.log('✅ Visite créée via RPC');
+      return data.data;
+    } catch (err) {
+      console.error('❌ Exception in createVisit:', err);
+      throw err;
+    }
+  }
+
+  /**
+   * Récupère une visite avec producteur et parcelle pour modification via RPC
+   */
+  static async getVisitForEdit(visitId: string): Promise<any | null> {
+    try {
+      console.log('🔍 Récupération de la visite pour modification:', visitId);
+
+      const { data, error } = await this.supabase
+        .rpc('get_visit_for_edit', { p_visit_id: visitId });
+
+      if (error) {
+        console.error('❌ Erreur lors de la récupération de la visite pour modification:', error);
+        console.error('   Code:', error.code);
+        console.error('   Message:', error.message);
+        console.error('   Détails:', error.details);
+        return null;
+      }
+
+      if (!data) {
+        console.log('⚠️ Visite non trouvée ou accès refusé');
+        return null;
+      }
+
+      console.log('✅ Visite récupérée avec succès pour modification');
+      console.log('   Producer:', data.producer?.first_name, data.producer?.last_name);
+      console.log('   Plot:', data.plot?.name);
+      console.log('   Agent:', data.agent?.display_name || 'Agent inconnu');
+      
+      return data;
+    } catch (error) {
+      console.error('❌ Erreur générale dans getVisitForEdit:', error);
+      return null;
     }
   }
 }

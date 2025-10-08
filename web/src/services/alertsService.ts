@@ -89,7 +89,6 @@ export class AlertsService {
         crop: row.crop_crop_type ? {
           id: row.crop_id,
           plot_id: row.plot_id,
-          farm_file_plot_id: row.crop_id, // Approximation
           crop_type: row.crop_crop_type,
           variety: row.crop_variety,
           sowing_date: row.crop_sowing_date,

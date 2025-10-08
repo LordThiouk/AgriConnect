@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
-import ContentWithHeader from '../../components/ContentWithHeader';
+import { ScreenContainer } from '../../components/ui';
 
 const DashboardScreen: React.FC = () => {
   const { user, signOut } = useAuth();
@@ -51,7 +51,7 @@ const DashboardScreen: React.FC = () => {
   const quickActions = getQuickActions();
 
   return (
-    <ContentWithHeader>
+    <ScreenContainer title="Dashboard">
       <ScrollView style={styles.container}>
       {/* En-tête avec informations utilisateur */}
       <View style={styles.header}>
@@ -138,7 +138,7 @@ const DashboardScreen: React.FC = () => {
         </View>
       </View>
       </ScrollView>
-    </ContentWithHeader>
+    </ScreenContainer>
   );
 };
 

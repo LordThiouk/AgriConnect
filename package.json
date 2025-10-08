@@ -33,7 +33,9 @@
     "test:mobile": "cd tests && npm run test:mobile",
     "test:web": "cd tests && npm run test:web",
     "test:all": "cd tests && npm run test:all",
-    "deploy:functions": "cd supabase/functions && npm run deploy:all"
+    "deploy:functions": "cd supabase/functions && npm run deploy:all",
+    "analyze:tables": "node scripts/analyze-farm-file-plots-vs-plots.js",
+    "analyze:rename": "node scripts/analyze-plots-rename-strategy.js"
   },
   "keywords": [
     "agriculture",
@@ -58,6 +60,7 @@
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@supabase/supabase-js": "^2.56.1",
+    "base64-arraybuffer": "^1.0.2",
     "dotenv": "^17.2.2",
     "expo-checkbox": "^5.0.7",
     "lucide-react-native": "^0.544.0",

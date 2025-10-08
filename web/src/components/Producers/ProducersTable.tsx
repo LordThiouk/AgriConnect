@@ -53,14 +53,11 @@ const ProducersTable: React.FC<ProducersTableProps> = ({
     return `Il y a ${Math.floor(diffDays / 365)} ans`;
   };
 
-  const getStatusBadge = (status?: string) => {
-    switch (status) {
-      case 'active':
-        return <Badge variant="default" className="bg-green-100 text-green-800">Actif</Badge>;
-      case 'inactive':
-        return <Badge variant="secondary" className="bg-gray-100 text-gray-800">Inactif</Badge>;
-      default:
-        return <Badge variant="outline">Inconnu</Badge>;
+  const getStatusBadge = (isActive: boolean) => {
+    if (isActive) {
+      return <Badge variant="default" className="bg-green-100 text-green-800">Actif</Badge>;
+    } else {
+      return <Badge variant="secondary" className="bg-gray-100 text-gray-800">Inactif</Badge>;
     }
   };
 
@@ -194,7 +191,7 @@ const ProducersTable: React.FC<ProducersTableProps> = ({
                     {producer.last_visit ? formatLastVisit(producer.last_visit) : 'Jamais'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {getStatusBadge(producer.status)}
+                    {getStatusBadge(producer.is_active)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center space-x-2">
@@ -284,7 +281,7 @@ const ProducersTable: React.FC<ProducersTableProps> = ({
                     </div>
                   </div>
                   <div className="flex items-center space-x-1">
-                    {getStatusBadge(producer.status)}
+                    {getStatusBadge(producer.is_active)}
                   </div>
                 </div>
 

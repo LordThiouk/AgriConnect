@@ -36,22 +36,36 @@ const AgentAssignmentModal: React.FC<AgentAssignmentModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      fetchAvailableAgents();
-      fetchAssignedAgents();
+      fetchAssignedAgents().then(() => {
+        fetchAvailableAgents();
+      });
     }
   }, [isOpen, producerId]);
 
   const fetchAvailableAgents = async () => {
     try {
       setLoading(true);
-      const agents = await AgentsService.getAvailableAgents();
-      setAvailableAgents(agents);
+      // Récupérer tous les agents actifs et approuvés
+      const agentsResponse = await AgentsService.getAgents({ is_active: true }, 1, 1000);
+      
+      if (!agentsResponse || !agentsResponse.data) {
+        console.warn('No agents data received');
+        setAvailableAgents([]);
+        return;
+      }
+      
+      // Filtrer les agents qui ne sont pas déjà assignés à ce producteur
+      const assignedAgentIds = new Set((assignedAgents || []).map(agent => agent.id));
+      const availableAgentsList = agentsResponse.data.filter(agent => !assignedAgentIds.has(agent.id));
+      
+      setAvailableAgents(availableAgentsList);
     } catch (error) {
       console.error('Error fetching available agents:', error);
       showToast({
         type: 'error',
         title: 'Erreur lors du chargement des agents'
       });
+      setAvailableAgents([]); // S'assurer que le state est défini même en cas d'erreur
     } finally {
       setLoading(false);
     }
@@ -60,13 +74,14 @@ const AgentAssignmentModal: React.FC<AgentAssignmentModalProps> = ({
   const fetchAssignedAgents = async () => {
     try {
       const agents = await AgentsService.getAssignedAgentsForProducer(producerId);
-      setAssignedAgents(agents);
+      setAssignedAgents(agents || []); // S'assurer qu'on a toujours un tableau
     } catch (error) {
       console.error('Error fetching assigned agents:', error);
       showToast({
         type: 'error',
         title: 'Erreur lors du chargement des agents assignés'
       });
+      setAssignedAgents([]); // S'assurer que le state est défini même en cas d'erreur
     }
   };
 
@@ -81,13 +96,14 @@ const AgentAssignmentModal: React.FC<AgentAssignmentModalProps> = ({
 
     try {
       setLoading(true);
-      await AgentsService.assignProducerToAgent(producerId, selectedAgentId);
+      await AgentsService.assignAgentToProducer(selectedAgentId, producerId);
       showToast({
         type: 'success',
         title: 'Agent attribué avec succès'
       });
       setSelectedAgentId('');
       await fetchAssignedAgents(); // Recharger les agents assignés
+      await fetchAvailableAgents(); // Recharger les agents disponibles
       onAgentAssigned();
     } catch (error) {
       console.error('Error assigning agent:', error);
@@ -109,6 +125,7 @@ const AgentAssignmentModal: React.FC<AgentAssignmentModalProps> = ({
         title: 'Agent retiré avec succès'
       });
       await fetchAssignedAgents(); // Recharger les agents assignés
+      await fetchAvailableAgents(); // Recharger les agents disponibles
       onAgentAssigned();
     } catch (error) {
       console.error('Error unassigning agent:', error);
@@ -121,8 +138,8 @@ const AgentAssignmentModal: React.FC<AgentAssignmentModalProps> = ({
     }
   };
 
-  const formatPhoneNumber = (phone: string) => {
-    if (!phone || phone === 'Non disponible') return phone;
+  const formatPhoneNumber = (phone: string | undefined) => {
+    if (!phone || phone === 'Non disponible') return phone || 'Non disponible';
     return phone.replace(/(\d{3})(\d{2})(\d{2})(\d{2})(\d{2})/, '+$1 $2 $3 $4 $5');
   };
 
@@ -154,7 +171,7 @@ const AgentAssignmentModal: React.FC<AgentAssignmentModalProps> = ({
                     className="flex items-center justify-between p-3 border rounded-lg"
                   >
                     <div>
-                      <p className="font-medium">{agent.display_name}</p>
+                      <p className="font-medium">{agent.display_name || 'Nom non disponible'}</p>
                       <p className="text-sm text-gray-600">{formatPhoneNumber(agent.phone)}</p>
                     </div>
                     <Button
@@ -184,7 +201,7 @@ const AgentAssignmentModal: React.FC<AgentAssignmentModalProps> = ({
                 <SelectContent>
                   {unassignedAgents.map((agent) => (
                     <SelectItem key={agent.id} value={agent.id}>
-                      {agent.display_name} - {formatPhoneNumber(agent.phone)}
+                      {agent.display_name || 'Nom non disponible'} - {formatPhoneNumber(agent.phone)}
                     </SelectItem>
                   ))}
                 </SelectContent>

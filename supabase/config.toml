@@ -51,3 +51,24 @@ enabled = false
 port = 54330
 vector_port = 54331
 # Désactiver l'analytics en local
+[functions.evaluate-agricultural-rules]
+enabled = true
+verify_jwt = true
+import_map = "./functions/evaluate-agricultural-rules/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/evaluate-agricultural-rules/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/evaluate-agricultural-rules/*.html" ]
+
+[functions.send-wolof-tts-call]
+enabled = true
+verify_jwt = true
+import_map = "./functions/send-wolof-tts-call/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/send-wolof-tts-call/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/send-wolof-tts-call/*.html" ]

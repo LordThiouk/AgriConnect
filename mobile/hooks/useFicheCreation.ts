@@ -8,8 +8,6 @@ import {
   ParcelData,
   CropData,
   FicheCreationCompleteSchema,
-  ParcelSchema,
-  FicheCreationSchema,
   ParcelFormSchema,
 } from '../types/fiche-creation';
 import { FicheCreationService } from '../lib/services/fiche-creation';
@@ -253,7 +251,7 @@ export const useFicheCreation = ({
     }));
 
     return true;
-  }, [formState.currentStep, formState.parcels.length, validateSection]);
+  }, [formState.currentStep, formState.parcels, validateSection]);
 
   // Revenir à l'étape précédente
   const goToPreviousStep = useCallback(() => {

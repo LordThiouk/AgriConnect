@@ -1,14 +1,9 @@
 import React from 'react';
-import { View } from 'react-native';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
-import FormField from '@/components/FormField';
-import DateField from '@/components/DateField';
-import CompatiblePicker from '@/components/CompatiblePicker';
-import { Button } from '@/components/ui/button';
-import Checkbox from 'expo-checkbox';
-import { ThemedText as Text } from '@/components/ThemedText';
+import { VStack, Text, HStack, Switch } from 'native-base';
+import { FormField, FormInput, FormSelect, FormDatePicker } from '../ui';
 
 export const participantFormSchema = z.object({
   name: z.string().min(2, 'Le nom est requis (2 caractères min).'),
@@ -16,7 +11,6 @@ export const participantFormSchema = z.object({
   sex: z.enum(['M', 'F']).optional(),
   birthdate: z.date().optional(),
   literacy: z.boolean().optional(),
-  // Languages will be handled as a simple text field for now
   languages: z.string().optional(),
   phone: z.string().optional(),
 });
@@ -29,129 +23,144 @@ interface ParticipantFormProps {
   isSubmitting?: boolean;
 }
 
-const ParticipantForm: React.FC<ParticipantFormProps> = ({
-  onSubmit,
-  initialValues,
-  isSubmitting = false,
-}) => {
-  const { control, handleSubmit, formState: { errors } } = useForm<ParticipantFormData>({
+const ParticipantForm: React.FC<ParticipantFormProps> = ({ onSubmit, initialValues, isSubmitting = false }) => {
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<ParticipantFormData>({
     resolver: zodResolver(participantFormSchema),
     defaultValues: {
-      ...initialValues,
-      languages: Array.isArray(initialValues?.languages) 
-        ? initialValues.languages.join(', ') 
-        : initialValues?.languages,
+      name: initialValues?.name || '',
+      role: initialValues?.role || '',
+      sex: initialValues?.sex || 'M',
+      birthdate: initialValues?.birthdate || undefined,
+      literacy: initialValues?.literacy || false,
+      languages: initialValues?.languages || '',
+      phone: initialValues?.phone || '',
     },
   });
 
+  const roles = [
+    { value: 'Agent', label: 'Agent' },
+    { value: 'Superviseur', label: 'Superviseur' },
+    { value: 'Technicien', label: 'Technicien' },
+    { value: 'Producteur', label: 'Producteur' },
+    { value: 'Autre', label: 'Autre' },
+  ];
+
+  const sexOptions = [
+    { value: 'M', label: 'Homme' },
+    { value: 'F', label: 'Femme' },
+  ];
+
   return (
-    <View style={{ padding: 20 }}>
+    <VStack space={4} p={4}>
       <Controller
         control={control}
         name="name"
         render={({ field: { onChange, value } }) => (
-          <FormField
-            label="Nom complet"
-            placeholder="Prénom et Nom"
-            value={value}
-            onChangeText={onChange}
-            error={typeof errors.name === 'string' ? errors.name : errors.name?.message}
-          />
+          <FormField label="Nom complet" required>
+            <FormInput
+              value={value}
+              onChangeText={onChange}
+              placeholder="Nom et prénom"
+            />
+          </FormField>
         )}
       />
+
       <Controller
         control={control}
         name="role"
         render={({ field: { onChange, value } }) => (
-          <FormField
-            label="Rôle dans l'exploitation"
-            placeholder="Ex: Main d'oeuvre, gérant..."
-            value={value}
-            onChangeText={onChange}
-            error={typeof errors.role === 'string' ? errors.role : errors.role?.message}
-          />
+          <FormField label="Rôle" required>
+            <FormSelect
+              value={value}
+              onValueChange={onChange}
+              options={roles}
+              placeholder="Sélectionner un rôle"
+            />
+          </FormField>
         )}
       />
+
+      <Controller
+        control={control}
+        name="sex"
+        render={({ field: { onChange, value } }) => (
+          <FormField label="Sexe">
+            <FormSelect
+              value={value}
+              onValueChange={onChange}
+              options={sexOptions}
+              placeholder="Sélectionner le sexe"
+            />
+          </FormField>
+        )}
+      />
+
       <Controller
         control={control}
         name="birthdate"
         render={({ field: { onChange, value } }) => (
-          <DateField
-            label="Date de naissance (optionnel)"
-            value={value ? value.toISOString().split('T')[0] : undefined}
-            onChange={(dateString) => onChange(new Date(dateString))}
-            error={typeof errors.birthdate === 'string' ? errors.birthdate : errors.birthdate?.message}
-          />
+          <FormField label="Date de naissance">
+            <FormDatePicker
+              value={value ? value.toISOString().split('T')[0] : ''}
+              onChange={(dateString) => onChange(new Date(dateString))}
+            />
+          </FormField>
         )}
       />
-      <View style={{ marginBottom: 16 }}>
-        <Text style={{ fontSize: 16, color: '#374151', marginBottom: 6 }}>Sexe (optionnel)</Text>
-        <Controller
-          control={control}
-          name="sex"
-          render={({ field: { onChange, value } }) => (
-            <CompatiblePicker
-              selectedValue={value || ''}
-              onValueChange={onChange}
-              items={[
-                { label: 'Masculin', value: 'M' },
-                { label: 'Féminin', value: 'F' }
-              ]}
-            />
-          )}
-        />
-        {errors.sex && (
-          <Text style={{ color: '#dc2626', fontSize: 12, marginTop: 4 }}>
-            {errors.sex.message}
-          </Text>
-        )}
-      </View>
+
       <Controller
         control={control}
         name="phone"
         render={({ field: { onChange, value } }) => (
-          <FormField
-            label="Téléphone (optionnel)"
-            placeholder="Ex: +221XXXXXXXXX"
-            value={value}
-            onChangeText={onChange}
-            keyboardType="phone-pad"
-            error={typeof errors.phone === 'string' ? errors.phone : errors.phone?.message}
-          />
+          <FormField label="Téléphone">
+            <FormInput
+              value={value}
+              onChangeText={onChange}
+              placeholder="Numéro de téléphone"
+              keyboardType="phone-pad"
+            />
+          </FormField>
         )}
       />
+
       <Controller
         control={control}
         name="languages"
         render={({ field: { onChange, value } }) => (
-          <FormField
-            label="Langues parlées (séparées par des virgules)"
-            placeholder="Ex: Wolof, Français"
-            value={value}
-            onChangeText={onChange}
-            error={typeof errors.languages === 'string' ? errors.languages : errors.languages?.message}
-          />
+          <FormField label="Langues parlées">
+            <FormInput
+              value={value}
+              onChangeText={onChange}
+              placeholder="Ex: Wolof, Français, Anglais"
+            />
+          </FormField>
         )}
       />
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 10 }}>
-        <Controller
-          control={control}
-          name="literacy"
-          render={({ field: { onChange, value } }) => (
-            <Checkbox
-              value={value}
-              onValueChange={onChange}
-              color={value ? '#3D944B' : undefined}
-            />
-          )}
-        />
-        <Text style={{ marginLeft: 8 }}>Est alphabétisé(e)</Text>
-      </View>
-      
-      <Button onPress={handleSubmit(onSubmit)} disabled={isSubmitting}>
-        <Text>{isSubmitting ? 'Enregistrement...' : 'Enregistrer'}</Text>
-      </Button>
-    </View>
+
+      <Controller
+        control={control}
+        name="literacy"
+        render={({ field: { onChange, value } }) => (
+          <FormField label="Alphabétisé">
+            <HStack alignItems="center" space={2}>
+              <Text fontSize="sm" color="gray.600">Non</Text>
+              <Switch
+                value={value}
+                onValueChange={onChange}
+                size="sm"
+                colorScheme="primary"
+              />
+              <Text fontSize="sm" color="gray.600">Oui</Text>
+            </HStack>
+          </FormField>
+        )}
+      />
+    </VStack>
   );
 };
 

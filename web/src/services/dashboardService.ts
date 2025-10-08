@@ -110,6 +110,71 @@ export interface Recommendation {
 }
 
 export class DashboardService {
+  // Méthode pour récupérer les données d'évolution depuis les vraies données de cultures
+  private static async getEvolutionDataFromCrops(crops: Crop[], plots: Plot[]) {
+    // Analyser les cultures par année de semis
+    const yearlyData: { [year: string]: number } = {};
+    
+    crops.forEach(crop => {
+      if (crop.sowing_date) {
+        const year = new Date(crop.sowing_date).getFullYear().toString();
+        if (!yearlyData[year]) {
+          yearlyData[year] = 0;
+        }
+        
+        // Utiliser l'aire de la culture si disponible, sinon l'aire de la parcelle
+        const plot = plots.find(p => p.id === crop.plot_id);
+        const area = crop.area_hectares || plot?.area_hectares || 0;
+        yearlyData[year] += parseFloat(area.toString()) || 0;
+      }
+    });
+
+    // Convertir en tableau et trier par année
+    const evolutionData = Object.entries(yearlyData)
+      .map(([year, hectares]) => ({
+        year,
+        hectares: Math.round(hectares * 100) / 100 // Arrondir à 2 décimales
+      }))
+      .sort((a, b) => parseInt(a.year) - parseInt(b.year));
+
+    // Si aucune donnée historique, utiliser les données actuelles
+    if (evolutionData.length === 0) {
+      const currentYear = new Date().getFullYear().toString();
+      const totalArea = Math.round(plots.reduce((sum, plot) => sum + (plot.area_hectares || 0), 0));
+      return [{ year: currentYear, hectares: totalArea }];
+    }
+
+    return evolutionData;
+  }
+
+  // Méthode pour récupérer la répartition des cultures depuis les vraies données
+  private static async getCultureDistributionFromCrops(crops: Crop[], plots: Plot[]) {
+    const typeDistribution: { [type: string]: number } = {};
+    const areaDistribution: { [type: string]: number } = {};
+    
+    crops.forEach(crop => {
+      const type = crop.crop_type;
+      const plot = plots.find(p => p.id === crop.plot_id);
+      const area = crop.area_hectares || plot?.area_hectares || 0;
+      
+      if (!typeDistribution[type]) {
+        typeDistribution[type] = 0;
+        areaDistribution[type] = 0;
+      }
+      
+      typeDistribution[type] += 1;
+      areaDistribution[type] += parseFloat(area.toString()) || 0;
+    });
+
+    const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+    
+    return Object.keys(typeDistribution).map((type, index) => ({
+      name: type,
+      value: Math.round(areaDistribution[type] * 100) / 100, // Arrondir à 2 décimales
+      color: colors[index % colors.length]
+    }));
+  }
+
   static async getDashboardStats(): Promise<DashboardStats> {
     try {
       // Récupérer toutes les données en parallèle
@@ -158,37 +223,14 @@ export class DashboardService {
         };
       });
 
-      // Données d'évolution des surfaces basées sur les vraies données
+      // Données d'évolution des surfaces basées sur les vraies données de cultures
       const currentYear = new Date().getFullYear();
-      const totalAreaCurrent = Math.round(plots.reduce((sum, plot) => sum + (plot.area_hectares || 0), 0));
       
-      // Générer des données d'évolution basées sur les données actuelles
-      // Si on a des données historiques, on pourrait les utiliser ici
-      const evolutionData = [
-        { year: (currentYear - 4).toString(), hectares: Math.round(totalAreaCurrent * 0.6) },
-        { year: (currentYear - 3).toString(), hectares: Math.round(totalAreaCurrent * 0.7) },
-        { year: (currentYear - 2).toString(), hectares: Math.round(totalAreaCurrent * 0.8) },
-        { year: (currentYear - 1).toString(), hectares: Math.round(totalAreaCurrent * 0.9) },
-        { year: currentYear.toString(), hectares: totalAreaCurrent }
-      ];
+      // Récupérer les données d'évolution depuis les cultures réelles
+      const evolutionData = await this.getEvolutionDataFromCrops(crops, plots);
 
-      // Répartition des cultures (simulée basée sur les données réelles)
-      const cultureTypes = [...new Set(crops.map(c => c.crop_type))];
-      const cultureDistribution = cultureTypes.map((type, index) => {
-        const typeCrops = crops.filter(c => c.crop_type === type);
-        const totalArea = typeCrops.reduce((sum, crop) => {
-          const plot = plots.find(p => p.id === crop.plot_id);
-          return sum + (plot?.area_hectares || 0);
-        }, 0);
-
-        const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
-        
-        return {
-          name: type,
-          value: Math.round(totalArea),
-          color: colors[index % colors.length]
-        };
-      });
+      // Répartition des cultures basée sur les vraies données
+      const cultureDistribution = await this.getCultureDistributionFromCrops(crops, plots);
 
       // Alertes récentes depuis la base de données
       const recentAlertsFromDB = recommendations

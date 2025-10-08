@@ -1,11 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { DashboardService, DashboardStats } from '../services/dashboardService';
-import Layout from '../components/Layout/Layout';
+
+import { PlotsService } from '../services/plotsService';
+import { CropsService } from '../services/cropsService';
+import { OperationsService } from '../services/operationsService';
+import { ObservationsService } from '../services/observationsService';import Layout from '../components/Layout/Layout';
 import KPICard from '../components/dashboard/KPICard';
 import EvolutionChart from '../components/dashboard/EvolutionChart';
 import CultureDistributionChart from '../components/dashboard/CultureDistributionChart';
 import AlertsPanel from '../components/dashboard/AlertsPanel';
+import { AlertsService } from '../services/alertsService';
+import { useToast } from '../context/ToastContext';
 import MapPanel from '../components/dashboard/MapPanel';
 import { Users, MapPin, Wheat, UserCheck, BarChart3, Building2, AlertTriangle, RefreshCw, Map, Navigation, Download, Megaphone } from 'lucide-react';
 
@@ -27,6 +33,7 @@ const Dashboard: React.FC = () => {
   console.log('🔍 Dashboard component loaded');
   
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +62,30 @@ const Dashboard: React.FC = () => {
   const handleExportDashboard = () => {
     console.log('📤 Exporting dashboard data...');
     // TODO: Implement export functionality
+  };
+
+  const handleResolveAlert = async (alertId: string) => {
+    try {
+      await AlertsService.updateRecommendationStatus(alertId, 'completed');
+      showToast({ type: 'success', title: 'Alerte résolue avec succès' });
+      // Recharger les stats pour mettre à jour les alertes
+      fetchDashboardStats();
+    } catch (error) {
+      console.error('Error resolving alert:', error);
+      showToast({ type: 'error', title: 'Erreur lors de la résolution de l\'alerte' });
+    }
+  };
+
+  const handleDismissAlert = async (alertId: string) => {
+    try {
+      await AlertsService.updateRecommendationStatus(alertId, 'dismissed');
+      showToast({ type: 'success', title: 'Alerte ignorée avec succès' });
+      // Recharger les stats pour mettre à jour les alertes
+      fetchDashboardStats();
+    } catch (error) {
+      console.error('Error dismissing alert:', error);
+      showToast({ type: 'error', title: 'Erreur lors de l\'ignorance de l\'alerte' });
+    }
   };
 
   if (loading) {
@@ -203,7 +234,11 @@ const Dashboard: React.FC = () => {
         {/* Map and Alerts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <MapPanel plotCount={stats.totalPlots} />
-          <AlertsPanel alerts={stats.recentAlerts} />
+          <AlertsPanel 
+            alerts={stats.recentAlerts} 
+            onResolve={handleResolveAlert}
+            onDismiss={handleDismissAlert}
+          />
         </div>
 
         {/* Action Buttons */}

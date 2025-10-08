@@ -1,8 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
-import FormField from '../FormField';
-import CompatiblePicker from '../CompatiblePicker';
-import DateField from '../DateField';
+import { VStack, Text, HStack } from 'native-base';
+import { FormField, FormInput, FormSelect, FormDatePicker } from '../ui';
 import { Cooperative, OrganizationalData, ProducerData, EquipmentData, SEX_OPTIONS, LITERACY_OPTIONS, LANGUAGE_OPTIONS } from '../../types/fiche-creation';
 
 export type Step1FormProps = {
@@ -33,177 +31,137 @@ const Step1Form: React.FC<Step1FormProps> = ({
   errorsEquipment,
 }) => {
   return (
-    <View>
+    <VStack space={6} p={4}>
       {/* Données organisationnelles */}
-      <FormField
-        label="Nom de la fiche *"
-        value={value?.name || ''}
-        onChangeText={(text) => onChange({ name: text })}
-        placeholder="Ex: Fiche John Doe 2025"
-        error={errors?.name}
-      />
+      <VStack space={4}>
+        <Text fontSize="lg" fontWeight="bold" color="primary.500">
+          Données organisationnelles
+        </Text>
 
-      <FormField
-        label="Date de recensement *"
-        value={value?.censusDate || ''}
-        onChangeText={(text) => onChange({ censusDate: text })}
-        placeholder="YYYY-MM-DD"
-        error={errors?.censusDate}
-      />
+        <FormField label="Coopérative" required error={errors?.cooperativeId}>
+          <FormSelect
+            value={value.cooperativeId}
+            onValueChange={(coopId) => onChange({ cooperativeId: coopId })}
+            options={cooperatives.map(coop => ({
+              value: coop.id,
+              label: coop.name
+            }))}
+            placeholder="Sélectionner une coopérative"
+          />
+        </FormField>
 
-      <Text style={{ marginBottom: 6 }}>Coopérative *</Text>
-      <CompatiblePicker
-        selectedValue={value?.cooperativeId || ''}
-        onValueChange={(v) => v && onChange({ cooperativeId: v })}
-        items={(cooperatives || []).map(c => ({ label: c.name, value: c.id }))}
-      />
+        <FormField label="Nom de la fiche" required error={errors?.name}>
+          <FormInput
+            value={value.name || ''}
+            onChangeText={(text) => onChange({ name: text })}
+            placeholder="Ex: Fiche John Doe 2024"
+          />
+        </FormField>
+        
+        {/* Les champs creationYear et legalStatus ont été retirés du modèle de données */}
 
-      {/* Localisation requise */}
-      <FormField
-        label="Région *"
-        value={value?.region || ''}
-        onChangeText={(text) => onChange({ region: text })}
-        placeholder="Ex: Kaolack"
-        error={errors?.region}
-      />
-      <FormField
-        label="Département *"
-        value={value?.department || ''}
-        onChangeText={(text) => onChange({ department: text })}
-        placeholder="Ex: Nioro"
-        error={errors?.department}
-      />
-      <FormField
-        label="Commune *"
-        value={value?.commune || ''}
-        onChangeText={(text) => onChange({ commune: text })}
-        placeholder="Ex: Medina Sabakh"
-        error={errors?.commune}
-      />
-      <FormField
-        label="Village *"
-        value={value?.village || ''}
-        onChangeText={(text) => onChange({ village: text })}
-        placeholder="Ex: Keur Massar"
-        error={errors?.village}
-      />
-      <FormField
-        label="Secteur *"
-        value={value?.sector || ''}
-        onChangeText={(text) => onChange({ sector: text })}
-        placeholder="Ex: Secteur 1"
-        error={errors?.sector}
-      />
+      </VStack>
 
-      {/* Chef d'Exploitation */}
-      <Text style={{ fontWeight: '600', marginTop: 16, marginBottom: 8 }}>Chef d&apos;Exploitation</Text>
-      <View style={{ flexDirection: 'row', gap: 12 }}>
-        <FormField
-          label="Prénom *"
-          value={producerValue?.firstName || ''}
-          onChangeText={(text) => onChangeProducer({ firstName: text })}
-          placeholder="Prénom"
-        />
-        <FormField
-          label="Nom *"
-          value={producerValue?.lastName || ''}
-          onChangeText={(text) => onChangeProducer({ lastName: text })}
-          placeholder="Nom"
-        />
-      </View>
+      {/* Données du producteur */}
+      <VStack space={4}>
+        <Text fontSize="lg" fontWeight="bold" color="primary.500">
+          Données du producteur
+        </Text>
 
-      <Text style={{ marginTop: 12, marginBottom: 6 }}>Statut *</Text>
-      <CompatiblePicker
-        selectedValue={producerValue?.status || ''}
-        onValueChange={(v) => v && onChangeProducer({ status: v as ProducerData['status'] })}
-        items={[{ label: "Chef d'exploitation", value: "Chef d'exploitation" }, { label: 'Producteur', value: 'Producteur' }]}
-      />
+        <HStack space={2}>
+          <FormField label="Nom" required error={errorsProducer?.lastName}>
+            <FormInput
+              value={producerValue.lastName || ''}
+              onChangeText={(text) => onChangeProducer({ lastName: text })}
+              placeholder="Nom de famille"
+            />
+          </FormField>
 
-      <DateField
-        label="Date de naissance"
-        value={producerValue?.birthDate || ''}
-        onChange={(text) => onChangeProducer({ birthDate: text })}
-        placeholder="YYYY-MM-DD"
-        containerStyle={undefined}
-      />
+          <FormField label="Prénom" required error={errorsProducer?.firstName}>
+            <FormInput
+              value={producerValue.firstName || ''}
+              onChangeText={(text) => onChangeProducer({ firstName: text })}
+              placeholder="Prénom"
+            />
+          </FormField>
+        </HStack>
 
-      <Text style={{ marginTop: 12, marginBottom: 6 }}>Sexe</Text>
-      <CompatiblePicker
-        selectedValue={producerValue?.sex || ''}
-        onValueChange={(v) => onChangeProducer({ sex: v as ProducerData['sex'] })}
-        items={(SEX_OPTIONS || []).map(g => ({ label: g, value: g }))}
-      />
+        <FormField label="Date de naissance" error={errorsProducer?.birthDate}>
+          <FormDatePicker
+            value={producerValue.birthDate || ''}
+            onDateChange={(date) => onChangeProducer({ birthDate: date.toISOString().split('T')[0] })}
+          />
+        </FormField>
 
-      <FormField
-        label="Numéro CNI"
-        value={producerValue?.cniNumber || ''}
-        onChangeText={(text) => onChangeProducer({ cniNumber: text })}
-        placeholder="Numéro de CNI"
-      />
+        <HStack space={2}>
+          <FormField label="Sexe" error={errorsProducer?.sex}>
+            <FormSelect
+              value={producerValue.sex || ''}
+              onValueChange={(sex) => onChangeProducer({ sex: sex as any })}
+              options={SEX_OPTIONS.map(option => ({
+                value: option,
+                label: option
+              }))}
+              placeholder="Sélectionner le sexe"
+            />
+          </FormField>
 
-      <FormField
-        label="Numéro de téléphone"
-        value={(producerValue as any)?.phone || ''}
-        onChangeText={(text) => onChangeProducer({ ...(producerValue as any), phone: text } as any)}
-        placeholder="Numéro de téléphone"
-        keyboardType="phone-pad"
-      />
+          <FormField label="Niveau d'alphabétisation" error={errorsProducer?.literacy}>
+            <FormSelect
+              value={producerValue.literacy || ''}
+              onValueChange={(level) => onChangeProducer({ literacy: level as any })}
+              options={LITERACY_OPTIONS.map(option => ({
+                value: option,
+                label: option
+              }))}
+              placeholder="Sélectionner le niveau"
+            />
+          </FormField>
+        </HStack>
 
-      <Text style={{ marginTop: 12, marginBottom: 6 }}>Niveau d&apos;alphabétisation</Text>
-      <CompatiblePicker
-        selectedValue={producerValue?.literacy || ''}
-        onValueChange={(v) => onChangeProducer({ literacy: v as ProducerData['literacy'] })}
-        items={(LITERACY_OPTIONS || []).map(l => ({ label: l, value: l }))}
-      />
+        <FormField label="Langues parlées" error={errorsProducer?.languages as any}>
+          <FormSelect
+            value={(producerValue.languages && producerValue.languages[0]) || ''}
+            onValueChange={(lang) => onChangeProducer({ languages: [lang] as any })}
+            options={LANGUAGE_OPTIONS.map(option => ({
+              value: option,
+              label: option
+            }))}
+            placeholder="Sélectionner une langue"
+          />
+        </FormField>
 
-      {/* Langues parlées (multi-sélection) */}
-      <Text style={{ fontWeight: '600', marginTop: 16, marginBottom: 8 }}>Langues parlées (au moins une)</Text>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-        {(LANGUAGE_OPTIONS || []).map((lang) => {
-          const selected = (producerValue?.languages || []).includes(lang);
-          return (
-            <TouchableOpacity
-              key={lang}
-              onPress={() => {
-                const current = new Set(producerValue?.languages || []);
-                if (current.has(lang)) current.delete(lang); else current.add(lang);
-                onChangeProducer({ languages: Array.from(current) as ProducerData['languages'] });
-              }}
-              style={{
-                paddingVertical: 6,
-                paddingHorizontal: 10,
-                borderRadius: 16,
-                borderWidth: 1,
-                borderColor: selected ? '#3d944b' : '#d1d5db',
-                backgroundColor: selected ? '#e6f4ea' : 'white',
-                marginRight: 8,
-                marginBottom: 8,
-              }}
-            >
-              <Text style={{ color: selected ? '#2f6f38' : '#374151' }}>{lang}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+        <FormField label="Téléphone" error={errorsProducer?.phone}>
+          <FormInput
+            value={producerValue.phone || ''}
+            onChangeText={(text) => onChangeProducer({ phone: text })}
+            placeholder="Numéro de téléphone"
+            keyboardType="phone-pad"
+          />
+        </FormField>
 
-      {/* Inventaire matériel */}
-      <Text style={{ fontWeight: '600', marginTop: 24, marginBottom: 8 }}>Inventaire Matériel</Text>
-      <Text style={{ marginBottom: 6 }}>Pulvérisateurs</Text>
-      <View style={{ flexDirection: 'row', gap: 12 }}>
-        <FormField
-          label="Bon état (nombre)"
-          value={equipmentValue?.sprayers?.goodCondition?.toString() || ''}
-          onChangeText={(text) => onChangeEquipment({ sprayers: { ...(equipmentValue?.sprayers || {}), goodCondition: parseInt(text) || 0 } })}
-          keyboardType="numeric"
-        />
-        <FormField
-          label="Réparable (nombre)"
-          value={equipmentValue?.sprayers?.repairable?.toString() || ''}
-          onChangeText={(text) => onChangeEquipment({ sprayers: { ...(equipmentValue?.sprayers || {}), repairable: parseInt(text) || 0 } })}
-          keyboardType="numeric"
-        />
-      </View>
-    </View>
+        {/* Le champ 'address' a été retiré du modèle de données */}
+      </VStack>
+
+      {/* Équipement */}
+      <VStack space={4}>
+        <Text fontSize="lg" fontWeight="bold" color="primary.500">
+          Équipement
+        </Text>
+
+        <FormField label="Tracteurs" error={errorsEquipment?.farmEquipment}>
+          <FormInput
+            value={equipmentValue.farmEquipment?.Tracteur?.toString() || '0'}
+            onChangeText={(text) => onChangeEquipment({ farmEquipment: { ...equipmentValue.farmEquipment, Tracteur: parseInt(text) || 0 } })}
+            placeholder="Nombre de tracteurs"
+            keyboardType="numeric"
+          />
+        </FormField>
+        
+        {/* Les champs irrigationEquipment et otherEquipment ont été restructurés */}
+
+      </VStack>
+    </VStack>
   );
 };
 

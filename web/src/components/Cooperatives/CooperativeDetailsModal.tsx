@@ -11,12 +11,16 @@ interface CooperativeDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
   cooperative: Cooperative | null;
+  onEdit?: (cooperative: Cooperative) => void;
+  onDelete?: (id?: string) => void;
 }
 
 export default function CooperativeDetailsModal({
   isOpen,
   onClose,
-  cooperative
+  cooperative,
+  onEdit,
+  onDelete
 }: CooperativeDetailsModalProps) {
   const [producerCount, setProducerCount] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -100,17 +104,14 @@ export default function CooperativeDetailsModal({
             </div>
           )}
 
-          {/* Président */}
-          {cooperative.president_name && (
+          {/* Contact */}
+          {cooperative.contact_person && (
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <IconWrapper icon={User} className="h-4 w-4 text-gray-500" />
-                <span className="text-sm font-medium">Président</span>
+                <span className="text-sm font-medium">Personne de contact</span>
               </div>
-              <p className="text-sm text-gray-700">{cooperative.president_name}</p>
-              {cooperative.president_phone && (
-                <p className="text-sm text-gray-600">{cooperative.president_phone}</p>
-              )}
+              <p className="text-sm text-gray-700">{cooperative.contact_person}</p>
             </div>
           )}
 

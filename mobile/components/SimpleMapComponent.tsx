@@ -1,5 +1,14 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { ScrollView } from 'react-native';
+import { 
+  Box, 
+  Text, 
+  HStack, 
+  VStack, 
+  Pressable, 
+  Badge,
+  useTheme
+} from 'native-base';
 
 interface PlotData {
   id: string;
@@ -16,217 +25,139 @@ interface SimpleMapComponentProps {
 }
 
 const SimpleMapComponent: React.FC<SimpleMapComponentProps> = ({ plots, onMarkerPress }) => {
+  const theme = useTheme();
   const plotsWithGps = plots.filter(p => p.hasGps && p.lat && p.lon);
   const plotsWithoutGps = plots.filter(p => !p.hasGps || !p.lat || !p.lon);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>🗺️ Carte des Parcelles</Text>
-        <Text style={styles.subtitle}>
-          {plotsWithGps.length} parcelles avec GPS • {plotsWithoutGps.length} sans localisation
-        </Text>
-      </View>
+    <Box flex={1} bg="gray.50">
+      <Box 
+        p={4} 
+        bg="white" 
+        borderBottomWidth={1} 
+        borderBottomColor="gray.200"
+      >
+        <VStack space={1}>
+          <Text fontSize="lg" fontWeight="bold" color="gray.800">
+            🗺️ Carte des Parcelles
+          </Text>
+          <Text fontSize="sm" color="gray.600">
+            {plotsWithGps.length} parcelles avec GPS • {plotsWithoutGps.length} sans localisation
+          </Text>
+        </VStack>
+      </Box>
 
-      <ScrollView style={styles.mapContainer} showsVerticalScrollIndicator={false}>
+      <ScrollView flex={1} p={4} showsVerticalScrollIndicator={false}>
         {/* Parcelles avec GPS */}
         {plotsWithGps.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>📍 Parcelles Localisées</Text>
+          <VStack space={4} mb={6}>
+            <Text fontSize="md" fontWeight="semibold" color="gray.700">
+              📍 Parcelles Localisées
+            </Text>
             {plotsWithGps.map((plot) => (
-              <TouchableOpacity
+              <Pressable
                 key={plot.id}
-                style={styles.plotCard}
                 onPress={() => onMarkerPress(plot.id)}
+                _pressed={{ opacity: 0.7 }}
               >
-                <View style={styles.plotHeader}>
-                  <Text style={styles.plotName}>{plot.name}</Text>
-                  <View style={styles.gpsBadge}>
-                    <Text style={styles.gpsText}>GPS</Text>
-                  </View>
-                </View>
-                <Text style={styles.producerName}>{plot.producerName}</Text>
-                <Text style={styles.coordinates}>
-                  📍 {plot.lat?.toFixed(4)}, {plot.lon?.toFixed(4)}
-                </Text>
-                <View style={styles.mapPreview}>
-                  <Text style={styles.mapPreviewText}>
-                    Région: Dakar • Zone: {plot.lat && plot.lat > 14.7 ? 'Nord' : 'Sud'}
+                <Box
+                  bg="white"
+                  borderRadius="lg"
+                  p={4}
+                  shadow={1}
+                  borderLeftWidth={4}
+                  borderLeftColor="success.500"
+                >
+                  <HStack justifyContent="space-between" alignItems="center" mb={2}>
+                    <Text fontSize="md" fontWeight="semibold" color="gray.800" flex={1}>
+                      {plot.name}
+                    </Text>
+                    <Badge bg="success.500" borderRadius="full" px={3} py={1}>
+                      <Text fontSize="xs" fontWeight="medium" color="white">
+                        GPS
+                      </Text>
+                    </Badge>
+                  </HStack>
+                  
+                  <Text fontSize="sm" color="gray.600" mb={2}>
+                    {plot.producerName}
                   </Text>
-                </View>
-              </TouchableOpacity>
+                  
+                  <Text fontSize="xs" color="success.600" fontFamily="mono" mb={2}>
+                    📍 {plot.lat?.toFixed(4)}, {plot.lon?.toFixed(4)}
+                  </Text>
+                  
+                  <Box bg="gray.100" p={2} borderRadius="md">
+                    <Text fontSize="xs" color="gray.700">
+                      Région: Dakar • Zone: {plot.lat && plot.lat > 14.7 ? 'Nord' : 'Sud'}
+                    </Text>
+                  </Box>
+                </Box>
+              </Pressable>
             ))}
-          </View>
+          </VStack>
         )}
 
         {/* Parcelles sans GPS */}
         {plotsWithoutGps.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>❓ Parcelles sans Localisation</Text>
+          <VStack space={4} mb={6}>
+            <Text fontSize="md" fontWeight="semibold" color="gray.700">
+              ❓ Parcelles sans Localisation
+            </Text>
             {plotsWithoutGps.map((plot) => (
-              <TouchableOpacity
+              <Pressable
                 key={plot.id}
-                style={[styles.plotCard, styles.plotCardNoGps]}
                 onPress={() => onMarkerPress(plot.id)}
+                _pressed={{ opacity: 0.7 }}
               >
-                <View style={styles.plotHeader}>
-                  <Text style={styles.plotName}>{plot.name}</Text>
-                  <View style={styles.noGpsBadge}>
-                    <Text style={styles.noGpsText}>Sans GPS</Text>
-                  </View>
-                </View>
-                <Text style={styles.producerName}>{plot.producerName}</Text>
-                <Text style={styles.noGpsMessage}>
-                  📍 Localisation non disponible
-                </Text>
-              </TouchableOpacity>
+                <Box
+                  bg="white"
+                  borderRadius="lg"
+                  p={4}
+                  shadow={1}
+                  borderLeftWidth={4}
+                  borderLeftColor="warning.500"
+                >
+                  <HStack justifyContent="space-between" alignItems="center" mb={2}>
+                    <Text fontSize="md" fontWeight="semibold" color="gray.800" flex={1}>
+                      {plot.name}
+                    </Text>
+                    <Badge bg="warning.500" borderRadius="full" px={3} py={1}>
+                      <Text fontSize="xs" fontWeight="medium" color="white">
+                        Sans GPS
+                      </Text>
+                    </Badge>
+                  </HStack>
+                  
+                  <Text fontSize="sm" color="gray.600" mb={2}>
+                    {plot.producerName}
+                  </Text>
+                  
+                  <Text fontSize="xs" color="warning.600" fontStyle="italic">
+                    📍 Localisation non disponible
+                  </Text>
+                </Box>
+              </Pressable>
             ))}
-          </View>
+          </VStack>
         )}
 
         {/* Message si aucune parcelle */}
         {plots.length === 0 && (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>Aucune parcelle trouvée</Text>
-            <Text style={styles.emptySubtitle}>
-              Les parcelles apparaîtront ici une fois créées
-            </Text>
-          </View>
+          <Box flex={1} justifyContent="center" alignItems="center" py={10}>
+            <VStack space={2} alignItems="center">
+              <Text fontSize="lg" fontWeight="semibold" color="gray.600">
+                Aucune parcelle trouvée
+              </Text>
+              <Text fontSize="sm" color="gray.500" textAlign="center">
+                Les parcelles apparaîtront ici une fois créées
+              </Text>
+            </VStack>
+          </Box>
         )}
       </ScrollView>
-    </View>
+    </Box>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-  },
-  header: {
-    padding: 16,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1e293b',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#64748b',
-  },
-  mapContainer: {
-    flex: 1,
-    padding: 16,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 12,
-  },
-  plotCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-    borderLeftWidth: 4,
-    borderLeftColor: '#10b981',
-  },
-  plotCardNoGps: {
-    borderLeftColor: '#f59e0b',
-  },
-  plotHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  plotName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1e293b',
-    flex: 1,
-  },
-  gpsBadge: {
-    backgroundColor: '#10b981',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  gpsText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  noGpsBadge: {
-    backgroundColor: '#f59e0b',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  noGpsText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  producerName: {
-    fontSize: 14,
-    color: '#64748b',
-    marginBottom: 8,
-  },
-  coordinates: {
-    fontSize: 12,
-    color: '#10b981',
-    fontFamily: 'monospace',
-    marginBottom: 8,
-  },
-  mapPreview: {
-    backgroundColor: '#f1f5f9',
-    padding: 8,
-    borderRadius: 6,
-  },
-  mapPreviewText: {
-    fontSize: 12,
-    color: '#475569',
-  },
-  noGpsMessage: {
-    fontSize: 12,
-    color: '#f59e0b',
-    fontStyle: 'italic',
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#64748b',
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: '#94a3b8',
-    textAlign: 'center',
-  },
-});
 
 export default SimpleMapComponent;

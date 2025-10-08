@@ -31,6 +31,8 @@ interface OperationModalProps {
   onSave: (operation: Operation) => void;
   operation?: Operation | null;
   producerId?: string;
+  plotId?: string;
+  cropId?: string;
 }
 
 const OperationModal: React.FC<OperationModalProps> = ({
@@ -38,7 +40,9 @@ const OperationModal: React.FC<OperationModalProps> = ({
   onClose,
   onSave,
   operation,
-  producerId
+  producerId,
+  plotId,
+  cropId
 }) => {
   const [formData, setFormData] = useState({
     operation_type: '',
@@ -123,6 +127,8 @@ const OperationModal: React.FC<OperationModalProps> = ({
 
     if (!formData.operation_type) newErrors.operation_type = 'Le type d\'opération est requis';
     if (!formData.operation_date) newErrors.operation_date = 'La date est requise';
+    if (!plotId) newErrors.plotId = 'La parcelle est requise';
+    if (!cropId) newErrors.cropId = 'La culture est requise';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -136,9 +142,10 @@ const OperationModal: React.FC<OperationModalProps> = ({
 
       const operationData = {
         ...formData,
-        crop_id: 'crop-placeholder', // This should come from the selected crop
-        plot_id: 'plot-placeholder', // This should come from the selected plot
-        performer_id: 'current-user-id', // This should come from auth context
+        crop_id: cropId!, // Utiliser le crop_id fourni en prop
+        plot_id: plotId!, // Utiliser le plot_id fourni en prop
+        performer_type: 'profile', // Valeur autorisée selon les contraintes DB
+        performer_id: null,        // Peut être null selon les contraintes DB
         dose_per_hectare: formData.dose_per_hectare ? parseFloat(formData.dose_per_hectare) : undefined,
         total_dose: formData.total_dose ? parseFloat(formData.total_dose) : undefined,
         cost_per_hectare: formData.cost_per_hectare ? parseFloat(formData.cost_per_hectare) : undefined,
@@ -147,9 +154,9 @@ const OperationModal: React.FC<OperationModalProps> = ({
 
       let savedOperation: Operation;
       if (operation) {
-        savedOperation = await OperationsRpcService.updateOperation(operation.id, operationData);
+        savedOperation = await OperationsRpcService.updateOperation(operation.id, operationData) as Operation;
       } else {
-        savedOperation = await OperationsRpcService.createOperation(operationData);
+        savedOperation = await OperationsRpcService.createOperation(operationData) as Operation;
       }
 
       onSave(savedOperation);
@@ -173,6 +180,15 @@ const OperationModal: React.FC<OperationModalProps> = ({
             {operation ? 'Modifiez les informations de l\'opération' : 'Enregistrez une nouvelle opération agricole'}
           </DialogDescription>
         </DialogHeader>
+
+        {/* Messages d'erreur pour les props manquantes */}
+        {(!plotId || !cropId) && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-4">
+            <p className="text-sm text-yellow-800">
+              ⚠️ Une parcelle et une culture doivent être sélectionnées avant de créer une opération.
+            </p>
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto py-4">
           <div className="space-y-6">

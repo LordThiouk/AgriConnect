@@ -40,8 +40,8 @@ export class OperationsRpcService {
 
       const offset = (pagination.page - 1) * pagination.limit;
 
-      // Use RPC function to get operations with details
-      const { data, error } = await supabase.rpc('get_operations_with_details', {
+      // Use RPC function to get operations with details (V3 = version corrigée)
+      const { data, error } = await supabase.rpc('get_operations_with_details_v3', {
         producer_uuid: producerId || null,
         limit_count: pagination.limit,
         offset_count: offset,
@@ -116,7 +116,7 @@ export class OperationsRpcService {
         throw new Error('Supabase client not initialized');
       }
 
-      const { data, error } = await supabase.rpc('get_operations_with_details', {
+      const { data, error } = await supabase.rpc('get_operations_with_details_v3', {
         producer_uuid: null,
         limit_count: 1,
         offset_count: 0,

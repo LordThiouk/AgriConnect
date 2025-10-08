@@ -1,7 +1,8 @@
 import React from 'react';
 import { View } from 'react-native';
-import FormField from '../FormField';
-import CompatiblePicker from '../CompatiblePicker';
+import { VStack } from 'native-base';
+import { FormField } from '../ui';
+import { FormSelect } from '../ui';
 import { CROP_TYPES, CropData } from '../../types/fiche-creation';
 
 export type CropFormProps = {
@@ -14,13 +15,14 @@ export type CropFormProps = {
 const CropForm: React.FC<CropFormProps> = ({ value, onChange, errors, disabled }) => {
   return (
     <View>
-      <CompatiblePicker
+      <FormSelect
         label="Type de culture"
-        selectedValue={value.type}
+        value={value.type}
         onValueChange={(val) => onChange({ ...value, type: val })}
-        items={CROP_TYPES.map((t) => ({ label: t, value: t }))}
+        options={CROP_TYPES.map((t) => ({ label: t, value: t }))}
+        placeholder="Sélectionner le type"
         error={errors?.type}
-        enabled={!disabled}
+        disabled={disabled}
       />
 
       <FormField

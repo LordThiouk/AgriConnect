@@ -13,13 +13,19 @@ interface CooperativeModalProps {
   onClose: () => void;
   onSave: () => void;
   cooperative?: Cooperative | null;
+  regions?: string[];
+  departments?: string[];
+  communes?: string[];
 }
 
 export default function CooperativeModal({
   isOpen,
   onClose,
   onSave,
-  cooperative
+  cooperative,
+  regions = [],
+  departments = [],
+  communes = []
 }: CooperativeModalProps) {
   const [formData, setFormData] = useState({
     name: '',
@@ -30,8 +36,7 @@ export default function CooperativeModal({
     address: '',
     phone: '',
     email: '',
-    president_name: '',
-    president_phone: '',
+    contact_person: '',
     latitude: '',
     longitude: ''
   });
@@ -49,8 +54,7 @@ export default function CooperativeModal({
         address: cooperative.address || '',
         phone: cooperative.phone || '',
         email: cooperative.email || '',
-        president_name: cooperative.president_name || '',
-        president_phone: cooperative.president_phone || '',
+        contact_person: cooperative.contact_person || '',
         latitude: cooperative.latitude?.toString() || '',
         longitude: cooperative.longitude?.toString() || ''
       });
@@ -64,8 +68,7 @@ export default function CooperativeModal({
         address: '',
         phone: '',
         email: '',
-        president_name: '',
-        president_phone: '',
+        contact_person: '',
         latitude: '',
         longitude: ''
       });
@@ -84,7 +87,7 @@ export default function CooperativeModal({
       };
 
       if (cooperative) {
-        await CooperativesService.updateCooperative(cooperative.id, data);
+        await CooperativesService.updateCooperative({ id: cooperative.id, ...data });
         showToast({ type: 'success', title: 'Coopérative mise à jour avec succès' });
       } else {
         await CooperativesService.createCooperative(data);
@@ -197,20 +200,12 @@ export default function CooperativeModal({
             </div>
 
             <div>
-              <Label htmlFor="president_name">Nom du président</Label>
+              <Label htmlFor="contact_person">Personne de contact</Label>
               <Input
-                id="president_name"
-                value={formData.president_name}
-                onChange={(e) => setFormData({ ...formData, president_name: e.target.value })}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="president_phone">Téléphone du président</Label>
-              <Input
-                id="president_phone"
-                value={formData.president_phone}
-                onChange={(e) => setFormData({ ...formData, president_phone: e.target.value })}
+                id="contact_person"
+                value={formData.contact_person}
+                onChange={(e) => setFormData({ ...formData, contact_person: e.target.value })}
+                placeholder="Nom du président ou responsable"
               />
             </div>
 

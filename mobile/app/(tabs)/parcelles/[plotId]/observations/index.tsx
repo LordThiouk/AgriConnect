@@ -3,7 +3,7 @@ import { View, Text, FlatList, Alert, StyleSheet, TouchableOpacity, ActivityIndi
 import { useLocalSearchParams, useFocusEffect, useRouter } from 'expo-router';
 import { CollecteService } from '@/lib/services/collecte';
 import { ObservationDisplay } from '@/types/collecte';
-import ContentWithHeader from '@/components/ContentWithHeader';
+import { ScreenContainer } from '@/components/ui';
 import { Feather } from '@expo/vector-icons';
 
 export default function ObservationsScreen() {
@@ -60,9 +60,7 @@ export default function ObservationsScreen() {
   };
 
   const handleEdit = (observation: ObservationDisplay) => {
-    // Pour l'instant, on navigue vers add avec l'ID en paramètre
-    // TODO: Créer un écran d'édition dédié
-    router.push(`/(tabs)/parcelles/${plotId}/observations/add?editId=${observation.id}`);
+    router.push(`/(tabs)/parcelles/${plotId}/observations/${observation.id}/edit`);
   };
 
   const getSeverityColor = (severity: number) => {
@@ -129,16 +127,17 @@ export default function ObservationsScreen() {
   );
 
   return (
-    <ContentWithHeader style={{ flex: 1 }}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Feather name="arrow-left" size={24} color="#3D944B" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Observations</Text>
+    <ScreenContainer 
+      title="Observations"
+      showSubHeader={true}
+      showBackButton={true}
+      subHeaderActions={
         <TouchableOpacity onPress={handleAdd} style={styles.addButton}>
           <Feather name="plus" size={24} color="#3D944B" />
         </TouchableOpacity>
-      </View>
+      }
+      animationEnabled={true}
+    >
 
       {loading ? (
         <View style={styles.loadingContainer}>
@@ -156,7 +155,7 @@ export default function ObservationsScreen() {
         />
       )}
 
-    </ContentWithHeader>
+    </ScreenContainer>
   );
 }
 

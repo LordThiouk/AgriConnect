@@ -32,7 +32,7 @@ export interface Producer {
   plots_count?: number;
   total_area?: number;
   last_visit?: string;
-  status: 'active' | 'inactive';
+  // status: 'active' | 'inactive'; // Utilise is_active à la place
   // Relations
   cooperative?: {
     id: string;
@@ -57,7 +57,7 @@ export interface Producer {
 export interface ProducerFilters {
   search?: string;
   region?: string;
-  status?: 'active' | 'inactive';
+  // status?: 'active' | 'inactive'; // Utilise is_active à la place
   cooperative_id?: string;
 }
 
@@ -93,7 +93,14 @@ export class ProducersService {
       }
 
       const regions = [...new Set(regionsData?.map((item: any) => item.region))] as string[];
-      const cultures = ['Maïs', 'Riz', 'Arachide', 'Millet', 'Sorgho']; // Mock cultures for now
+      
+      // Récupérer les cultures depuis la base de données
+      const { data: cropsData } = await supabase
+        .from('crops')
+        .select('crop_type')
+        .not('crop_type', 'is', null);
+      
+      const cultures = [...new Set(cropsData?.map((item: any) => item.crop_type))] as string[];
 
       return { regions, cultures };
     } catch (error) {
@@ -123,10 +130,15 @@ export class ProducersService {
         countQuery = countQuery.eq('region', filters.region);
       }
 
-      if (filters.status) {
-        const isActive = filters.status === 'active';
-        countQuery = countQuery.eq('is_active', isActive);
+      if (filters.cooperative_id) {
+        countQuery = countQuery.eq('cooperative_id', filters.cooperative_id);
       }
+
+      // Filtre par statut actif/inactif - utiliser is_active directement
+      // if (filters.status) {
+      //   const isActive = filters.status === 'active';
+      //   countQuery = countQuery.eq('is_active', isActive);
+      // }
 
       const { count, error: countError } = await countQuery;
       
@@ -140,7 +152,10 @@ export class ProducersService {
       // Now get the actual data with pagination
       let dataQuery = supabase
         .from('producers')
-        .select('*');
+        .select(`
+          *,
+          cooperative:cooperatives(id, name, region)
+        `);
 
       // Apply same filters to data query
       if (filters.search) {
@@ -151,10 +166,15 @@ export class ProducersService {
         dataQuery = dataQuery.eq('region', filters.region);
       }
 
-      if (filters.status) {
-        const isActive = filters.status === 'active';
-        dataQuery = dataQuery.eq('is_active', isActive);
+      if (filters.cooperative_id) {
+        dataQuery = dataQuery.eq('cooperative_id', filters.cooperative_id);
       }
+
+      // Filtre par statut actif/inactif - utiliser is_active directement
+      // if (filters.status) {
+      //   const isActive = filters.status === 'active';
+      //   dataQuery = dataQuery.eq('is_active', isActive);
+      // }
 
       // Apply pagination
       const from = (pagination.page - 1) * pagination.limit;
@@ -173,11 +193,11 @@ export class ProducersService {
         console.log('Transforming producer:', producer);
         console.log('Producer ID:', producer.id);
         
-        // Load assigned agents using RPC function
+        // Load assigned agents using new unified RPC function
         let assignedAgents: any[] = [];
         try {
           const { data: agentsData } = await supabase
-            .rpc('get_producer_assigned_agents', { producer_uuid: producer.id });
+            .rpc('get_assigned_agents_for_producer', { p_producer_id: producer.id });
           assignedAgents = agentsData || [];
           console.log(`👥 Agents assignés pour ${producer.first_name}:`, assignedAgents);
         } catch (error) {
@@ -189,7 +209,7 @@ export class ProducersService {
         let totalArea = 0;
         try {
           const { data: plotsData } = await supabase
-            .from('farm_file_plots')
+            .from('plots')
             .select('area_hectares')
             .eq('producer_id', producer.id);
           
@@ -227,11 +247,11 @@ export class ProducersService {
           total_area: totalArea,
           farm_files_count: farmFilesCount,
           last_visit: producer.updated_at, // This would need to be calculated from visits
-          status: producer.is_active ? 'active' : 'inactive',
-          cooperative: producer.cooperative_id ? {
-            id: producer.cooperative_id,
-            name: 'Coopérative Mock', // This would need to be fetched from cooperatives table
-            region: producer.region
+          // status: producer.is_active ? 'active' : 'inactive', // Utilise is_active directement
+          cooperative: producer.cooperative ? {
+            id: producer.cooperative.id,
+            name: producer.cooperative.name,
+            region: producer.cooperative.region
           } : null,
           assigned_agents: assignedAgents.map(agent => ({
             id: agent.agent_id,
@@ -315,14 +335,14 @@ export class ProducersService {
       let farmFilesCount = 0;
 
       try {
-        // Load assigned agents
+        // Load assigned agents using new unified RPC function
         const { data: agentsData } = await supabase
-          .rpc('get_producer_assigned_agents', { producer_uuid: id });
+          .rpc('get_assigned_agents_for_producer', { p_producer_id: id });
         assignedAgents = agentsData || [];
 
         // Load plots statistics
         const { data: plotsData } = await supabase
-          .from('farm_file_plots')
+          .from('plots')
           .select('area_hectares')
           .eq('producer_id', id);
         
@@ -362,7 +382,7 @@ export class ProducersService {
         total_area: totalArea,
         farm_files_count: farmFilesCount,
         last_visit: data.updated_at,
-        status: data.is_active ? 'active' : 'inactive',
+        // status: data.is_active ? 'active' : 'inactive', // Utilise is_active directement
         cooperative,
         assigned_agents: assignedAgents.map(agent => ({
           id: agent.agent_id,
@@ -388,7 +408,7 @@ export class ProducersService {
     try {
       console.log(`🔄 Mise à jour du producteur ${id}:`, updates);
 
-      // Separate database fields from calculated fields
+      // Separate database fields from calculated fields and filter out empty UUID fields
       const dbUpdates = {
         ...updates,
         plots_count: undefined,
@@ -401,6 +421,14 @@ export class ProducersService {
         recent_operations: undefined,
         recent_observations: undefined
       };
+
+      // Filter out empty UUID fields to prevent PostgreSQL errors
+      const uuidFields = ['profile_id', 'cooperative_id'];
+      uuidFields.forEach(field => {
+        if (dbUpdates[field] === '' || dbUpdates[field] === null) {
+          delete dbUpdates[field];
+        }
+      });
 
       const { data, error } = await supabase
         .from('producers')
@@ -457,6 +485,104 @@ export class ProducersService {
     try {
       console.log(`🗑️ Suppression du producteur ${id}`);
 
+      // 1. D'abord, nettoyer tous les crops avec farm_file_plot_id NULL (problématiques)
+      console.log('🧹 Nettoyage des crops problématiques...');
+      const { error: cleanupError } = await supabase
+        .from('crops')
+        .delete()
+        .is('plot_id', null);
+
+      if (cleanupError) {
+        console.error('Erreur lors du nettoyage des crops problématiques:', cleanupError);
+        throw cleanupError;
+      }
+
+      // 2. Récupérer toutes les fiches fermes du producteur
+      const { data: farmFiles, error: farmFilesError } = await supabase
+        .from('farm_files')
+        .select('id')
+        .eq('responsible_producer_id', id);
+
+      if (farmFilesError) {
+        console.error('Erreur lors de la récupération des fiches fermes:', farmFilesError);
+        throw farmFilesError;
+      }
+
+      if (farmFiles && farmFiles.length > 0) {
+        console.log(`📋 ${farmFiles.length} fiches fermes trouvées pour le producteur`);
+
+        // 3. Récupérer toutes les parcelles de fiches
+        const { data: farmFilePlots, error: farmFilePlotsError } = await supabase
+          .from('plots')
+          .select('id')
+          .in('farm_file_id', farmFiles.map(ff => ff.id));
+
+        if (farmFilePlotsError) {
+          console.error('Erreur lors de la récupération des parcelles de fiches:', farmFilePlotsError);
+          throw farmFilePlotsError;
+        }
+
+        if (farmFilePlots && farmFilePlots.length > 0) {
+          console.log(`🌾 ${farmFilePlots.length} parcelles de fiches trouvées`);
+
+          // 4. Supprimer toutes les observations liées
+          const { error: observationsDeleteError } = await supabase
+            .from('observations')
+            .delete()
+            .in('plot_id', farmFilePlots.map(ffp => ffp.id));
+
+          if (observationsDeleteError) {
+            console.error('Erreur lors de la suppression des observations:', observationsDeleteError);
+            throw observationsDeleteError;
+          }
+
+          // 5. Supprimer toutes les opérations liées
+          const { error: operationsDeleteError } = await supabase
+            .from('operations')
+            .delete()
+            .in('plot_id', farmFilePlots.map(ffp => ffp.id));
+
+          if (operationsDeleteError) {
+            console.error('Erreur lors de la suppression des opérations:', operationsDeleteError);
+            throw operationsDeleteError;
+          }
+
+          // 6. Supprimer toutes les cultures liées
+          const { error: cropsDeleteError } = await supabase
+            .from('crops')
+            .delete()
+            .in('plot_id', farmFilePlots.map(ffp => ffp.id));
+
+          if (cropsDeleteError) {
+            console.error('Erreur lors de la suppression des cultures:', cropsDeleteError);
+            throw cropsDeleteError;
+          }
+
+          // 7. Supprimer toutes les parcelles
+          const { error: farmFilePlotsDeleteError } = await supabase
+            .from('plots')
+            .delete()
+            .in('farm_file_id', farmFiles.map(ff => ff.id));
+
+          if (farmFilePlotsDeleteError) {
+            console.error('Erreur lors de la suppression des parcelles de fiches:', farmFilePlotsDeleteError);
+            throw farmFilePlotsDeleteError;
+          }
+        }
+
+        // 8. Supprimer toutes les fiches fermes
+        const { error: farmFilesDeleteError } = await supabase
+          .from('farm_files')
+          .delete()
+          .eq('responsible_producer_id', id);
+
+        if (farmFilesDeleteError) {
+          console.error('Erreur lors de la suppression des fiches fermes:', farmFilesDeleteError);
+          throw farmFilesDeleteError;
+        }
+      }
+
+      // 9. Enfin, supprimer le producteur
       const { error } = await supabase
         .from('producers')
         .delete()
@@ -464,7 +590,7 @@ export class ProducersService {
 
       if (error) throw error;
 
-      console.log(`✅ Producteur ${id} supprimé avec succès`);
+      console.log(`✅ Producteur ${id} et toutes ses données liées supprimés avec succès`);
     } catch (error) {
       console.error('Error deleting producer:', error);
       throw error;

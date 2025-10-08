@@ -72,8 +72,8 @@ const PlotDetailsModal: React.FC<PlotDetailsModalProps> = ({
     
     try {
       setLoading(true);
-      // Utiliser farm_file_plot_id si disponible, sinon plot.id
-      const plotId = plot.farm_file_plot_id || plot.id;
+      // Utiliser plot.id directement
+      const plotId = plot.id;
       const details = await PlotsService.getPlotById(plotId);
       setPlotDetails(details);
     } catch (error) {
@@ -88,8 +88,8 @@ const PlotDetailsModal: React.FC<PlotDetailsModalProps> = ({
     if (!plot) return;
     
     try {
-      // Utiliser farm_file_plot_id si disponible, sinon plot.id
-      const plotId = plot.farm_file_plot_id || plot.id;
+      // Utiliser plot.id directement
+      const plotId = plot.id;
       const response = await PlotsService.getCrops({ plot_id: plotId }, { page: 1, limit: 50 });
       setCrops(response.data);
     } catch (error) {
@@ -101,8 +101,8 @@ const PlotDetailsModal: React.FC<PlotDetailsModalProps> = ({
     if (!plot) return;
     
     try {
-      // Utiliser farm_file_plot_id si disponible, sinon plot.id
-      const plotId = plot.farm_file_plot_id || plot.id;
+      // Utiliser plot.id directement
+      const plotId = plot.id;
       const response = await OperationsService.getOperations(
         { plot_id: plotId }, 
         { page: 1, limit: 50 }
@@ -358,9 +358,9 @@ const PlotDetailsModal: React.FC<PlotDetailsModalProps> = ({
                           </div>
                           <div className="text-right">
                             <Badge className={getCropStatusColor(crop.status)}>
-                              {crop.status === 'planted' ? 'Planté' :
-                               crop.status === 'growing' ? 'En croissance' :
-                               crop.status === 'harvested' ? 'Récolté' : 'Échoué'}
+                              {crop.status === 'en_cours' ? 'En cours' :
+                               crop.status === 'recolte' ? 'Récolté' :
+                               crop.status === 'abandonne' ? 'Abandonné' : 'Échoué'}
                             </Badge>
                             {crop.estimated_yield_kg_ha && (
                               <p className="text-sm text-gray-600 mt-1">

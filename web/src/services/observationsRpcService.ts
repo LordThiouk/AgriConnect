@@ -88,7 +88,7 @@ export class ObservationsRpcService {
         throw new Error('Supabase client not initialized');
       }
 
-      const { data, error } = await supabase.rpc('get_observations_with_details', {
+      const { data, error } = await supabase.rpc('get_observations_with_details_v3', {
         producer_uuid: null,
         limit_count: 1,
         offset_count: 0,

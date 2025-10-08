@@ -22,18 +22,13 @@ export interface Cooperative {
   address?: string;
   phone?: string;
   email?: string;
-  president_name?: string;
-  president_phone?: string;
-  established_date?: string;
-  member_count?: number;
-  producer_count?: number;
+  contact_person?: string;
   description?: string;
   latitude?: number;
   longitude?: number;
-  is_active: boolean;
+  geom?: any;
   created_at: string;
   updated_at: string;
-  created_by?: string;
 }
 
 export interface CooperativeFilters {
@@ -41,7 +36,8 @@ export interface CooperativeFilters {
   region?: string;
   department?: string;
   commune?: string;
-  is_active?: boolean;
+  hasGeo?: string;
+  // minProducers et maxProducers supprimés - utiliser le modal "Voir producteurs"
 }
 
 // ===== AGENT TYPES =====
@@ -53,7 +49,6 @@ export interface Agent {
   region?: string;
   department?: string;
   commune?: string;
-  cooperative?: string;
   is_active: boolean;
   approval_status: 'pending' | 'approved' | 'rejected';
   created_at: string;
@@ -65,6 +60,68 @@ export interface Agent {
   avgVisitsPerMonth?: number;
   dataQualityRate?: number;
   visitsThisMonth?: number;
+  // Assignment data
+  assignments?: AgentAssignment[];
+  cooperatives?: Cooperative[];
+}
+
+// ===== AGENT ASSIGNMENT TYPES =====
+export interface AgentAssignment {
+  id: string;
+  agent_id: string;
+  assigned_to_type: 'producer' | 'cooperative';
+  assigned_to_id: string;
+  assigned_at: string;
+  assigned_by?: string;
+  created_at: string;
+  updated_at: string;
+  // Relations
+  assigned_to_name?: string;
+  assigned_by_name?: string;
+}
+
+export interface CreateAgentAssignmentData {
+  agent_id: string;
+  assigned_to_type: 'producer' | 'cooperative';
+  assigned_to_id: string;
+  assigned_by?: string;
+}
+
+export interface AgentAssignmentStats {
+  total_assignments: number;
+  producer_assignments: number;
+  cooperative_assignments: number;
+  recent_assignments: number;
+}
+
+export interface AvailableAgent {
+  agent_id: string;
+  agent_name: string;
+  region: string;
+  cooperative_name?: string;
+  total_assigned_producers: number;
+}
+
+export interface CreateAgentData {
+  user_id: string;
+  display_name: string;
+  phone?: string;
+  region?: string;
+  department?: string;
+  commune?: string;
+  is_active?: boolean;
+  approval_status?: 'pending' | 'approved' | 'rejected';
+}
+
+export interface UpdateAgentData {
+  id: string;
+  display_name?: string;
+  phone?: string;
+  region?: string;
+  department?: string;
+  commune?: string;
+  is_active?: boolean;
+  approval_status?: 'pending' | 'approved' | 'rejected';
 }
 
 export interface AgentFilters {
@@ -137,6 +194,10 @@ export interface Producer {
     description: string;
     performer_id: string;
   }[];
+  // Computed properties
+  plots_count?: number;
+  total_area?: number;
+  farm_files_count?: number;
   recent_observations?: {
     id: string;
     observation_type: string;
@@ -184,7 +245,6 @@ export interface EquipmentItem {
 // ===== PLOT TYPES =====
 export interface Plot {
   id: string;
-  farm_file_plot_id?: string; // ID from farm_file_plots table (for crops/operations)
   producer_id: string;
   name: string;
   area_hectares?: number;
@@ -220,7 +280,7 @@ export interface Crop {
   estimated_yield_kg_ha?: number;
   actual_yield_kg_ha?: number;
   area_hectares?: number;
-  status: 'planted' | 'growing' | 'harvested' | 'failed';
+  status: 'en_cours' | 'recolte' | 'abandonne';
   season?: string;
   notes?: string;
   created_at: string;
@@ -530,7 +590,7 @@ export interface CropFilters {
   search?: string;
   plot_id?: string;
   crop_type?: string;
-  status?: 'planted' | 'growing' | 'harvested' | 'failed';
+  status?: 'en_cours' | 'recolte' | 'abandonne';
   season?: string;
   producer_id?: string;
   region?: string;

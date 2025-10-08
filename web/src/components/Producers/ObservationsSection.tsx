@@ -17,6 +17,7 @@ import {
 import { ObservationsRpcService } from '../../services/observationsRpcService';
 import { Observation } from '../../types';
 import ObservationModal from './ObservationModal';
+import PlotCropSelector from './PlotCropSelector';
 
 // Type assertions pour résoudre le conflit de types
 const EyeIcon = Eye as any;
@@ -41,6 +42,8 @@ const ObservationsSection: React.FC<ObservationsSectionProps> = ({ producerId, p
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedObservation, setSelectedObservation] = useState<Observation | null>(null);
+  const [selectedPlotId, setSelectedPlotId] = useState<string | null>(null);
+  const [selectedCropId, setSelectedCropId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchObservations();
@@ -160,11 +163,25 @@ const ObservationsSection: React.FC<ObservationsSectionProps> = ({ producerId, p
       {/* Header avec bouton d'ajout */}
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-medium">Observations terrain</h3>
-        <Button size="sm" className="flex items-center gap-2" onClick={handleCreate}>
+        <Button 
+          size="sm" 
+          className="flex items-center gap-2" 
+          onClick={handleCreate}
+          disabled={!selectedPlotId || !selectedCropId}
+        >
           <PlusIcon className="h-4 w-4" />
           Nouvelle observation
         </Button>
       </div>
+
+      {/* Sélecteur de parcelle et culture */}
+      <PlotCropSelector
+        producerId={producerId}
+        onPlotSelect={setSelectedPlotId}
+        onCropSelect={setSelectedCropId}
+        selectedPlotId={selectedPlotId}
+        selectedCropId={selectedCropId}
+      />
 
       {/* Liste des observations */}
       {observations.length === 0 ? (
@@ -286,6 +303,8 @@ const ObservationsSection: React.FC<ObservationsSectionProps> = ({ producerId, p
         onSave={handleSave}
         observation={selectedObservation}
         producerId={producerId}
+        plotId={selectedPlotId || undefined}
+        cropId={selectedCropId || undefined}
       />
     </div>
   );

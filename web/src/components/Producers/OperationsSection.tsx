@@ -17,6 +17,7 @@ import {
 import { OperationsRpcService } from '../../services/operationsRpcService';
 import { Operation } from '../../types';
 import OperationModal from './OperationModal';
+import PlotCropSelector from './PlotCropSelector';
 
 // Type assertions pour résoudre le conflit de types
 const ActivityIcon = Activity as any;
@@ -41,6 +42,8 @@ const OperationsSection: React.FC<OperationsSectionProps> = ({ producerId, produ
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedOperation, setSelectedOperation] = useState<Operation | null>(null);
+  const [selectedPlotId, setSelectedPlotId] = useState<string | null>(null);
+  const [selectedCropId, setSelectedCropId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchOperations();
@@ -54,7 +57,7 @@ const OperationsSection: React.FC<OperationsSectionProps> = ({ producerId, produ
       // Pour l'instant, on récupère toutes les opérations
       // Dans une vraie implémentation, on filtrerait par producer_id via les parcelles
       const result = await OperationsRpcService.getOperations({}, { page: 1, limit: 50 }, producerId);
-      setOperations(result.data);
+      setOperations(result.data as Operation[]);
     } catch (err) {
       console.error('Error fetching operations:', err);
       setError('Erreur lors du chargement des opérations');
@@ -150,11 +153,25 @@ const OperationsSection: React.FC<OperationsSectionProps> = ({ producerId, produ
       {/* Header avec bouton d'ajout */}
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-medium">Opérations agricoles</h3>
-        <Button size="sm" className="flex items-center gap-2" onClick={handleCreate}>
+        <Button 
+          size="sm" 
+          className="flex items-center gap-2" 
+          onClick={handleCreate}
+          disabled={!selectedPlotId || !selectedCropId}
+        >
           <PlusIcon className="h-4 w-4" />
           Nouvelle opération
         </Button>
       </div>
+
+      {/* Sélecteur de parcelle et culture */}
+      <PlotCropSelector
+        producerId={producerId}
+        onPlotSelect={setSelectedPlotId}
+        onCropSelect={setSelectedCropId}
+        selectedPlotId={selectedPlotId}
+        selectedCropId={selectedCropId}
+      />
 
       {/* Liste des opérations */}
       {operations.length === 0 ? (
@@ -278,6 +295,8 @@ const OperationsSection: React.FC<OperationsSectionProps> = ({ producerId, produ
         onSave={handleSave}
         operation={selectedOperation}
         producerId={producerId}
+        plotId={selectedPlotId || undefined}
+        cropId={selectedCropId || undefined}
       />
     </div>
   );
