@@ -10,7 +10,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { VisitsService } from '../../lib/services/domain/visits';
 import { PlotsService } from '../../lib/services/domain/plots';
-import { useProducers } from '../../lib/hooks/useProducers';
+import { useAgentProducers } from '../../lib/hooks/useProducers';
 import { ProducerDisplay, PlotDisplay } from '../../lib/types/core/collecte';
 import { Feather } from '@expo/vector-icons';
 
@@ -47,7 +47,9 @@ export default function VisiteForm() {
   const [visitId, setVisitId] = useState<string | null>(edit || null);
   
   // Utiliser le hook pour les producteurs
-  const { producers, loading: producersLoading } = useProducers(user?.id || null);
+  const { producers, loading: producersLoading } = useAgentProducers(user?.id || '', undefined, {
+    enabled: !!user?.id
+  });
   
   const [formData, setFormData] = useState<VisiteFormData>({
     producer_id: '',

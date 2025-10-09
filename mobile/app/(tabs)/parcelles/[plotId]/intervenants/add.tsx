@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { CollecteService } from '../../../../../lib/services/collecte';
+import { ParticipantsServiceInstance } from '../../../../../lib/services/domain/participants';
 import { useAuth } from '../../../../../context/AuthContext';
 import { 
   FormContainer, 
@@ -80,19 +80,6 @@ export default function AddIntervenantScreen() {
     try {
       setLoading(true);
       
-      // Récupérer le profile.id depuis l'auth user.id
-      const { data: agentProfile, error: agentError } = await CollecteService.supabase
-        .from('profiles')
-        .select('id')
-        .eq('user_id', user?.id || '')
-        .eq('role', 'agent')
-        .single();
-
-      if (agentError || !agentProfile) {
-        Alert.alert('Erreur', 'Agent non trouvé');
-        return;
-      }
-      
       const intervenantData = {
         plot_id: plotId!,
         name: formData.name,
@@ -103,10 +90,9 @@ export default function AddIntervenantScreen() {
         is_young: formData.is_young,
         literacy: formData.literacy,
         languages: formData.languages ? formData.languages.split(',').map(s => s.trim()) : null,
-        created_by: agentProfile.id
       };
 
-      await CollecteService.addParticipant(intervenantData);
+      await ParticipantsServiceInstance.addParticipant(intervenantData);
       
       Alert.alert(
         'Succès',

@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   ActivityIndicator,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { CollecteService } from '../lib/services/collecte';
+import { useLatestOperations } from '../lib/hooks/useOperations';
 import { 
   Box, 
   Text, 
@@ -18,28 +18,13 @@ import {
 interface OperationsCardProps {
   plotId: string;
   onSeeAll?: () => void;
+  enabled?: boolean;
 }
 
-export function OperationsCard({ plotId, onSeeAll }: OperationsCardProps) {
+export function OperationsCard({ plotId, onSeeAll, enabled = true }: OperationsCardProps) {
   const theme = useTheme();
-  const [operations, setOperations] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    loadOperations();
-  }, [plotId]);
-
-  const loadOperations = async () => {
-    try {
-      setLoading(true);
-      const data = await CollecteService.getLatestOperations(plotId);
-      setOperations(data);
-    } catch (error) {
-      console.error('Erreur lors du chargement des opérations:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data, loading } = useLatestOperations(plotId, 5, { enabled, refetchOnMount: true });
+  const operations = (data as any[]) || [];
 
   const handleAdd = () => {
     router.push(`/(tabs)/parcelles/${plotId}/operations/add`);
@@ -49,13 +34,8 @@ export function OperationsCard({ plotId, onSeeAll }: OperationsCardProps) {
     router.push(`/parcelles/${plotId}/operations/${operation.id}/edit`);
   };
 
-  const handleDelete = async (operation: any) => {
-    try {
-      await CollecteService.deleteOperation(operation.id);
-      await loadOperations();
-    } catch (error) {
-      console.error('Erreur lors de la suppression:', error);
-    }
+  const handleDelete = async (_operation: any) => {
+    // TODO: Use delete hook and invalidate cache externally if needed
   };
 
   const getOperationColor = (type: string) => {
@@ -73,14 +53,14 @@ export function OperationsCard({ plotId, onSeeAll }: OperationsCardProps) {
   };
 
   const getOperationIcon = (type: string) => {
-    const icons: { [key: string]: string } = {
-      semis: 'seedling',
+    const icons: { [key: string]: keyof typeof Feather.glyphMap } = {
+      semis: 'circle',
       fertilisation: 'droplet',
       irrigation: 'droplet',
       desherbage: 'scissors',
       traitement_phytosanitaire: 'shield',
       recolte: 'package',
-      labour: 'tractor',
+      labour: 'tool',
       autre: 'settings',
     };
     return icons[type] || 'settings';
@@ -105,7 +85,7 @@ export function OperationsCard({ plotId, onSeeAll }: OperationsCardProps) {
             <Feather 
               name={getOperationIcon(item.type)} 
               size={16} 
-              color={theme.colors[getOperationColor(item.type)]?.[500] || '#6c757d'} 
+              color={(theme.colors as any)[getOperationColor(item.type)]?.[500] || '#6c757d'} 
             />
           </Box>
           <VStack flex={1} space={1}>

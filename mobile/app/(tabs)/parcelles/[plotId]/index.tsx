@@ -1,53 +1,27 @@
-import React, { useState } from 'react';
-import { ActivityIndicator, FlatList } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { RecommendationDisplay, OperationDisplay, InputDisplay, Crop } from '../../../../types/collecte';
+import React from 'react';
+import { usePathname, useLocalSearchParams, useRouter } from 'expo-router';
+import { useIsFocused } from '@react-navigation/native';
+import { useFormActivity } from '../../../../context/FormActivityContext';
+import { Crop } from '../../../../types/collecte';
 import { PlotDisplay } from '../../../../lib/services/domain/plots/plots.types';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../../../context/AuthContext';
-import { ScreenContainer } from '../../../../components/ui';
-import { HStack as HStackIcon, Pressable as PressableIcon } from 'native-base';
+import { ScreenContainer, SectionCard } from '../../../../components/ui';
 import PhotoGallery from '../../../../components/ui/interactive/PhotoGallery';
-import { OperationsCard } from '../../../../components/OperationsCard';
-import { IntrantsCard } from '../../../../components/IntrantsCard';
-import { ObservationsCard } from '../../../../components/ObservationsCard';
-import { usePlotById, useActiveCrop, useParticipantsByPlot, useRecommendationsByPlot, useLatestRecommendations, useLatestOperations, useCrops, useLatestInputs } from '../../../../lib/hooks';
+import { usePlotById, useActiveCrop, useParticipantsByPlot, useRecommendationsByPlot, useCrops, useInputsByPlot, useOperationsByPlot, useObservationsByPlot } from '../../../../lib/hooks';
 import { 
   Box, 
   Text, 
   ScrollView, 
-  Pressable, 
   HStack, 
   VStack, 
   useTheme,
-  Badge
+  Badge,
+  Pressable
 } from 'native-base';
 
 const InfoCard = ({ plot, activeCrop }: { plot: PlotDisplay | null; activeCrop: Crop | null }) => {
   const theme = useTheme();
-  
-  console.log('🏞️ [INFO_CARD] Rendu InfoCard:', {
-    plot: plot ? { 
-      name: plot.name_season_snapshot, 
-      status: plot.status,
-      area: plot.area_hectares,
-      producer_name: plot.producer_name,
-      id: plot.id,
-      // Test des alias
-      name_alias: plot.name,
-      area_alias: plot.area,
-      producerName_alias: plot.producerName,
-      variety_alias: plot.variety,
-      soilType_alias: plot.soilType,
-      waterSource_alias: plot.waterSource
-    } : null,
-    activeCrop: activeCrop ? { 
-      id: activeCrop.id, 
-      variety: activeCrop.variety,
-      crop_type: activeCrop.crop_type,
-      status: activeCrop.status
-    } : null
-  });
   
   const statusConfig = {
     preparation: { text: 'En cours', color: theme.colors.success?.[500] || '#10b981' },
@@ -100,7 +74,26 @@ const InfoCard = ({ plot, activeCrop }: { plot: PlotDisplay | null; activeCrop: 
             {culturePrincipale}
           </Text>
         </VStack>
-        
+
+        <HStack justifyContent="space-between">
+          <VStack flex={1}>
+            <Text fontSize="xs" color="gray.600" mb={1}>
+              Producteur
+            </Text>
+            <Text fontSize="sm" fontWeight="semibold" color="gray.900">
+              {plot?.producer_name || plot?.producerName || 'N/A'}
+            </Text>
+          </VStack>
+          <VStack flex={1}>
+            <Text fontSize="xs" color="gray.600" mb={1}>
+              Statut
+            </Text>
+            <Badge bg={`${currentStatus.color}20`} _text={{ color: currentStatus.color }} px={2} py={1} borderRadius="md">
+              {currentStatus.text}
+            </Badge>
+          </VStack>
+        </HStack>
+
         <VStack>
           <Text fontSize="xs" color="gray.600" mb={1}>
             Localisation
@@ -109,891 +102,146 @@ const InfoCard = ({ plot, activeCrop }: { plot: PlotDisplay | null; activeCrop: 
             {localisation}
           </Text>
         </VStack>
-        
-        <HStack justifyContent="space-between">
-          <VStack flex={1}>
-            <Text fontSize="xs" color="gray.600" mb={1}>
-              Statut
-            </Text>
-            <Badge
-              bg={`${currentStatus.color}20`}
-              borderRadius="full"
-              px={3}
-              py={1}
-              borderWidth={1}
-              borderColor={`${currentStatus.color}40`}
-              alignSelf="flex-start"
-            >
-              <Text fontSize="xs" fontWeight="bold" color={currentStatus.color}>
-                {currentStatus.text}
-              </Text>
-            </Badge>
-          </VStack>
-          <VStack flex={1}>
-            <Text fontSize="xs" color="gray.600" mb={1}>
-              Dernière synchro
-            </Text>
-            <Text fontSize="sm" fontWeight="semibold" color="gray.900">
+
+        <VStack>
+          <Text fontSize="xs" color="gray.600" mb={1}>
+            Dernière synchronisation
+          </Text>
+          <Text fontSize="sm" fontWeight="semibold" color="gray.900">
             {derniereSyncFormatted}
           </Text>
-          </VStack>
-        </HStack>
+        </VStack>
       </VStack>
     </Box>
   );
 };
 
-const ParticipantsCard = ({ plotId, router }: { plotId: string; router: any }) => {
-  const theme = useTheme();
-  // Utiliser le hook pour récupérer les participants
-  const { data: participants, loading: participantsLoading, error: participantsError } = useParticipantsByPlot(plotId!);
 
-  console.log('👥 [PLOT_DETAIL] Participants récupérés:', { 
-    count: participants?.length || 0, 
-    loading: participantsLoading, 
-    error: participantsError?.message 
-  });
-
-  // Le hook gère automatiquement le chargement
-
-  const getRoleIcon = (role: string) => {
-    if (!role) return 'user';
-    switch (role.toLowerCase()) {
-      case 'producteur':
-        return 'user';
-      case 'agent':
-        return 'user-check';
-      case 'ouvrier':
-        return 'users';
-      case 'superviseur':
-        return 'shield';
-      default:
-        return 'user';
-    }
-  };
-
-  const getRoleColor = (role: string) => {
-    if (!role) return theme.colors.gray?.[600] || '#6b7280';
-    switch (role.toLowerCase()) {
-      case 'producteur':
-        return theme.colors.primary?.[500] || '#3D944B';
-      case 'agent':
-        return theme.colors.blue?.[500] || '#2196F3';
-      case 'ouvrier':
-        return theme.colors.orange?.[500] || '#FF9800';
-      case 'superviseur':
-        return theme.colors.purple?.[500] || '#9C27B0';
-      default:
-        return theme.colors.gray?.[600] || '#6b7280';
-    }
-  };
-
-  return (
-    <Box bg="white" borderRadius="xl" p={4} mb={4} shadow={2}>
-      <HStack justifyContent="space-between" alignItems="center" mb={3}>
-        <Text fontSize="lg" fontWeight="bold" color="gray.900">
-          Participants
-        </Text>
-        <Pressable onPress={() => router.push(`/(tabs)/parcelles/${plotId}/intervenants`)}>
-          <Text color={theme.colors.primary?.[500] || '#3D944B'} fontWeight="semibold" fontSize="sm">
-            Gérer
-          </Text>
-        </Pressable>
-      </HStack>
-      
-      {participantsLoading ? (
-        <ActivityIndicator color={theme.colors.primary?.[500] || '#3D944B'} />
-      ) : participantsError ? (
-        <Text textAlign="center" color="red.500" py={4}>
-          Erreur: {participantsError.message}
-        </Text>
-      ) : participants?.length === 0 ? (
-        <Text textAlign="center" color="gray.500" py={4} fontStyle="italic">
-          Aucun participant pour cette parcelle.
-        </Text>
-      ) : (
-        <VStack space={3}>
-          {participants?.slice(0, 3).map(item => (
-            <HStack key={item.id} alignItems="center" py={2}>
-              <Box
-                w={10}
-                h={10}
-                borderRadius="full"
-                bg={`${getRoleColor(item.role)}20`}
-                alignItems="center"
-                justifyContent="center"
-                mr={3}
-              >
-                <Feather name={getRoleIcon(item.role)} size={20} color={getRoleColor(item.role)} />
-              </Box>
-              <VStack flex={1}>
-                <Text fontSize="md" fontWeight="semibold" color="gray.900">
-                  {item.name}
-                </Text>
-                <Text fontSize="sm" color="gray.600">
-                  {item.role}{item.age ? ` • ${item.age} ans` : ''}
-                </Text>
-              </VStack>
-            </HStack>
-          ))}
-          <Pressable 
-            onPress={() => router.push(`/(tabs)/parcelles/${plotId}/intervenants`)}
-            py={2}
-            alignItems="center"
-          >
-            <Text color={theme.colors.primary?.[500] || '#3D944B'} fontSize="sm" fontWeight="semibold">
-              {participants.length > 3 ? 'Voir tous les intervenants' : 'Gérer les intervenants'}
-            </Text>
-          </Pressable>
-        </VStack>
-      )}
-    </Box>
-  );
-};
-
-const ConseilsCard = ({ plotId }: { plotId: string }) => {
-  const router = useRouter();
-
-  // Utiliser le hook pour récupérer les recommandations
-  const { data: recommendations, loading: recommendationsLoading, error: recommendationsError } = useRecommendationsByPlot(plotId!);
-
-  console.log('💡 [PLOT_DETAIL] Recommandations récupérées:', { 
-    count: recommendations?.length || 0, 
-    loading: recommendationsLoading, 
-    error: recommendationsError?.message 
-  });
-
-  const getStatusStyle = (status: string) => {
-    if (!status) return { container: 'gray.100', text: 'gray.600' };
-    if (status.toLowerCase() === 'completed') return { container: 'green.100', text: 'green.600' };
-    if (status.toLowerCase() === 'acknowledged') return { container: 'blue.100', text: 'blue.600' };
-    return { container: 'gray.100', text: 'gray.600' };
-  };
-
-
-  const RecommendationItem = ({ item }: { item: RecommendationDisplay }) => {
-    const statusStyle = getStatusStyle(item.status);
-    return (
-      <HStack space={3} py={3} borderBottomWidth={1} borderBottomColor="gray.100">
-        <Box
-          w={12}
-          h={12}
-          borderRadius="full"
-          bg="yellow.100"
-          justifyContent="center"
-          alignItems="center"
-        >
-          <Feather name="sun" size={24} color="#FFD65A" />
-        </Box>
-        <VStack flex={1} space={2}>
-          <HStack justifyContent="space-between" alignItems="center">
-            <Text fontSize="md" fontWeight="600" color="gray.900">
-              {item.title}
-            </Text>
-            <Badge
-              bg="gray.100"
-              _text={{ color: 'gray.600', fontSize: 'xs', fontWeight: 'bold' }}
-              px={2}
-              py={1}
-              borderRadius="md"
-            >
-              Normale
-            </Badge>
-          </HStack>
-          <Text fontSize="sm" color="gray.600" lineHeight={20}>
-            {item.message}
-          </Text>
-          <HStack justifyContent="space-between" alignItems="center">
-            <Text fontSize="xs" color="gray.500">
-              {item.date}
-            </Text>
-            <Badge
-              bg={statusStyle.container}
-              _text={{ color: statusStyle.text, fontSize: 'xs', fontWeight: 'bold' }}
-              px={2}
-              py={1}
-              borderRadius="md"
-            >
-              {item.status}
-            </Badge>
-          </HStack>
-        </VStack>
-      </HStack>
-    );
-  };
-  
-  if (recommendationsLoading) return <ActivityIndicator />;
-
-  return (
-    <Box bg="white" borderRadius="xl" p={4} mb={4} shadow={2}>
-      <HStack justifyContent="space-between" alignItems="center" mb={3}>
-        <Text fontSize="lg" fontWeight="bold" color="gray.900">
-          Conseils & Recommandations
-        </Text>
-        <Pressable onPress={() => router.push(`/(tabs)/parcelles/${plotId}/conseils/add`)}>
-          <Feather name="plus-circle" size={24} color="#3D944B" />
-        </Pressable>
-      </HStack>
-      {recommendationsError ? (
-        <Text textAlign="center" color="red.500" py={4}>
-          Erreur: {recommendationsError.message}
-        </Text>
-      ) : recommendations?.length === 0 ? (
-        <Text textAlign="center" color="gray.500" py={4}>
-          Aucun conseil pour cette parcelle.
-        </Text>
-      ) : (
-        <FlatList
-          data={recommendations}
-          renderItem={({ item }) => <RecommendationItem item={item} />}
-          keyExtractor={(item) => item.id}
-          scrollEnabled={false}
-        />
-      )}
-    </Box>
-  );
-};
-
-const LatestConseilsCard = ({ plotId, onSeeAll }: { plotId: string; onSeeAll: () => void }) => {
-  // Utiliser le hook pour récupérer les dernières recommandations
-  const { data: recommendations, loading: recsLoading, error: recsError } = useLatestRecommendations(plotId);
-
-  console.log('💡 [PLOT_DETAIL] Dernières recommandations récupérées:', { 
-    count: recommendations?.length || 0, 
-    loading: recsLoading, 
-    error: recsError?.message 
-  });
-
-  const renderItem = ({ item }: { item: RecommendationDisplay }) => (
-    <HStack space={3} py={3} borderBottomWidth={1} borderBottomColor="gray.100">
-      <Feather name="info" size={20} color="#3D944B" />
-      <VStack flex={1} space={1}>
-        <Text fontSize="md" fontWeight="600" color="gray.900">
-          {item.title}
-        </Text>
-        <Text fontSize="sm" color="gray.600" lineHeight={20}>
-          {item.message}
-        </Text>
-      </VStack>
-    </HStack>
-  );
-
-  return (
-    <Box bg="white" borderRadius="xl" p={4} mb={4} shadow={2}>
-      <HStack justifyContent="space-between" alignItems="center" mb={3}>
-        <Text fontSize="lg" fontWeight="bold" color="gray.900">
-          Derniers Conseils
-        </Text>
-        <Pressable onPress={onSeeAll}>
-          <Text color="primary.500" fontWeight="600" fontSize="sm">
-            Voir tout
-          </Text>
-        </Pressable>
-      </HStack>
-      {recsLoading ? (
-        <ActivityIndicator color="#3D944B" style={{ marginVertical: 20 }} />
-      ) : recsError ? (
-        <Text textAlign="center" color="red.500" py={4}>
-          Erreur: {recsError.message}
-        </Text>
-      ) : recommendations?.length === 0 ? (
-        <Text textAlign="center" color="gray.500" py={4}>
-          Aucun conseil pour le moment.
-        </Text>
-      ) : (
-        <FlatList
-          data={recommendations}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
-          scrollEnabled={false}
-        />
-      )}
-    </Box>
-  );
-};
-
-const LatestOperationsCard = ({ plotId, onSeeAll }: { plotId: string; onSeeAll: () => void }) => {
-  // Utiliser le hook pour récupérer les dernières opérations
-  const { data: operations, loading: operationsLoading, error: operationsError } = useLatestOperations(plotId);
-
-  console.log('🚜 [PLOT_DETAIL] Dernières opérations récupérées:', { 
-    count: operations?.length || 0, 
-    loading: operationsLoading, 
-    error: operationsError?.message 
-  });
-
-  const renderItem = ({ item }: { item: OperationDisplay }) => {
-    const iconName = operationIcons[item.type] || 'settings';
-    return (
-      <HStack space={4} py={3} borderBottomWidth={1} borderBottomColor="gray.100">
-        <Box
-          w={12}
-          h={12}
-          borderRadius="full"
-          bg="green.100"
-          justifyContent="center"
-          alignItems="center"
-        >
-          <Feather name={iconName} size={24} color="#3D944B" />
-        </Box>
-        <VStack flex={1} space={1}>
-          <Text fontSize="md" fontWeight="600" color="gray.900" textTransform="capitalize">
-            {item.type}
-          </Text>
-          <Text fontSize="sm" color="gray.600">
-            Par {item.author} le {item.date}
-          </Text>
-          {item.description && (
-            <Text fontSize="sm" color="gray.600">
-              {item.description}
-            </Text>
-          )}
-        </VStack>
-        <Box
-          w={16}
-          h={16}
-          borderRadius="md"
-          overflow="hidden"
-          ml={3}
-        >
-          <PhotoGallery
-            entityType="operation"
-            entityId={item.id}
-            title=""
-            maxPhotos={1}
-            showTitle={false}
-            style={{ width: '100%', height: '100%' }}
-          />
-        </Box>
-      </HStack>
-    );
-  };
-
-  return (
-    <Box bg="white" borderRadius="xl" p={4} mb={4} shadow={2}>
-      <HStack justifyContent="space-between" alignItems="center" mb={3}>
-        <Text fontSize="lg" fontWeight="bold" color="gray.900">
-          Dernières Opérations
-        </Text>
-        <Pressable onPress={onSeeAll}>
-          <Text color="primary.500" fontWeight="600" fontSize="sm">
-            Voir tout
-          </Text>
-        </Pressable>
-      </HStack>
-      {operationsLoading ? (
-        <ActivityIndicator color="#3D944B" style={{ marginVertical: 20 }} />
-      ) : operationsError ? (
-        <Text textAlign="center" color="red.500" py={4}>
-          Erreur: {operationsError.message}
-        </Text>
-      ) : operations?.length === 0 ? (
-        <Text textAlign="center" color="gray.500" py={4}>
-          Aucune opération récente.
-        </Text>
-      ) : (
-        <FlatList
-          data={operations}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
-          scrollEnabled={false}
-        />
-      )}
-    </Box>
-  );
-};
-
-
-const CurrentCropCard = ({ crop }: { crop: Crop | null }) => {
-  if (!crop) {
-    return (
-      <Box bg="white" borderRadius="xl" p={4} mb={4} shadow={2}>
-        <Text fontSize="lg" fontWeight="bold" color="gray.900" mb={3}>
-          Culture en cours
-        </Text>
-        <Text textAlign="center" color="gray.500" py={4}>
-          Aucune culture active sur cette parcelle.
-        </Text>
-      </Box>
-    );
-  }
-
-  return (
-    <Box bg="white" borderRadius="xl" p={4} mb={4} shadow={2}>
-      <HStack justifyContent="space-between" alignItems="center" mb={3}>
-        <Text fontSize="lg" fontWeight="bold" color="gray.900">
-          Culture en cours
-        </Text>
-        <Pressable>
-          <Text color="primary.500" fontWeight="600" fontSize="sm">
-            Voir détails
-          </Text>
-        </Pressable>
-      </HStack>
-      
-      <HStack space={3} mb={4}>
-        <Box
-          w={12}
-          h={12}
-          borderRadius="full"
-          bg="yellow.100"
-          justifyContent="center"
-          alignItems="center"
-        >
-          <Feather name="sun" size={24} color="#FFD65A" />
-        </Box>
-        <VStack flex={1} space={1}>
-          <Text fontSize="md" fontWeight="600" color="gray.900">
-            {crop.crop_type} - {crop.variety}
-          </Text>
-          <Text fontSize="sm" color="gray.600">
-            Saison hivernage 2024
-          </Text>
-        </VStack>
-      </HStack>
-
-      <VStack space={3}>
-        <HStack space={4}>
-          <Box flex={1}>
-            <Text fontSize="xs" color="gray.600" mb={1}>
-              Semis
-            </Text>
-            <Text fontSize="sm" fontWeight="600" color="gray.900">
-              {new Date(crop.sowing_date).toLocaleDateString('fr-FR')}
-            </Text>
-          </Box>
-          <Box flex={1}>
-            <Text fontSize="xs" color="gray.600" mb={1}>
-              Levée
-            </Text>
-            <Text fontSize="sm" fontWeight="600" color="gray.900">
-              N/A
-            </Text>
-          </Box>
-        </HStack>
-        <HStack space={4}>
-          <Box flex={1}>
-            <Text fontSize="xs" color="gray.600" mb={1}>
-              Récolte prévue
-            </Text>
-            <Text fontSize="sm" fontWeight="600" color="gray.900">
-              {crop.expected_harvest_date ? new Date(crop.expected_harvest_date).toLocaleDateString('fr-FR') : 'N/A'}
-            </Text>
-          </Box>
-          <Box flex={1}>
-            <Text fontSize="xs" color="gray.600" mb={1}>
-              Rendement estimé
-            </Text>
-            <Text fontSize="sm" fontWeight="600" color="gray.900">
-              {crop.actual_yield_kg ? `${crop.actual_yield_kg} T/ha` : 'N/A'}
-            </Text>
-          </Box>
-        </HStack>
-      </VStack>
-    </Box>
-  );
-};
-
-const CulturesCard = ({ plotId, router, agentId }: { plotId: string; router: any; agentId?: string }) => {
-  // Utiliser le hook pour récupérer les cultures
-  const { crops, loading: cropsLoading, error: cropsError } = useCrops(plotId);
-
-  console.log('🌾 [PLOT_DETAIL] Cultures récupérées:', { 
-    count: crops?.length || 0, 
-    loading: cropsLoading, 
-    error: cropsError?.message 
-  });
-
-  const getStatusStyle = (status: string | null) => {
-    switch (status) {
-      case 'en_cours':
-      case 'active':
-        return { backgroundColor: '#dcfce7', color: '#16a34a' };
-      case 'completed':
-      case 'terminé':
-        return { backgroundColor: '#e0f2fe', color: '#0284c7' };
-      case 'abandoned':
-      case 'abandonné':
-        return { backgroundColor: '#fef2f2', color: '#dc2626' };
-      default:
-        return { backgroundColor: '#f3f4f6', color: '#6b7280' };
-    }
-  };
-
-  const handleEditCrop = (cropId: string) => {
-    router.push(`/(tabs)/parcelles/${plotId}/cultures/${cropId}/edit`);
-  };
-
-  const handleDeleteCrop = async (cropId: string) => {
-    try {
-      console.log('🌾 [PLOT_DETAIL] Suppression de la culture:', cropId);
-      
-      // Utiliser CropsService directement
-      const { CropsServiceInstance } = await import('../../../../lib/services/domain/crops');
-      await CropsServiceInstance.deleteCrop(cropId, plotId);
-      
-      console.log('✅ [PLOT_DETAIL] Culture supprimée avec succès');
-      
-      // Le hook se rafraîchira automatiquement
-    } catch (error) {
-      console.error('❌ [PLOT_DETAIL] Erreur lors de la suppression:', error);
-    }
-  };
-
-  const renderCropItem = ({ item }: { item: Crop }) => {
-    const statusStyle = getStatusStyle(item.status);
-    return (
-      <HStack space={4} py={3} borderBottomWidth={1} borderBottomColor="gray.100">
-        <VStack flex={1} space={1}>
-          <Text fontSize="md" fontWeight="600" color="gray.900">
-            {item.crop_type}
-          </Text>
-          <Text fontSize="sm" color="gray.600">
-            {item.variety}
-          </Text>
-          <Text fontSize="sm" color="gray.600">
-            Semis: {new Date(item.sowing_date).toLocaleDateString('fr-FR')}
-          </Text>
-        </VStack>
-        <VStack space={2} alignItems="flex-end">
-          <Badge
-            bg={statusStyle.backgroundColor}
-            _text={{ color: statusStyle.color, fontSize: 'xs', fontWeight: 'bold' }}
-            px={2}
-            py={1}
-            borderRadius="md"
-          >
-            {item.status}
-          </Badge>
-          <HStack space={2}>
-            <Pressable
-              p={2}
-              borderRadius="md"
-              bg="gray.100"
-              onPress={() => handleEditCrop(item.id)}
-            >
-              <Feather name="edit" size={16} color="#3D944B" />
-            </Pressable>
-            <Pressable
-              p={2}
-              borderRadius="md"
-              bg="gray.100"
-              onPress={() => handleDeleteCrop(item.id)}
-            >
-              <Feather name="trash-2" size={16} color="#ef4444" />
-            </Pressable>
-          </HStack>
-        </VStack>
-      </HStack>
-    );
-  };
-
-  return (
-    <Box bg="white" borderRadius="xl" p={4} mb={4} shadow={2}>
-      <HStack justifyContent="space-between" alignItems="center" mb={3}>
-        <Text fontSize="lg" fontWeight="bold" color="gray.900">
-          Cultures
-        </Text>
-        <Pressable onPress={() => router.push(`/(tabs)/parcelles/${plotId}/cultures/add`)}>
-          <Feather name="plus-circle" size={24} color="#3D944B" />
-        </Pressable>
-      </HStack>
-      {cropsLoading ? (
-        <ActivityIndicator color="#3D944B" style={{ marginVertical: 20 }} />
-      ) : cropsError ? (
-        <Text textAlign="center" color="red.500" py={4}>
-          Erreur: {cropsError.message}
-        </Text>
-      ) : crops?.length === 0 ? (
-        <Text textAlign="center" color="gray.500" py={4}>
-          Aucune culture enregistrée pour cette parcelle.
-        </Text>
-      ) : (
-        <FlatList
-          data={crops}
-          renderItem={renderCropItem}
-          keyExtractor={(item) => item.id}
-          scrollEnabled={false}
-        />
-      )}
-    </Box>
-  );
-};
-
-const LatestIntrantsCard = ({ plotId, onSeeAll }: { plotId: string; onSeeAll: () => void }) => {
-  // Utiliser le hook pour récupérer les derniers intrants
-  const { data: inputs, loading: inputsLoading, error: inputsError } = useLatestInputs(plotId);
-
-  console.log('🌱 [PLOT_DETAIL] Derniers intrants récupérés:', { 
-    count: inputs?.length || 0, 
-    loading: inputsLoading, 
-    error: inputsError?.message 
-  });
-
-  const getInputIcon = (category: string) => {
-    if (!category) return 'package';
-    switch (category.toLowerCase()) {
-      case 'semence':
-        return 'sun';
-      case 'engrais':
-        return 'trending-up';
-      case 'pesticide':
-        return 'shield';
-      case 'herbicide':
-        return 'slash';
-      case 'autre':
-        return 'package';
-      default:
-        return 'package';
-    }
-  };
-
-  const getInputColor = (category: string) => {
-    if (!category) return '#6b7280';
-    switch (category.toLowerCase()) {
-      case 'semence':
-        return '#4CAF50';
-      case 'engrais':
-        return '#FF9800';
-      case 'pesticide':
-        return '#F44336';
-      case 'herbicide':
-        return '#9C27B0';
-      case 'autre':
-        return '#6b7280';
-      default:
-        return '#6b7280';
-    }
-  };
-
-  const renderItem = ({ item }: { item: InputDisplay }) => {
-    const iconName = getInputIcon(item.category);
-    const iconColor = getInputColor(item.category);
-    
-    return (
-      <HStack space={4} py={3} borderBottomWidth={1} borderBottomColor="gray.100">
-        <Box
-          w={12}
-          h={12}
-          borderRadius="full"
-          bg={`${iconColor}20`}
-          justifyContent="center"
-          alignItems="center"
-        >
-          <Feather name={iconName} size={24} color={iconColor} />
-        </Box>
-        <VStack flex={1} space={1}>
-          <Text fontSize="md" fontWeight="600" color="gray.900" textTransform="capitalize">
-            {item.category}
-          </Text>
-          <Text fontSize="sm" color="gray.600">
-            {item.label}
-          </Text>
-          <Text fontSize="sm" color="gray.700">
-            {item.quantity} {item.unit}
-          </Text>
-        </VStack>
-        <Text fontSize="xs" color="gray.500">
-          {item.date}
-        </Text>
-      </HStack>
-    );
-  };
-  
-  return (
-    <Box bg="white" borderRadius="xl" p={4} mb={4} shadow={2}>
-      <HStack justifyContent="space-between" alignItems="center" mb={3}>
-        <Text fontSize="lg" fontWeight="bold" color="gray.900">
-          Derniers Intrants
-        </Text>
-        <Pressable onPress={onSeeAll}>
-          <Text color="primary.500" fontWeight="600" fontSize="sm">
-            Voir tout
-          </Text>
-        </Pressable>
-      </HStack>
-      {inputsLoading ? (
-        <ActivityIndicator color="#3D944B" style={{ marginVertical: 20 }}/>
-      ) : inputsError ? (
-        <Text textAlign="center" color="red.500" py={4}>
-          Erreur: {inputsError.message}
-        </Text>
-      ) : inputs?.length === 0 ? (
-        <Text textAlign="center" color="gray.500" py={4}>
-          Aucun intrant récent.
-        </Text>
-      ) : (
-        <FlatList
-          data={inputs}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
-          scrollEnabled={false}
-        />
-      )}
-    </Box>
-  );
-};
-
-const operationIcons: { [key: string]: keyof typeof Feather.glyphMap } = {
-  sowing: 'feather',
-  fertilization: 'droplet',
-  irrigation: 'cloud-drizzle',
-  weeding: 'scissors',
-  pesticide: 'shield',
-  harvest: 'gift',
-  tillage: 'grid',
-  scouting: 'search',
-  default: 'tool',
-};
-
-
-
-
-
-
-
-const ParcelleDashboardScreen: React.FC = () => {
+export default function PlotDetailScreen() {
   const { plotId } = useLocalSearchParams<{ plotId: string }>();
   const router = useRouter();
+  const pathname = usePathname();
+  const isFocused = useIsFocused();
   const { user } = useAuth();
-  const theme = useTheme();
+  const { isFormActive } = useFormActivity();
 
-  const [activeTab, setActiveTab] = useState('Infos');
+  // État pour contrôler le chargement des données
+  const canFetch = isFocused && !isFormActive && plotId;
 
   console.log('🏞️ [PLOT_DETAIL] Écran de détail parcelle initialisé:', {
+    activeTab: 'Sections',
     plotId,
-    user: user?.id,
-    activeTab
+    user: user?.id
   });
 
-  // Utiliser les nouveaux hooks pour récupérer les données
-  const { data: plot, loading: plotLoading, error: plotError } = usePlotById(plotId, {
-    refetchOnMount: true,
-    staleTime: 2 * 60 * 1000, // 2 minutes
+  console.log('🏞️ [PLOT_DETAIL] canFetch state:', {
+    canFetch,
+    inAddForm: isFormActive,
+    isFocused,
+    isFormActive,
+    pathname
   });
 
-  const { crop: activeCrop, loading: cropLoading, error: cropError } = useActiveCrop(plotId || '', {
-    refetchOnMount: true,
-    cacheTTL: 2 * 60 * 1000, // 2 minutes
-  });
+  // Hooks de données avec canFetch
+  const plotResult = usePlotById(plotId!, { enabled: !!canFetch });
+  const activeCropResult = useActiveCrop(plotId!, { enabled: !!canFetch });
+  const participantsResult = useParticipantsByPlot(plotId!, { enabled: !!canFetch });
+  
+  // Hooks pour les sections
+  const intrantsResult = useInputsByPlot(plotId!, { enabled: !!canFetch });
+  const operationsResult = useOperationsByPlot(plotId!, { enabled: !!canFetch });
+  const observationsResult = useObservationsByPlot(plotId!, { enabled: !!canFetch });
+  const recommendationsResult = useRecommendationsByPlot(plotId!, { enabled: !!canFetch });
+  const cropsResult = useCrops(plotId!, undefined, { enabled: !!canFetch });
 
-  const loading = plotLoading || cropLoading;
-  const error = plotError || cropError;
+  // Extraire les données
+  const plot = plotResult.data;
+  const plotLoading = plotResult.loading;
+  const plotError = plotResult.error;
+  
+  const activeCrop = activeCropResult.crop;
+  const cropLoading = activeCropResult.loading;
+  const cropError = activeCropResult.error;
+  
+  const participants = participantsResult.data;
+  const participantsLoading = participantsResult.loading;
+  const participantsError = participantsResult.error;
+  
+  const intrants = intrantsResult.data;
+  const intrantsLoading = intrantsResult.loading;
+  const intrantsError = intrantsResult.error;
+  
+  const operations = operationsResult.data;
+  const operationsLoading = operationsResult.loading;
+  const operationsError = operationsResult.error;
+  
+  const observations = observationsResult.data;
+  const observationsLoading = observationsResult.loading;
+  const observationsError = observationsResult.error;
+  
+  const recommendations = recommendationsResult.data;
+  const recommendationsLoading = recommendationsResult.loading;
+  const recommendationsError = recommendationsResult.error;
+  
+  const crops = cropsResult.crops;
+  const cropsLoading = cropsResult.loading;
+  const cropsError = cropsResult.error;
 
   console.log('🏞️ [PLOT_DETAIL] État des hooks:', {
     plotId,
-    plot: plot ? { 
-      name: plot.name_season_snapshot, 
-      area: plot.area_hectares,
-      status: plot.status,
-      producer_name: plot.producer_name,
-      id: plot.id,
-      // Test des alias
-      name_alias: plot.name,
-      area_alias: plot.area,
-      producerName_alias: plot.producerName
-    } : null,
-    activeCrop: activeCrop ? { 
-      id: activeCrop.id, 
-      variety: activeCrop.variety,
-      crop_type: activeCrop.crop_type,
-      status: activeCrop.status
-    } : null,
+    plot: plot ? 'loaded' : 'null',
+    plotLoading,
+    plotError,
+    activeCrop: activeCrop ? 'loaded' : 'null',
+    cropLoading,
+    cropError,
+    loading: plotLoading,
+    error: plotError
+  });
+
+  console.log('🏞️ [PLOT_DETAIL] État de chargement:', {
     plotLoading,
     cropLoading,
-    plotError: plotError?.message,
-    cropError: cropError?.message,
-    loading,
-    error: error?.message
+    loading: plotLoading
   });
 
-  const TabButton = ({ title, isActive, onPress }: { title: string; isActive: boolean; onPress: () => void }) => (
-    <Pressable 
-      onPress={onPress} 
-      py={3}
-      px={4}
-      borderBottomWidth={2}
-      borderBottomColor={isActive ? (theme.colors.primary?.[500] || '#3D944B') : 'transparent'}
-    >
-      <Text 
-        color={isActive ? (theme.colors.primary?.[500] || '#3D944B') : 'gray.600'}
-        fontWeight="semibold"
-        fontSize="sm"
-      >
-        {title}
-      </Text>
-    </Pressable>
-  );
-
-  if (loading) {
-    console.log('🏞️ [PLOT_DETAIL] État de chargement:', { plotLoading, cropLoading, loading });
+  // Si pas de plotId, ne pas afficher
+  if (!plotId) {
     return (
-      <ScreenContainer 
-        title="Détail Parcelle"
-        showSubHeader={true}
-        showBackButton={false}
-        animationEnabled={true}
+      <ScreenContainer
+        title="Parcelle"
+        showBackButton
       >
         <Box flex={1} justifyContent="center" alignItems="center">
-          <ActivityIndicator size="large" color={theme.colors.primary?.[500] || '#3D944B'} />
-          <Text mt={4} fontSize="md" color="gray.600">Chargement des données...</Text>
+          <Text color="red.500">ID de parcelle manquant</Text>
         </Box>
       </ScreenContainer>
     );
   }
 
-  if (error) {
-    console.log('🏞️ [PLOT_DETAIL] Erreur détectée:', { 
-      plotError: plotError?.message, 
-      cropError: cropError?.message, 
-      error: error?.message 
-    });
+  // Si pas en focus, afficher un conteneur minimal pour éviter les re-renders
+  if (!isFocused) {
     return (
-      <ScreenContainer 
-        title="Détail Parcelle"
-        showSubHeader={true}
-        showBackButton={false}
-        animationEnabled={true}
+      <ScreenContainer
+        title="Parcelle"
+        showBackButton
       >
-        <Box flex={1} justifyContent="center" alignItems="center" p={4}>
-          <Feather name="alert-circle" size={48} color={theme.colors.error?.[500] || '#ef4444'} />
-          <Text mt={4} fontSize="lg" fontWeight="semibold" color="gray.800" textAlign="center">
-            Erreur de chargement
-          </Text>
-          <Text mt={2} fontSize="sm" color="gray.600" textAlign="center">
-            Impossible de charger les données de la parcelle
-          </Text>
-          <Text mt={1} fontSize="xs" color="gray.500" textAlign="center">
-            {error?.message || 'Erreur inconnue'}
-          </Text>
+        <Box flex={1} justifyContent="center" alignItems="center">
+          <Text color="gray.500">Chargement...</Text>
         </Box>
       </ScreenContainer>
     );
   }
-
-  console.log('🏞️ [PLOT_DETAIL] Rendu principal:', {
-    plot: plot ? { 
-      name: plot.name_season_snapshot, 
-      area: plot.area_hectares,
-      status: plot.status 
-    } : null,
-    activeCrop: activeCrop ? { 
-      id: activeCrop.id, 
-      variety: activeCrop.variety,
-      crop_type: activeCrop.crop_type 
-    } : null,
-    activeTab
-  });
 
   return (
-    <ScreenContainer 
+    <ScreenContainer
       title="Détail Parcelle"
       subtitle={plot?.name_season_snapshot || 'N/A'}
       showSubHeader={true}
       showBackButton={true}
       subHeaderActions={
-        <HStackIcon space={2}>
-          <PressableIcon
+        <HStack space={2}>
+          <Pressable
             onPress={() => {
               // Action pour partager
               console.log('Partager parcelle');
@@ -1002,9 +250,9 @@ const ParcelleDashboardScreen: React.FC = () => {
             borderRadius="md"
             _pressed={{ bg: 'gray.100' }}
           >
-            <Ionicons name="share-outline" size={20} color={theme.colors.primary?.[500] || '#3D944B'} />
-          </PressableIcon>
-          <PressableIcon
+            <Ionicons name="share-outline" size={20} color="#3D944B" />
+          </Pressable>
+          <Pressable
             onPress={() => {
               // Action pour menu
               console.log('Menu parcelle');
@@ -1013,15 +261,15 @@ const ParcelleDashboardScreen: React.FC = () => {
             borderRadius="md"
             _pressed={{ bg: 'gray.100' }}
           >
-            <Ionicons name="ellipsis-horizontal" size={20} color={theme.colors.primary?.[500] || '#3D944B'} />
-          </PressableIcon>
-        </HStackIcon>
+            <Ionicons name="ellipsis-horizontal" size={20} color="#3D944B" />
+          </Pressable>
+        </HStack>
       }
       animationEnabled={true}
     >
-      <ScrollView flex={1} bg="gray.50">
+      <ScrollView flex={1} bg="gray.50" showsVerticalScrollIndicator={false}>
         {/* Header avec photo de parcelle */}
-        <Box h={200} position="relative">
+        <Box h={200} position="relative" mb={4}>
           {plot ? (
             <PhotoGallery
               entityType="plot"
@@ -1038,8 +286,8 @@ const ParcelleDashboardScreen: React.FC = () => {
               justifyContent="center" 
               alignItems="center"
             >
-              <Feather name="map-pin" size={48} color={theme.colors.primary?.[500] || '#3D944B'} />
-              <Text color={theme.colors.primary?.[500] || '#3D944B'} fontSize="md" fontWeight="semibold" mt={2}>
+              <Ionicons name="map" size={48} color="#3D944B" />
+              <Text color="#3D944B" fontSize="md" fontWeight="semibold" mt={2}>
                 Photo de parcelle
               </Text>
             </Box>
@@ -1074,7 +322,7 @@ const ParcelleDashboardScreen: React.FC = () => {
             </VStack>
             
             <HStack alignItems="center" mb={2}>
-              <Feather name="map-pin" size={16} color="green.400" />
+              <Ionicons name="location" size={16} color="green.400" />
               <Text color="white" fontSize="sm" ml={2} flex={1}>
                 GPS: {plot?.center_point && typeof plot.center_point === 'object' && 'coordinates' in plot.center_point && Array.isArray((plot.center_point as any).coordinates) ? `${(plot.center_point as any).coordinates[1].toFixed(4)}°N` : '14.6928°N'}, {plot?.center_point && typeof plot.center_point === 'object' && 'coordinates' in plot.center_point && Array.isArray((plot.center_point as any).coordinates) ? `${(plot.center_point as any).coordinates[0].toFixed(4)}°W` : '17.4467°W'}
               </Text>
@@ -1093,81 +341,183 @@ const ParcelleDashboardScreen: React.FC = () => {
           </Box>
         </Box>
 
-        {/* Tab Navigation */}
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false} 
-          bg="white"
-          px={2}
-        >
-          <TabButton title="Infos" isActive={activeTab === 'Infos'} onPress={() => setActiveTab('Infos')} />
-          <TabButton title="Cultures" isActive={activeTab === 'Cultures'} onPress={() => setActiveTab('Cultures')} />
-          <TabButton title="Intrants" isActive={activeTab === 'Intrants'} onPress={() => setActiveTab('Intrants')} />
-          <TabButton title="Opérations" isActive={activeTab === 'Opérations'} onPress={() => setActiveTab('Opérations')} />
-          <TabButton title="Observations" isActive={activeTab === 'Observations'} onPress={() => setActiveTab('Observations')} />
-          <TabButton title="Conseils" isActive={activeTab === 'Conseils'} onPress={() => setActiveTab('Conseils')} />
-        </ScrollView>
-
-        {/* Tab Content */}
         <Box p={4}>
-          {activeTab === 'Infos' && (
-            <VStack space={4}>
-              {console.log('🏞️ [TAB_INFOS] Rendu onglet Infos:', { plot: !!plot, activeCrop: !!activeCrop })}
-              {plot && <InfoCard plot={plot} activeCrop={activeCrop} />}
-              {plot && <CurrentCropCard crop={activeCrop} />}
-              {plot && (
-                <Box bg="white" borderRadius="xl" p={4} shadow={2}>
-                  <PhotoGallery
-                    entityType="plot"
-                    entityId={plotId!}
-                    title="Photos de la parcelle"
-                    maxPhotos={10}
-                    showTitle={true}
-                  />
-                </Box>
-              )}
-              {plot && <ParticipantsCard plotId={plotId!} router={router} />}
-              {plot && <LatestIntrantsCard plotId={plotId!} onSeeAll={() => setActiveTab('Intrants')} />}
-              {plot && <LatestOperationsCard plotId={plotId!} onSeeAll={() => setActiveTab('Opérations')} />}
-              {plot && <ObservationsCard plotId={plotId!} onSeeAll={() => setActiveTab('Observations')} />}
-              {plot && <LatestConseilsCard plotId={plotId!} onSeeAll={() => setActiveTab('Conseils')} />}
-            </VStack>
-          )}
-          {activeTab === 'Cultures' && (
-            <VStack space={4}>
-              {console.log('🏞️ [TAB_CULTURES] Rendu onglet Cultures:', { plot: !!plot, plotId })}
-              {plot && <CulturesCard plotId={plotId!} router={router} agentId={user?.id} />}
-            </VStack>
-          )}
-          {activeTab === 'Conseils' && (
-            <VStack space={4}>
-              {console.log('🏞️ [TAB_CONSEILS] Rendu onglet Conseils:', { plot: !!plot, plotId })}
-              {plot && <ConseilsCard plotId={plotId!} />}
-            </VStack>
-          )}
-          {activeTab === 'Opérations' && (
-            <VStack space={4}>
-              {console.log('🏞️ [TAB_OPERATIONS] Rendu onglet Opérations:', { plot: !!plot, plotId })}
-              {plot && <OperationsCard plotId={plotId!} onSeeAll={() => router.push(`/(tabs)/parcelles/${plotId}/operations`)} />}
-            </VStack>
-          )}
-          {activeTab === 'Observations' && (
-            <VStack space={4}>
-              {console.log('🏞️ [TAB_OBSERVATIONS] Rendu onglet Observations:', { plot: !!plot, plotId })}
-              {plot && <ObservationsCard plotId={plotId!} onSeeAll={() => router.push(`/(tabs)/parcelles/${plotId}/observations`)} />}
-            </VStack>
-          )}
-          {activeTab === 'Intrants' && (
-            <VStack space={4}>
-              {console.log('🏞️ [TAB_INTRANTS] Rendu onglet Intrants:', { plot: !!plot, plotId })}
-              {plot && <IntrantsCard plotId={plotId!} onSeeAll={() => router.push(`/(tabs)/parcelles/${plotId}/intrants`)} />}
-            </VStack>
-          )}
+          {/* Section Infos */}
+          <InfoCard plot={plot} activeCrop={activeCrop} />
+
+          {/* Section Cultures */}
+          <SectionCard
+            title="Cultures"
+            icon="leaf"
+            onSeeAll={() => router.push(`/(tabs)/parcelles/${plotId}/cultures`)}
+            onAdd={() => router.push(`/(tabs)/parcelles/${plotId}/cultures/add`)}
+            addButtonText="Ajouter"
+            data={crops || []}
+            loading={cropsLoading}
+            error={cropsError?.message || null}
+            renderItem={(crop) => (
+              <VStack space={1}>
+                <Text fontSize="sm" fontWeight="semibold" color="gray.900">
+                  {crop.crop_type} - {crop.variety}
+                </Text>
+                <Text fontSize="xs" color="gray.600" numberOfLines={2}>
+                  {crop.description || `Semis: ${crop.sowing_date ? new Date(crop.sowing_date).toLocaleDateString('fr-FR') : 'Non défini'}`}
+                </Text>
+                {crop.sowing_date && (
+                  <Text fontSize="xs" color="gray.500" mt={1}>
+                    Semé le {new Date(crop.sowing_date).toLocaleDateString('fr-FR')}
+                  </Text>
+                )}
+              </VStack>
+            )}
+          />
+
+          {/* Section Intrants */}
+          <SectionCard
+            title="Intrants"
+            icon="cube"
+            onSeeAll={() => router.push(`/(tabs)/parcelles/${plotId}/intrants`)}
+            onAdd={() => router.push(`/(tabs)/parcelles/${plotId}/intrants/add`)}
+            addButtonText="Ajouter"
+            data={intrants || []}
+            loading={intrantsLoading}
+            error={intrantsError?.message || null}
+            renderItem={(intrant) => (
+              <VStack space={1}>
+                <Text fontSize="sm" fontWeight="semibold" color="gray.900">
+                  {intrant.product_name || intrant.name || 'Intrant'}
+                </Text>
+                <Text fontSize="xs" color="gray.600" numberOfLines={2}>
+                  {intrant.description || `${intrant.quantity ? `${intrant.quantity} ${intrant.unit || ''}` : ''}`}
+                </Text>
+                {intrant.purchase_date && (
+                  <Text fontSize="xs" color="gray.500" mt={1}>
+                    Acheté le {new Date(intrant.purchase_date).toLocaleDateString('fr-FR')}
+                  </Text>
+                )}
+              </VStack>
+            )}
+          />
+
+          {/* Section Intervenants */}
+          <SectionCard
+            title="Intervenants"
+            icon="people"
+            onSeeAll={() => router.push(`/(tabs)/parcelles/${plotId}/intervenants`)}
+            onAdd={() => router.push(`/(tabs)/parcelles/${plotId}/intervenants/add`)}
+            addButtonText="Ajouter"
+            data={participants || []}
+            loading={participantsLoading}
+            error={participantsError?.message || null}
+            renderItem={(participant) => (
+              <VStack space={1}>
+                <Text fontSize="sm" fontWeight="semibold" color="gray.900">
+                  {participant.name || 'Intervenant'}
+                </Text>
+                <Text fontSize="xs" color="gray.600" numberOfLines={2}>
+                  {participant.role || 'Rôle non défini'}
+                </Text>
+                {participant.age && (
+                  <Text fontSize="xs" color="gray.500" mt={1}>
+                    {participant.age} ans
+                  </Text>
+                )}
+              </VStack>
+            )}
+          />
+
+          {/* Section Opérations */}
+          <SectionCard
+            title="Opérations"
+            icon="construct"
+            onSeeAll={() => router.push(`/(tabs)/parcelles/${plotId}/operations`)}
+            onAdd={() => router.push(`/(tabs)/parcelles/${plotId}/operations/add`)}
+            addButtonText="Ajouter"
+            data={operations || []}
+            loading={operationsLoading}
+            error={operationsError?.message || null}
+            renderItem={(operation) => (
+              <VStack space={1}>
+                <Text fontSize="sm" fontWeight="semibold" color="gray.900">
+                  {operation.operation_type || 'Opération'}
+                </Text>
+                <Text fontSize="xs" color="gray.600" numberOfLines={2}>
+                  {operation.description || `${operation.area_hectares ? `${operation.area_hectares} ha` : ''}`}
+                </Text>
+                {operation.operation_date && (
+                  <Text fontSize="xs" color="gray.500" mt={1}>
+                    Effectué le {new Date(operation.operation_date).toLocaleDateString('fr-FR')}
+                  </Text>
+                )}
+              </VStack>
+            )}
+          />
+
+          {/* Section Observations */}
+          <SectionCard
+            title="Observations"
+            icon="eye"
+            onSeeAll={() => router.push(`/(tabs)/parcelles/${plotId}/observations`)}
+            onAdd={() => router.push(`/(tabs)/parcelles/${plotId}/observations/add`)}
+            addButtonText="Ajouter"
+            data={observations || []}
+            loading={observationsLoading}
+            error={observationsError?.message || null}
+            renderItem={(observation) => (
+              <VStack space={1}>
+                <Text fontSize="sm" fontWeight="semibold" color="gray.900">
+                  {observation.observation_type || 'Observation'}
+                </Text>
+                <Text fontSize="xs" color="gray.600" numberOfLines={2}>
+                  {observation.description || `${observation.emergence_percent ? `Levée: ${observation.emergence_percent}%` : ''}`}
+                </Text>
+                {observation.observation_date && (
+                  <Text fontSize="xs" color="gray.500" mt={1}>
+                    Observé le {new Date(observation.observation_date).toLocaleDateString('fr-FR')}
+                  </Text>
+                )}
+              </VStack>
+            )}
+          />
+
+          {/* Section Conseils */}
+          <SectionCard
+            title="Conseils"
+            icon="bulb"
+            onSeeAll={() => router.push(`/(tabs)/parcelles/${plotId}/conseils`)}
+            onAdd={() => router.push(`/(tabs)/parcelles/${plotId}/conseils/add`)}
+            addButtonText="Ajouter"
+            data={recommendations || []}
+            loading={recommendationsLoading}
+            error={recommendationsError?.message || null}
+            renderItem={(recommendation) => (
+              <VStack space={1}>
+                <Text fontSize="sm" fontWeight="semibold" color="gray.900">
+                  {recommendation.title || 'Conseil'}
+                </Text>
+                <Text fontSize="xs" color="gray.600" numberOfLines={2}>
+                  {recommendation.description || recommendation.content || ''}
+                </Text>
+                {recommendation.created_at && (
+                  <Text fontSize="xs" color="gray.500" mt={1}>
+                    Créé le {new Date(recommendation.created_at).toLocaleDateString('fr-FR')}
+                  </Text>
+                )}
+              </VStack>
+            )}
+          />
+
+          {/* Galerie de photos - Temporairement désactivée */}
+          {/* {plot?.photos && plot.photos.length > 0 && (
+            <Box bg="white" borderRadius="xl" p={4} mb={4} shadow={2}>
+              <Text fontSize="lg" fontWeight="bold" color="gray.900" mb={3}>
+                Photos de la parcelle
+              </Text>
+              <PhotoGallery images={plot.photos} />
+            </Box>
+          )} */}
         </Box>
       </ScrollView>
-      
     </ScreenContainer>
   );
-};
-
-export default ParcelleDashboardScreen;
+}

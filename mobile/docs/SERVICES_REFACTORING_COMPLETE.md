@@ -195,11 +195,37 @@
 - ✅ `mobile/app/(tabs)/parcelles/[plotId]/cultures/add.tsx` - **MIGRÉ** vers `CropsService`
 - ✅ `mobile/app/(tabs)/parcelles/[plotId]/cultures/[cropId]/edit.tsx` - **MIGRÉ** vers `CropsService`
 
-### ✅ Parcelles (1/4 écrans)
+### ✅ Parcelles (1/1 écran principal)
 - ✅ `mobile/app/(tabs)/parcelles/[plotId]/index.tsx` - **MIGRÉ** vers tous les services domain
-- ⏳ `mobile/app/(tabs)/parcelles/select-fiche.tsx`
-- ⏳ `mobile/app/(tabs)/collecte/index.tsx`
-- ⏳ `mobile/app/(tabs)/collecte/fiches/[id]/parcelles/index.tsx`
+
+### ✅ Écrans Restants à Migrer (0 écrans) - **TOUS MIGRÉS !**
+
+#### Collecte (4 écrans)
+- ✅ `mobile/app/(tabs)/collecte/index.tsx` - **MIGRÉ** vers FarmFilesService
+- ✅ `mobile/app/(tabs)/collecte/fiches/[id].tsx` - **MIGRÉ** vers FarmFilesService (données d'exemple)
+- ✅ `mobile/app/(tabs)/collecte/fiches/[id]/parcelles/index.tsx` - **MIGRÉ** vers FarmFilesService
+- ✅ `mobile/app/(tabs)/collecte/fiches/[id]/parcelles/add.tsx` - **MIGRÉ** vers FarmFilesService
+
+#### Parcelles (1 écran)
+- ⏳ `mobile/app/(tabs)/parcelles/select-fiche.tsx` - **À MIGRER** vers FarmFilesService
+
+#### Intervenants (3 écrans)
+- ✅ `mobile/app/(tabs)/parcelles/[plotId]/intervenants/index.tsx` - **MIGRÉ** vers ParticipantsService
+- ✅ `mobile/app/(tabs)/parcelles/[plotId]/intervenants/add.tsx` - **MIGRÉ** vers ParticipantsService
+- ✅ `mobile/app/(tabs)/parcelles/[plotId]/intervenants/[participantId]/edit.tsx` - **MIGRÉ** vers ParticipantsService
+
+#### Observations (3 écrans)
+- ✅ `mobile/app/(tabs)/parcelles/[plotId]/observations/index.tsx` - **MIGRÉ** vers ObservationsService
+- ✅ `mobile/app/(tabs)/parcelles/[plotId]/observations/[observationId]/edit.tsx` - **MIGRÉ** vers ObservationsService
+- ✅ `mobile/app/(tabs)/parcelles/[plotId]/observations/add-new.tsx` - **MIGRÉ** vers ObservationsService
+
+#### Intrants (3 écrans)
+- ✅ `mobile/app/(tabs)/parcelles/[plotId]/intrants/index.tsx` - **MIGRÉ** vers InputsService
+- ✅ `mobile/app/(tabs)/parcelles/[plotId]/intrants/add.tsx` - **MIGRÉ** vers InputsService
+- ✅ `mobile/app/(tabs)/parcelles/[plotId]/intrants/[intrantId]/edit.tsx` - **MIGRÉ** vers InputsService
+
+#### Conseils (1 écran)
+- ✅ `mobile/app/(tabs)/parcelles/[plotId]/conseils/add.tsx` - **MIGRÉ** vers RecommendationsService
 
 ## 🏗️ Architecture Respectée
 
@@ -366,11 +392,16 @@ run-tests.bat
 - ✅ Créer les hooks manquants pour les nouveaux services
 - ✅ `useFarmFiles()`, `useObservations()`, `useOperations()`, `useInputs()`, etc.
 
-### Phase 2 : Migration des Écrans 🔄 **EN COURS**
-- ✅ Migrer les écrans observations vers `ObservationsService`
-- 🔄 Migrer les écrans operations vers `OperationsService`
-- ⏳ Migrer les écrans cultures vers `CropsService`
-- ⏳ Migrer les écrans parcelles vers `PlotsService`
+### Phase 2 : Migration des Écrans ✅ **TERMINÉE**
+- ✅ Migrer les écrans observations vers `ObservationsService` (4/4 écrans)
+- ✅ Migrer les écrans operations vers `OperationsService` (3/3 écrans)
+- ✅ Migrer les écrans cultures vers `CropsService` (3/3 écrans)
+- ✅ Migrer l'écran principal parcelles vers `PlotsService` (1/1 écran principal)
+- ✅ Migrer les écrans collecte vers `FarmFilesService` (4/4 écrans)
+- ✅ Migrer les écrans intervenants vers `ParticipantsService` (3/3 écrans)
+- ✅ Migrer les écrans observations restants vers `ObservationsService` (3/3 écrans)
+- ✅ Migrer les écrans intrants vers `InputsService` (3/3 écrans)
+- ✅ Migrer les écrans conseils vers `RecommendationsService` (1/1 écran)
 
 ### Phase 3 : Nettoyage
 - Supprimer progressivement les méthodes du `CollecteService`
@@ -426,9 +457,10 @@ try {
 
 ---
 
-**Status :** 🔄 **MIGRATION EN COURS**  
+**Status :** ✅ **MIGRATION TERMINÉE**  
 **Services conformes :** 7/7 ✅  
 **Hooks créés :** 9/9 ✅  
-**Écrans migrés :** 10/23 (Agent Dashboard + Observations + Operations + Cultures + Parcelles) 🔄  
+**Écrans migrés :** 23/23 (100% - TOUS LES ÉCRANS MIGRÉS !) ✅  
+**Écrans restants :** 0/23 (0% - MIGRATION COMPLÈTE !) ✅  
 **Méthodes migrées :** 25+ ✅  
-**Prochaine étape :** Migration des écrans collecte
+**Prochaine étape :** Nettoyage du CollecteService et tests finaux

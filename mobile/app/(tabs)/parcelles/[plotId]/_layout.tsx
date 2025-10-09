@@ -2,7 +2,12 @@ import { Stack } from 'expo-router';
 
 export default function PlotLayout() {
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack screenOptions={{ 
+      headerShown: false,
+      detachInactiveScreens: true,
+      freezeOnBlur: true,
+      unmountOnBlur: true,
+    }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="intervenants" />
       <Stack.Screen name="conseils/add" />

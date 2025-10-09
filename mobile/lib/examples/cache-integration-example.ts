@@ -55,7 +55,8 @@ export function OldPlotsComponent({ agentId }: { agentId: string }) {
     const loadPlots = async () => {
       try {
         setLoading(true);
-        const data = await CollecteService.getPlots(agentId);
+        // @deprecated - Use PlotsService instead
+        // const data = await CollecteService.getPlots(agentId);
         setPlots(data);
       } catch (err) {
         setError(err);
@@ -209,13 +210,15 @@ export class MigrationService {
     } catch (error) {
       // Fallback vers l'ancien système
       console.warn('⚠️ [MIGRATION] Fallback vers l\'ancien système:', error);
-      return await OldCollecteService.getPlots(agentId);
+      // @deprecated - Use PlotsService instead
+      // return await OldCollecteService.getPlots(agentId);
     }
   }
 
   // Invalider le cache après les opérations de modification
   static async addPlot(plotData: any) {
-    const result = await OldCollecteService.addPlot(plotData);
+    // @deprecated - Use PlotsService instead
+    // const result = await OldCollecteService.addPlot(plotData);
     
     // Invalider le cache pour forcer le rechargement
     await agriConnectCache.invalidate({ 

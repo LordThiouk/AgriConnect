@@ -11,6 +11,7 @@ export interface UseInputsOptions extends InputServiceOptions {
   refetchOnMount?: boolean;
   onError?: (error: Error) => void;
   onSuccess?: (data: any[]) => void;
+  enabled?: boolean;
 }
 
 export interface UseInputsResult {
@@ -28,18 +29,21 @@ export function useLatestInputs(
   options: UseInputsOptions = {}
 ): UseInputsResult {
   const [data, setData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
   const {
     refetchOnMount = true,
     onError,
     onSuccess,
+    enabled = true,
     ...serviceOptions
   } = options;
+  const [loading, setLoading] = useState(enabled && refetchOnMount);
+  const [error, setError] = useState<Error | null>(null);
 
   const fetchLatestInputs = useCallback(async () => {
-    if (!plotId) return;
+    if (!plotId || !enabled) {
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
@@ -64,13 +68,13 @@ export function useLatestInputs(
     } finally {
       setLoading(false);
     }
-  }, [plotId, onError, onSuccess]);
+  }, [plotId, JSON.stringify(serviceOptions), onError, onSuccess, enabled]);
 
   useEffect(() => {
-    if (refetchOnMount && plotId) {
+    if (refetchOnMount && plotId && enabled) {
       fetchLatestInputs();
     }
-  }, [fetchLatestInputs, refetchOnMount, plotId]);
+  }, [fetchLatestInputs, refetchOnMount, plotId, enabled]);
 
   const refetch = useCallback(async () => {
     await fetchLatestInputs();
@@ -92,18 +96,21 @@ export function useInputsByPlot(
   options: UseInputsOptions = {}
 ): UseInputsResult {
   const [data, setData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
   const {
     refetchOnMount = true,
     onError,
     onSuccess,
+    enabled = true,
     ...serviceOptions
   } = options;
+  const [loading, setLoading] = useState(enabled && refetchOnMount);
+  const [error, setError] = useState<Error | null>(null);
 
   const fetchInputs = useCallback(async () => {
-    if (!plotId) return;
+    if (!plotId || !enabled) {
+      if (loading) setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
@@ -128,13 +135,13 @@ export function useInputsByPlot(
     } finally {
       setLoading(false);
     }
-  }, [plotId, serviceOptions, onError, onSuccess]);
+  }, [plotId, JSON.stringify(serviceOptions), onError, onSuccess, enabled]);
 
   useEffect(() => {
-    if (refetchOnMount && plotId) {
+    if (refetchOnMount && plotId && enabled) {
       fetchInputs();
     }
-  }, [fetchInputs, refetchOnMount, plotId]);
+  }, [fetchInputs, refetchOnMount, plotId, enabled]);
 
   const refetch = useCallback(async () => {
     await fetchInputs();

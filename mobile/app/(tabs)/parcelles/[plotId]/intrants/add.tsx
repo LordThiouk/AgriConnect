@@ -1,122 +1,73 @@
 import React, { useState } from 'react';
-import {
-  Alert,
-  ScrollView,
-} from 'react-native';
+import { Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { CollecteService } from '../../../../../lib/services/collecte';
+import { InputsServiceInstance } from '../../../../../lib/services/domain/inputs';
 import { 
   FormContainer, 
   FormFooter, 
-  Card, 
-  FormField, 
-  FormInput, 
-  FormSelect, 
-  FormDatePicker 
+  ScreenContainer,
+  FormInput,
+  FormField,
+  FormSelect,
+  FormDatePicker
 } from '../../../../../components/ui';
+import { Box } from 'native-base';
 
-interface InputFormData {
-  input_type: string;
-  product_name: string;
-  quantity: string;
-  unit: string;
-  purchase_date: string;
-  supplier: string;
-  cost: string;
-  description: string;
-}
-
-export default function AddInputScreen() {
+function AddInputScreen() {
+  console.log('🔄 [AddInputScreen] Component mounting');
   const { plotId } = useLocalSearchParams<{ plotId: string }>();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  
+  // États du formulaire
+  const [category, setCategory] = useState('');
+  const [productName, setProductName] = useState('');
+  const [quantity, setQuantity] = useState('');
+  const [unit, setUnit] = useState('');
+  const [purchaseDate, setPurchaseDate] = useState(new Date());
+  const [supplier, setSupplier] = useState('');
+  const [cost, setCost] = useState('');
+  const [description, setDescription] = useState('');
 
-  const [formData, setFormData] = useState<InputFormData>({
-    input_type: '',
-    product_name: '',
-    quantity: '',
-    unit: '',
-    purchase_date: new Date().toISOString().split('T')[0],
-    supplier: '',
-    cost: '',
-    description: '',
-  });
-
-  const inputTypes = [
-    { id: 'fertilisant', label: 'Fertilisant' },
-    { id: 'pesticide', label: 'Pesticide' },
-    { id: 'herbicide', label: 'Herbicide' },
-    { id: 'fongicide', label: 'Fongicide' },
-    { id: 'semence', label: 'Semence' },
-    { id: 'autre', label: 'Autre' },
-  ];
-
-  const units = [
-    { id: 'kg', label: 'Kilogramme (kg)' },
-    { id: 'g', label: 'Gramme (g)' },
-    { id: 'l', label: 'Litre (l)' },
-    { id: 'ml', label: 'Millilitre (ml)' },
-    { id: 'sac', label: 'Sac' },
-    { id: 'boite', label: 'Boîte' },
-    { id: 'autre', label: 'Autre' },
-  ];
-
-  const handleInputChange = (field: keyof InputFormData, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  const handleSave = async () => {
-    if (!formData.input_type) {
-      Alert.alert('Erreur', 'Veuillez sélectionner un type d\'intrant');
+  const handleSubmit = async () => {
+    if (!plotId) {
+      Alert.alert('Erreur', 'ID de parcelle manquant');
       return;
     }
 
-    if (!formData.product_name.trim()) {
-      Alert.alert('Erreur', 'Veuillez saisir le nom du produit');
+    if (!category || !productName || !quantity || !unit) {
+      Alert.alert('Erreur', 'Veuillez remplir tous les champs obligatoires');
       return;
     }
-
-    setLoading(true);
 
     try {
-      // Récupérer le profil de l'agent actuel
-      const { data: agentProfile, error: agentError } = await CollecteService.supabase
-        .from('profiles')
-        .select('id')
-        .eq('role', 'agent')
-        .single();
-
-      if (agentError || !agentProfile) {
-        Alert.alert('Erreur', 'Agent non trouvé');
-        return;
-      }
+      setLoading(true);
       
-      const inputData = {
-        plot_id: plotId!,
-        input_type: formData.input_type,
-        product_name: formData.product_name,
-        quantity: formData.quantity ? parseFloat(formData.quantity) : null,
-        unit: formData.unit || null,
-        purchase_date: formData.purchase_date,
-        supplier: formData.supplier || null,
-        cost: formData.cost ? parseFloat(formData.cost) : null,
-        description: formData.description || null,
-        added_by: agentProfile.id
-      };
+             const inputData = {
+               plot_id: plotId,
+               name: productName,
+               type: category.toLowerCase() as "fertilizer" | "pesticide" | "herbicide" | "fungicide" | "seed" | "equipment" | "other",
+               category: category.toLowerCase(),
+               input_type: category.toLowerCase(),
+               product_name: productName,
+               quantity: parseFloat(quantity) || 0,
+               unit: unit,
+               purchase_date: purchaseDate.toISOString().split('T')[0],
+               supplier: supplier,
+               cost: cost ? parseFloat(cost) : null,
+               description: description,
+               severity: 1, // Default severity
+             };
 
-      const newInput = await CollecteService.addInput(inputData);
-      console.log('✅ Intrant ajouté:', newInput);
+      console.log('📦 [AddInputScreen] Création intrant:', inputData);
       
-      Alert.alert(
-        'Succès', 
-        'Intrant ajouté avec succès',
-        [{ text: 'OK', onPress: () => router.back() }]
-      );
+      await InputsServiceInstance.create(inputData);
+      
+      Alert.alert('Succès', 'Intrant ajouté avec succès', [
+        { text: 'OK', onPress: () => router.back() }
+      ]);
     } catch (error) {
-      console.error('Erreur lors de l\'ajout de l\'intrant:', error);
+      console.error('❌ [AddInputScreen] Erreur création intrant:', error);
       Alert.alert('Erreur', 'Impossible d\'ajouter l\'intrant');
     } finally {
       setLoading(false);
@@ -124,91 +75,112 @@ export default function AddInputScreen() {
   };
 
   return (
-    <FormContainer 
-      title="Nouvel Intrant" 
+    <ScreenContainer 
+      title="Nouvel Intrant"
       subtitle="Ajouter un intrant à cette parcelle"
+      showSubHeader={false}
+      showBackButton={false}
+      animationEnabled={false}
+      contentScrollable={false}
     >
-      <ScrollView 
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <FormContainer 
+        title="Nouvel Intrant" 
+        subtitle="Ajouter un intrant à cette parcelle"
+        enableKeyboardAvoidance
+        keyboardVerticalOffset={100}
       >
-        <Card>
-          <FormField label="Type d'intrant" required>
+        <Box p={4}>
+          <FormField label="Catégorie" required>
             <FormSelect
-              value={formData.input_type}
-              onValueChange={(value) => handleInputChange('input_type', value)}
-              options={inputTypes.map(opt => ({ value: opt.id, label: opt.label }))}
-              placeholder="Sélectionner un type"
+              value={category}
+              onValueChange={setCategory}
+              options={[
+                { value: 'fertilizer', label: 'Engrais' },
+                { value: 'seed', label: 'Semence' },
+                { value: 'pesticide', label: 'Pesticide' },
+                { value: 'herbicide', label: 'Herbicide' },
+                { value: 'other', label: 'Autre' }
+              ]}
+              placeholder="Sélectionner une catégorie"
             />
           </FormField>
 
           <FormField label="Nom du produit" required>
             <FormInput
-              value={formData.product_name}
-              onChangeText={(value) => handleInputChange('product_name', value)}
               placeholder="Nom du produit"
+              value={productName}
+              onChangeText={setProductName}
             />
           </FormField>
 
-          <FormField label="Quantité">
+          <FormField label="Quantité" required>
             <FormInput
-              value={formData.quantity}
-              onChangeText={(value) => handleInputChange('quantity', value)}
               placeholder="0"
+              value={quantity}
+              onChangeText={setQuantity}
               keyboardType="numeric"
             />
           </FormField>
 
-          <FormField label="Unité">
+          <FormField label="Unité" required>
             <FormSelect
-              value={formData.unit}
-              onValueChange={(value) => handleInputChange('unit', value)}
-              options={units.map(opt => ({ value: opt.id, label: opt.label }))}
+              value={unit}
+              onValueChange={setUnit}
+              options={[
+                { value: 'kg', label: 'Kilogramme' },
+                { value: 'g', label: 'Gramme' },
+                { value: 'L', label: 'Litre' },
+                { value: 'mL', label: 'Millilitre' },
+                { value: 'unit', label: 'Unité(s)' },
+                { value: 'bag', label: 'Sac(s)' }
+              ]}
               placeholder="Sélectionner une unité"
             />
           </FormField>
 
-          <FormField label="Date d'achat">
-            <FormDatePicker
-              value={formData.purchase_date}
-              onChange={(value: string) => handleInputChange('purchase_date', value)}
-            />
-          </FormField>
+                 <FormField label="Date d'achat">
+                   <FormDatePicker
+                     value={purchaseDate.toISOString().split('T')[0]}
+                     onChange={(value: string) => setPurchaseDate(new Date(value))}
+                   />
+                 </FormField>
 
           <FormField label="Fournisseur">
             <FormInput
-              value={formData.supplier}
-              onChangeText={(value) => handleInputChange('supplier', value)}
               placeholder="Nom du fournisseur"
+              value={supplier}
+              onChangeText={setSupplier}
             />
           </FormField>
 
           <FormField label="Coût (FCFA)">
             <FormInput
-              value={formData.cost}
-              onChangeText={(value) => handleInputChange('cost', value)}
               placeholder="0"
+              value={cost}
+              onChangeText={setCost}
               keyboardType="numeric"
             />
           </FormField>
 
           <FormField label="Description">
             <FormInput
-              value={formData.description}
-              onChangeText={(value) => handleInputChange('description', value)}
-              placeholder="Description de l'intrant"
+              placeholder="Description (optionnelle)"
+              value={description}
+              onChangeText={setDescription}
               multiline
-              numberOfLines={4}
+              numberOfLines={3}
             />
           </FormField>
-        </Card>
-      </ScrollView>
-
-      <FormFooter 
-        onCancel={() => router.back()}
-        onSave={handleSave}
-        loading={loading}
-      />
-    </FormContainer>
+        </Box>
+        
+        <FormFooter 
+          onCancel={() => router.back()}
+          onSave={handleSubmit}
+          loading={loading}
+        />
+      </FormContainer>
+    </ScreenContainer>
   );
 }
+
+export default React.memo(AddInputScreen);

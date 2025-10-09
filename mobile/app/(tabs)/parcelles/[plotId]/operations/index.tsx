@@ -1,15 +1,7 @@
 import React from 'react';
-import {
-  View,
-  StyleSheet,
-  TouchableOpacity,
-  Text,
-} from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useOperationsByPlot, useDeleteOperation } from '../../../../../lib/hooks';
 import { CRUDList } from '../../../../../components/CRUDList';
-import { ScreenContainer } from '../../../../../components/ui';
-import { Feather } from '@expo/vector-icons';
 
 export default function OperationsListScreen() {
   const { plotId } = useLocalSearchParams<{ plotId: string }>();
@@ -24,9 +16,8 @@ export default function OperationsListScreen() {
   
   const { deleteOperation } = useDeleteOperation();
 
-
   const handleEdit = (operation: any) => {
-    router.push(`/parcelles/${plotId}/operations/${operation.id}/edit`);
+    router.push(`/(tabs)/parcelles/${plotId}/operations/${operation.id}/edit`);
   };
 
   const handleDelete = async (operation: any) => {
@@ -40,25 +31,21 @@ export default function OperationsListScreen() {
 
   const handleView = (operation: any) => {
     // Navigation vers les détails de l'opération
-    router.push(`/parcelles/${plotId}/operations/${operation.id}`);
-  };
-
-  const handleAdd = () => {
-    router.push(`/(tabs)/parcelles/${plotId}/operations/add`);
+    router.push(`/(tabs)/parcelles/${plotId}/operations/${operation.id}`);
   };
 
   const getStatusColor = (status: string) => {
     const colors: { [key: string]: string } = {
-      semis: '#28a745',
-      fertilisation: '#17a2b8',
-      irrigation: '#007bff',
-      desherbage: '#ffc107',
-      traitement_phytosanitaire: '#dc3545',
-      recolte: '#6f42c1',
-      labour: '#6c757d',
-      autre: '#6c757d',
+      semis: 'success',
+      fertilisation: 'info',
+      irrigation: 'primary',
+      desherbage: 'warning',
+      traitement_phytosanitaire: 'error',
+      recolte: 'purple',
+      labour: 'gray',
+      autre: 'gray',
     };
-    return colors[status] || '#6c757d';
+    return colors[status] || 'gray';
   };
 
   const getStatusText = (status: string) => {
@@ -80,105 +67,45 @@ export default function OperationsListScreen() {
     id: op.id,
     title: op.operation_type || 'Opération',
     subtitle: op.description || `${op.product ? `Produit: ${op.product}` : ''}`,
-    date: op.operation_date,
+    date: op.operation_date ? new Date(op.operation_date).toLocaleDateString('fr-FR') : '',
     status: op.operation_type,
     type: op.operation_type,
   })) || [];
 
-  // Gestion des états de chargement et d'erreur
-  if (loadingOperations) {
-    return (
-      <ScreenContainer 
-        title="Opérations"
-        showSubHeader={true}
-        showBackButton={true}
-        animationEnabled={true}
-      >
-        <View style={styles.container}>
-          <View style={styles.loadingContainer}>
-            <Text style={styles.loadingText}>Chargement des opérations...</Text>
-          </View>
-        </View>
-      </ScreenContainer>
-    );
-  }
-
-  if (errorOperations) {
-    return (
-      <ScreenContainer 
-        title="Opérations"
-        showSubHeader={true}
-        showBackButton={true}
-        animationEnabled={true}
-      >
-        <View style={styles.container}>
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>Erreur lors du chargement: {errorOperations.message}</Text>
-          </View>
-        </View>
-      </ScreenContainer>
-    );
-  }
-
   return (
-    <ScreenContainer 
+    <CRUDList
       title="Opérations"
-      showSubHeader={true}
-      showBackButton={true}
-      subHeaderActions={
-        <TouchableOpacity onPress={handleAdd} style={styles.addButton}>
-          <Feather name="plus" size={24} color="#3D944B" />
-        </TouchableOpacity>
-      }
-      animationEnabled={true}
-    >
-      <View style={styles.container}>
-        <CRUDList
-          title=""
-          items={transformedOperations}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          onView={handleView}
-          addButtonText=""
-          addButtonRoute=""
-          emptyMessage="Aucune opération enregistrée"
-          getStatusColor={getStatusColor}
-          getStatusText={getStatusText}
-        />
-      </View>
-    </ScreenContainer>
+      subtitle="Gestion des opérations agricoles"
+      items={transformedOperations}
+      loading={loadingOperations}
+      error={errorOperations?.message || null}
+      onEdit={handleEdit}
+      onDelete={handleDelete}
+      onView={handleView}
+      addButtonText="Nouvelle opération"
+      addButtonRoute={`/(tabs)/parcelles/${plotId}/operations/add`}
+      getStatusColor={getStatusColor}
+      getStatusText={getStatusText}
+      emptyState={{
+        icon: "activity",
+        title: "Aucune opération",
+        subtitle: "Commencez par ajouter vos premières opérations agricoles",
+        action: {
+          label: "Ajouter une opération",
+          onPress: () => router.push(`/(tabs)/parcelles/${plotId}/operations/add`)
+        }
+      }}
+      errorState={{
+        icon: "alert-circle",
+        title: "Erreur de chargement",
+        subtitle: "Impossible de charger les opérations",
+        retryAction: {
+          label: "Réessayer",
+          onPress: () => window.location.reload()
+        }
+      }}
+    />
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
-  addButton: {
-    padding: 8,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#dc3545',
-    textAlign: 'center',
-  },
-});
 

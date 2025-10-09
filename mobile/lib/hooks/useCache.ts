@@ -82,7 +82,7 @@ export function useCache<T>(
     } finally {
       setLoading(false);
     }
-  }, [key, fetcher, ttl, enabled, onError, onSuccess]);
+  }, [key, ttl, enabled, onError, onSuccess]); // Supprimé fetcher des dépendances
 
   const refetch = useCallback(() => fetchData(true), [fetchData]);
   
@@ -101,14 +101,14 @@ export function useCache<T>(
     if (enabled) {
       fetchData();
     }
-  }, [fetchData, enabled]);
+  }, [enabled]); // Supprimé fetchData des dépendances
 
   // Refetch au montage si demandé
   useEffect(() => {
     if (refetchOnMount && enabled) {
       fetchData(true);
     }
-  }, [refetchOnMount, enabled, fetchData]);
+  }, [refetchOnMount, enabled]); // Supprimé fetchData des dépendances
 
   // Refetch interval
   useEffect(() => {
@@ -123,7 +123,7 @@ export function useCache<T>(
         }
       };
     }
-  }, [refetchInterval, enabled, fetchData]);
+  }, [refetchInterval, enabled]); // Supprimé fetchData des dépendances
 
   return {
     data,

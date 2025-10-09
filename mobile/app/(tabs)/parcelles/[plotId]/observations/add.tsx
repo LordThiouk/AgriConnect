@@ -9,14 +9,13 @@ import { MediaFile } from '../../../../../lib/services/media';
 import { 
   FormContainer, 
   FormFooter, 
-  Card, 
   FormField, 
   FormInput, 
   FormSelect, 
   FormDatePicker,
   ScreenContainer
 } from '../../../../../components/ui';
-import { ScrollView } from 'native-base';
+import { Box } from 'native-base';
 
 interface ObservationFormData {
   crop_id: string;
@@ -160,16 +159,15 @@ export default function AddObservationScreen() {
       showSubHeader={false}
       showBackButton={false}
       animationEnabled={false}
-    >
+      contentScrollable={false}
+      >
       <FormContainer 
         title="Nouvelle Observation" 
         subtitle="Ajouter une observation à cette parcelle"
+        enableKeyboardAvoidance
+        keyboardVerticalOffset={110}
       >
-      <ScrollView 
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Card>
+        <Box p={4}>
           <FormField label="Culture" required>
             <FormSelect
               value={formData.crop_id}
@@ -260,8 +258,7 @@ export default function AddObservationScreen() {
               enableGPS={true}
             />
           </FormField>
-        </Card>
-      </ScrollView>
+        </Box>
 
         <FormFooter 
           onCancel={() => router.back()}

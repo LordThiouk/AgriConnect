@@ -1,6 +1,19 @@
 /**
- * Service de collecte de données terrain - AgriConnect
- * Gère les fiches d'exploitation, producteurs et parcelles pour les agents
+ * @deprecated Service de collecte de données terrain - AgriConnect
+ * ⚠️  LEGACY SERVICE - DO NOT USE ⚠️
+ * 
+ * Ce service a été remplacé par des services domain spécialisés :
+ * - FarmFilesService pour les fiches d'exploitation
+ * - PlotsService pour les parcelles
+ * - CropsService pour les cultures
+ * - OperationsService pour les opérations
+ * - ObservationsService pour les observations
+ * - InputsService pour les intrants
+ * - ParticipantsService pour les participants
+ * - VisitsService pour les visites
+ * - RecommendationsService pour les recommandations
+ * 
+ * Utilisez les services domain correspondants à la place.
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';

@@ -12,8 +12,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useNavigation } from 'expo-router';
 import { Colors } from '../../../constants/Colors';
-import { CollecteService } from '../../../lib/services/collecte';
-import { FarmFileDisplay } from '../../../lib/types/core/collecte';
+import { FarmFilesServiceInstance } from '../../../lib/services/domain/farmfiles';
+import { FarmFileDisplay } from '../../../lib/services/domain/farmfiles/farmfiles.types';
 import { useAuth } from '../../../context/AuthContext';
 import { ScreenContainer } from '../../../components/ui';
 
@@ -40,7 +40,7 @@ export default function CollecteScreen() {
     setRefreshing(true);
     try {
       if (!refreshing) setLoading(true);
-      const files = await CollecteService.getFarmFiles(user.id);
+      const files = await FarmFilesServiceInstance.getFarmFiles(user.id);
       setFarmFiles(files);
     } catch (error) {
       console.error('Erreur chargement fiches:', error);

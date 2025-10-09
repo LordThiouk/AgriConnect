@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Box, VStack, HStack } from 'native-base';
 // import { useRouter, usePathname } from 'expo-router'; // Désactivé - utilisation TabBar native
 // import { useAuth } from '../../../context/AuthContext'; // Désactivé - utilisation TabBar native
+import { useFormActivity } from '../../../context/FormActivityContext';
 import Header from './Header';
 import Footer from './Footer';
 import Content from './Content';
@@ -273,6 +274,21 @@ export const FormContainer: React.FC<FormContainerProps> = ({
   showDelete = false,
   contentPadding = 5,
 }) => {
+  const { setIsFormActive } = useFormActivity();
+
+  useEffect(() => {
+    console.log('🔄 [FormContainer] Mounting - setting isFormActive to true');
+    try { setIsFormActive(true); } catch (error) {
+      console.error('❌ [FormContainer] Error setting isFormActive to true:', error);
+    }
+    return () => { 
+      console.log('🔄 [FormContainer] Unmounting - setting isFormActive to false');
+      try { setIsFormActive(false); } catch (error) {
+        console.error('❌ [FormContainer] Error setting isFormActive to false:', error);
+      }
+    };
+  }, [setIsFormActive]);
+
   const footerActions = [];
 
   if (onCancel) {
@@ -318,7 +334,7 @@ export const FormContainer: React.FC<FormContainerProps> = ({
       content={{
         padding: contentPadding,
         scrollable: true,
-        keyboardShouldPersistTaps: 'handled',
+        keyboardShouldPersistTaps: 'always',
         backgroundColor: 'white',
       }}
     >

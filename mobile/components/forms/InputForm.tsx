@@ -22,12 +22,14 @@ interface InputFormProps {
   onSubmit: (data: InputFormData) => void;
   initialValues?: Partial<InputFormData>;
   isSubmitting?: boolean;
+  submitRef?: React.MutableRefObject<(() => void) | null>;
 }
 
 const InputForm: React.FC<InputFormProps> = ({
   onSubmit,
   initialValues,
   isSubmitting = false,
+  submitRef,
 }) => {
   const {
     control,
@@ -43,6 +45,13 @@ const InputForm: React.FC<InputFormProps> = ({
       crop_id: initialValues?.crop_id || '',
     },
   });
+
+  // Exposer la fonction de soumission via ref
+  React.useEffect(() => {
+    if (submitRef) {
+      submitRef.current = () => handleSubmit(onSubmit)();
+    }
+  }, [handleSubmit, onSubmit, submitRef]);
 
   const getCategoryLabel = (category: string): string => {
     const labels: Record<string, string> = {

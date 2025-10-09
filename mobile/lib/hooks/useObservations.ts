@@ -16,6 +16,7 @@ import {
 
 export interface UseObservationsOptions extends ObservationServiceOptions {
   refetchOnMount?: boolean;
+  enabled?: boolean; // Ajouter enabled
   onError?: (error: Error) => void;
   onSuccess?: (data: ObservationDisplay[] | GlobalObservationDisplay[]) => void;
 }
@@ -40,6 +41,7 @@ export function useObservationsByPlot(
 
   const {
     refetchOnMount = true,
+    enabled = true, // Ajouter enabled
     onError,
     onSuccess,
     ...serviceOptions
@@ -71,13 +73,13 @@ export function useObservationsByPlot(
     } finally {
       setLoading(false);
     }
-  }, [plotId, serviceOptions, onError, onSuccess]);
+  }, [plotId, JSON.stringify(serviceOptions), onError, onSuccess]);
 
   useEffect(() => {
-    if (refetchOnMount && plotId) {
+    if (refetchOnMount && plotId && enabled) { // Ajouter enabled
       fetchObservations();
     }
-  }, [fetchObservations, refetchOnMount, plotId]);
+  }, [fetchObservations, refetchOnMount, plotId, enabled]); // Ajouter enabled
 
   const refetch = useCallback(async () => {
     await fetchObservations();
@@ -104,6 +106,7 @@ export function useLatestObservations(
 
   const {
     refetchOnMount = true,
+    enabled = true, // Ajouter enabled
     onError,
     onSuccess,
     ...serviceOptions
@@ -135,13 +138,13 @@ export function useLatestObservations(
     } finally {
       setLoading(false);
     }
-  }, [plotId, serviceOptions, onError, onSuccess]);
+  }, [plotId, JSON.stringify(serviceOptions), onError, onSuccess]);
 
   useEffect(() => {
-    if (refetchOnMount && plotId) {
+    if (refetchOnMount && plotId && enabled) { // Ajouter enabled
       fetchLatestObservations();
     }
-  }, [fetchLatestObservations, refetchOnMount, plotId]);
+  }, [fetchLatestObservations, refetchOnMount, plotId, enabled]); // Ajouter enabled
 
   const refetch = useCallback(async () => {
     await fetchLatestObservations();
@@ -172,6 +175,7 @@ export function useObservationsForAgent(
 
   const {
     refetchOnMount = true,
+    enabled = true, // Ajouter enabled
     onError,
     onSuccess,
     ...serviceOptions
@@ -207,13 +211,13 @@ export function useObservationsForAgent(
     } finally {
       setLoading(false);
     }
-  }, [agentId, limit, offset, observationTypeFilter, severityFilter, serviceOptions, onError, onSuccess]);
+  }, [agentId, limit, offset, observationTypeFilter, severityFilter, JSON.stringify(serviceOptions), onError, onSuccess]);
 
   useEffect(() => {
-    if (refetchOnMount && agentId) {
+    if (refetchOnMount && agentId && enabled) { // Ajouter enabled
       fetchObservations();
     }
-  }, [fetchObservations, refetchOnMount, agentId]);
+  }, [fetchObservations, refetchOnMount, agentId, enabled]); // Ajouter enabled
 
   const refetch = useCallback(async () => {
     await fetchObservations();
@@ -240,6 +244,7 @@ export function useObservationStats(
 
   const {
     refetchOnMount = true,
+    enabled = true, // Ajouter enabled
     onError,
     onSuccess,
     ...serviceOptions
@@ -271,13 +276,13 @@ export function useObservationStats(
     } finally {
       setLoading(false);
     }
-  }, [agentId, serviceOptions, onError, onSuccess]);
+  }, [agentId, JSON.stringify(serviceOptions), onError, onSuccess]);
 
   useEffect(() => {
-    if (refetchOnMount && agentId) {
+    if (refetchOnMount && agentId && enabled) { // Ajouter enabled
       fetchStats();
     }
-  }, [fetchStats, refetchOnMount, agentId]);
+  }, [fetchStats, refetchOnMount, agentId, enabled]); // Ajouter enabled
 
   const refetch = useCallback(async () => {
     fetchStats();

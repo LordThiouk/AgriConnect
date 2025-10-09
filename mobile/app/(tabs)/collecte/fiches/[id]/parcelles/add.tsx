@@ -1,7 +1,7 @@
 import React from 'react';
 import { Alert, ScrollView } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { CollecteService } from '../../../../../../lib/services/collecte';
+import { FarmFilesServiceInstance } from '../../../../../../lib/services/domain/farmfiles';
 import PhotoPicker from '../../../../../../components/PhotoPicker';
 import { MediaFile } from '../../../../../../lib/services/media';
 import { 
@@ -67,7 +67,7 @@ const AddParcelleScreen: React.FC = () => {
     }
     setSaving(true);
     try {
-      const plotId = await CollecteService.createFarmFilePlot({
+      const plotId = await FarmFilesServiceInstance.createFarmFilePlot({
         farmFileId: id,
         code,
         areaHa: Number(area),

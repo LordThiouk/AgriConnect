@@ -26,12 +26,12 @@ import {
   HStack, 
   Box, 
   Text, 
-  Card, 
   Button, 
   Badge, 
   Pressable, 
   Spinner
 } from '../../components/ui';
+import { Card } from '../../components/ui/Card';
 import { VisitFilterModal } from '../../components/VisitFilterModal';
 // import { LinearGradient } from 'expo-linear-gradient';
 

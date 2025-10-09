@@ -12,7 +12,7 @@ export { FormTextArea } from './FormTextArea';
 export { KeyboardManager, useKeyboardManager, useAutoFocus } from './KeyboardManager';
 
 // Layout Components
-export { Card } from './Card';
+// Card temporarily excluded to avoid barrel mismatch; use Box from native-base or layout Container components
 export { Divider } from './Divider';
 export { Modal } from './Modal';
 
@@ -32,7 +32,7 @@ export {
 
 // Navigation Components
 export { default as TabBar, SimpleTabBar } from './navigation/TabBar';
-export { default as Breadcrumb, SimpleBreadcrumb } from './navigation/Breadcrumb';
+export { default as Breadcrumb } from './navigation/Breadcrumb';
 export { 
   default as BackButton, 
   HeaderBackButton, 
@@ -42,7 +42,7 @@ export {
 
 // Interactive Components
 export { default as PhotoGallery } from './interactive/PhotoGallery';
-export { default as CRUDList, SimpleCRUDList, CompactCRUDList } from './interactive/CRUDList';
+// Deprecated interactive CRUDList removed; use components/CRUDList instead
 export { default as FilterModal, SimpleFilterModal, CompactFilterModal } from './interactive/FilterModal';
 
 // Feedback Components
@@ -68,7 +68,8 @@ export { Fab } from './Fab';
 export { Avatar } from './Avatar';
 export { Tooltip } from './Tooltip';
 export { StarRating } from './StarRating';
+export { SectionCard } from './SectionCard';
 
 // Legacy Components
-export { TabBarBackground } from './TabBarBackground';
+export { default as TabBarBackground } from './TabBarBackground';
 export { IconSymbol } from './IconSymbol';

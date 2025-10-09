@@ -3,15 +3,17 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useCache } from './useCache';
 import { CropsServiceInstance as CropsService } from '../services/domain/crops';
 import { Crop, CropFilters, CropSort, CropServiceOptions } from '../services/domain/crops/crops.types';
+import { useFocusEffect } from 'expo-router';
+import cacheService from '../services/cache';
 
 interface UseCropsOptions extends CropServiceOptions {
   refetchOnMount?: boolean;
   refetchInterval?: number;
   onError?: (error: Error) => void;
   onSuccess?: (crops: Crop[]) => void;
+  enabled?: boolean;
 }
 
 interface UseCropsReturn {
@@ -40,11 +42,12 @@ export const useCrops = (
     refetchInterval,
     onError,
     onSuccess,
+    enabled = true,
     ...cropFilters
   } = options;
 
   const [crops, setCrops] = useState<Crop[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(enabled && refetchOnMount);
   const [error, setError] = useState<Error | null>(null);
   const [filters, setFilters] = useState<CropFilters | undefined>(cropFilters);
   const [sort, setSort] = useState<CropSort | undefined>();
@@ -53,7 +56,10 @@ export const useCrops = (
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchCrops = useCallback(async () => {
-    if (!plotId) return;
+    if (!plotId || !enabled) {
+      if (loading) setLoading(false);
+      return;
+    }
 
     // Annuler la requête précédente si elle existe
     if (abortControllerRef.current) {
@@ -65,6 +71,19 @@ export const useCrops = (
     setError(null);
 
     try {
+      // Tenter de récupérer depuis le cache d'abord
+      if (useCache && !refreshCache) {
+        const cacheKey = `crops:${plotId}:${JSON.stringify(filters)}:${sort}`;
+        const cachedCrops = cacheService.get<Crop[]>(cacheKey);
+        if (cachedCrops) {
+          console.log(`🌿 [Cache] Cultures pour la parcelle ${plotId} récupérées depuis le cache.`);
+          setCrops(cachedCrops);
+          setLoading(false);
+          onSuccess?.(cachedCrops);
+          return;
+        }
+      }
+
       const fetchedCrops = await CropsService.getCropsByPlotId(
         plotId,
         agentId,
@@ -92,7 +111,7 @@ export const useCrops = (
         setLoading(false);
       }
     }
-  }, [plotId, agentId, filters, sort, useCache, cacheTTL, refreshCache, onError, onSuccess]);
+  }, [plotId, agentId, filters, sort, useCache, cacheTTL, refreshCache, onError, onSuccess, enabled, loading]);
 
   const refetch = useCallback(async () => {
     await fetchCrops();
@@ -113,14 +132,14 @@ export const useCrops = (
 
   // Effet pour le chargement initial
   useEffect(() => {
-    if (refetchOnMount && plotId) {
+    if (refetchOnMount && plotId && enabled) {
       fetchCrops();
     }
-  }, [fetchCrops, refetchOnMount, plotId]);
+  }, [fetchCrops, refetchOnMount, plotId, enabled]);
 
   // Effet pour le refetch automatique
   useEffect(() => {
-    if (refetchInterval && refetchInterval > 0) {
+    if (refetchInterval && refetchInterval > 0 && enabled) {
       intervalRef.current = setInterval(() => {
         fetchCrops();
       }, refetchInterval);
@@ -131,7 +150,7 @@ export const useCrops = (
         }
       };
     }
-  }, [fetchCrops, refetchInterval]);
+  }, [fetchCrops, refetchInterval, enabled]);
 
   // Effet de nettoyage
   useEffect(() => {
@@ -160,6 +179,7 @@ interface UseCropOptions extends CropServiceOptions {
   refetchOnMount?: boolean;
   onError?: (error: Error) => void;
   onSuccess?: (crop: Crop | null) => void;
+  enabled?: boolean;
 }
 
 interface UseCropReturn {
@@ -184,17 +204,21 @@ export const useCrop = (
     refreshCache = false,
     refetchOnMount = true,
     onError,
-    onSuccess
+    onSuccess,
+    enabled = true,
   } = options;
 
   const [crop, setCrop] = useState<Crop | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(enabled && refetchOnMount);
   const [error, setError] = useState<Error | null>(null);
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchCrop = useCallback(async () => {
-    if (!cropId) return;
+    if (!cropId || !enabled) {
+      if (loading) setLoading(false);
+      return;
+    }
 
     // Annuler la requête précédente si elle existe
     if (abortControllerRef.current) {
@@ -206,6 +230,19 @@ export const useCrop = (
     setError(null);
 
     try {
+      // Tenter de récupérer depuis le cache d'abord
+      if (useCache && !refreshCache) {
+        const cacheKey = `crop:${cropId}`;
+        const cachedCrop = cacheService.get<Crop>(cacheKey);
+        if (cachedCrop) {
+          console.log(`🌿 [Cache] Culture ${cropId} récupérée depuis le cache.`);
+          setCrop(cachedCrop);
+          setLoading(false);
+          onSuccess?.(cachedCrop);
+          return;
+        }
+      }
+
       // Note: CropsService n'a pas de méthode getCropById, on utilise getCropsByPlotId
       // et on filtre par cropId. Dans un vrai service, on aurait une méthode dédiée.
       const crops = await CropsService.getCropsByPlotId('', agentId, { crop_id: cropId }, undefined, {
@@ -230,7 +267,7 @@ export const useCrop = (
         setLoading(false);
       }
     }
-  }, [cropId, agentId, useCache, cacheTTL, refreshCache, onError, onSuccess]);
+  }, [cropId, agentId, useCache, cacheTTL, refreshCache, onError, onSuccess, enabled, loading]);
 
   const refetch = useCallback(async () => {
     await fetchCrop();
@@ -243,10 +280,10 @@ export const useCrop = (
 
   // Effet pour le chargement initial
   useEffect(() => {
-    if (refetchOnMount && cropId) {
+    if (refetchOnMount && cropId && enabled) {
       fetchCrop();
     }
-  }, [fetchCrop, refetchOnMount, cropId]);
+  }, [fetchCrop, refetchOnMount, cropId, enabled]);
 
   // Effet de nettoyage
   useEffect(() => {
@@ -271,6 +308,7 @@ interface UseActiveCropOptions extends CropServiceOptions {
   refetchInterval?: number;
   onError?: (error: Error) => void;
   onSuccess?: (crop: Crop | null) => void;
+  enabled?: boolean;
 }
 
 interface UseActiveCropReturn {
@@ -295,30 +333,50 @@ export const useActiveCrop = (
     refetchOnMount = true,
     refetchInterval,
     onError,
-    onSuccess
+    onSuccess,
+    enabled = true,
   } = options;
 
   const [crop, setCrop] = useState<Crop | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(enabled && refetchOnMount);
   const [error, setError] = useState<Error | null>(null);
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchActiveCrop = useCallback(async () => {
-    if (!plotId) return;
+    if (!plotId || !enabled) {
+      if (loading) setLoading(false);
+      return;
+    }
 
     // Annuler la requête précédente si elle existe
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-
     abortControllerRef.current = new AbortController();
-    setLoading(true);
-    setError(null);
 
     try {
-      const fetchedCrop = await CropsService.getActiveCropByPlotId(
+      setLoading(true);
+      setError(null);
+
+      const cacheKey = `active_crop:${plotId}`;
+
+      // Tenter de récupérer depuis le cache d'abord
+      if (useCache && !refreshCache) {
+        const cachedCrop = cacheService.get<Crop>(cacheKey);
+        if (cachedCrop) {
+          console.log(`🌿 [Cache] Culture active pour la parcelle ${plotId} récupérée depuis le cache.`);
+          setCrop(cachedCrop);
+          setLoading(false);
+          onSuccess?.(cachedCrop);
+          return;
+        }
+      }
+
+      console.log(`🔄 [useActiveCrop] Récupération de la culture active pour la parcelle ${plotId}`);
+
+      const activeCrop = await CropsService.getActiveCropByPlotId(
         plotId,
         {
           useCache,
@@ -327,22 +385,28 @@ export const useActiveCrop = (
         }
       );
 
-      if (!abortControllerRef.current.signal.aborted) {
-        setCrop(fetchedCrop);
-        onSuccess?.(fetchedCrop);
+      setCrop(activeCrop);
+
+      // Mettre en cache le résultat
+      if (useCache) {
+        cacheService.set(cacheKey, activeCrop, cacheTTL);
+        console.log(`🌿 [Cache] Culture active pour la parcelle ${plotId} mise en cache.`);
       }
+
+      onSuccess?.(activeCrop);
     } catch (err: any) {
-      if (!abortControllerRef.current.signal.aborted) {
-        const error = err instanceof Error ? err : new Error(String(err));
+      if (err.name !== 'AbortError') {
+        const error = err instanceof Error ? err : new Error('Erreur inconnue');
         setError(error);
         onError?.(error);
+        console.error('❌ [useActiveCrop] Erreur:', error);
       }
     } finally {
-      if (!abortControllerRef.current.signal.aborted) {
+      if (abortControllerRef.current && !abortControllerRef.current.signal.aborted) {
         setLoading(false);
       }
     }
-  }, [plotId, useCache, cacheTTL, refreshCache, onError, onSuccess]);
+  }, [plotId, useCache, cacheTTL, refreshCache, onError, onSuccess, enabled, loading]);
 
   const refetch = useCallback(async () => {
     await fetchActiveCrop();
@@ -355,14 +419,14 @@ export const useActiveCrop = (
 
   // Effet pour le chargement initial
   useEffect(() => {
-    if (refetchOnMount && plotId) {
+    if (refetchOnMount && plotId && enabled) {
       fetchActiveCrop();
     }
-  }, [fetchActiveCrop, refetchOnMount, plotId]);
+  }, [fetchActiveCrop, refetchOnMount, plotId, enabled]);
 
   // Effet pour le refetch automatique
   useEffect(() => {
-    if (refetchInterval && refetchInterval > 0) {
+    if (refetchInterval && refetchInterval > 0 && enabled) {
       intervalRef.current = setInterval(() => {
         fetchActiveCrop();
       }, refetchInterval);
@@ -373,7 +437,7 @@ export const useActiveCrop = (
         }
       };
     }
-  }, [fetchActiveCrop, refetchInterval]);
+  }, [fetchActiveCrop, refetchInterval, enabled]);
 
   // Effet de nettoyage
   useEffect(() => {

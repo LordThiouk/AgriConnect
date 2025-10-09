@@ -6,6 +6,7 @@ export { default as SubHeader } from './SubHeader';
 export { 
   default as Container, 
   ScreenContainer, 
+  FormContainer, 
   FormContainer as LayoutFormContainer, 
   ModalContainer 
 } from './Container';

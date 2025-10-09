@@ -23,7 +23,7 @@ export const FormContainer: React.FC<FormContainerProps> = ({
   onBack,
   loading = false,
   enableKeyboardAvoidance = true,
-  keyboardVerticalOffset = 0,
+  keyboardVerticalOffset = 64,
 }) => {
   const router = useRouter();
   const theme = useTheme();
@@ -76,8 +76,12 @@ export const FormContainer: React.FC<FormContainerProps> = ({
       <ScrollView 
         style={{ flex: 1 }}
         contentContainerStyle={{ flexGrow: 1 }}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps="always"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'none'}
+        nestedScrollEnabled
         showsVerticalScrollIndicator={false}
+        maintainVisibleContentPosition={Platform.OS === 'ios' ? { minIndexForVisible: 0 } as any : undefined}
+        automaticallyAdjustContentInsets={false as any}
       >
         <VStack flex={1} p={5} space={4}>
           {children}
@@ -90,7 +94,7 @@ export const FormContainer: React.FC<FormContainerProps> = ({
     return (
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={'padding'}
         keyboardVerticalOffset={keyboardVerticalOffset}
       >
         <Box flex={1} bg="gray.50">

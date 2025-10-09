@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { CollecteService } from '../../../lib/services/collecte';
+import { FarmFilesServiceInstance } from '../../../lib/services/domain/farmfiles';
 import { useAuth } from '../../../context/AuthContext';
 import { ScreenContainer } from '../../../components/ui';
 
@@ -13,7 +13,7 @@ export default function SelectFicheScreen() {
   React.useEffect(() => {
     const load = async () => {
       if (!user) return;
-      const files = await CollecteService.getFarmFiles(user.id);
+      const files = await FarmFilesServiceInstance.getFarmFiles(user.id);
       setItems(files.map(f => ({ id: f.id, name: f.name, producerName: f.producerName })));
     };
     load();

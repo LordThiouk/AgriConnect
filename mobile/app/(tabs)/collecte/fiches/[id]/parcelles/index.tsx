@@ -1,7 +1,7 @@
 import React from 'react';
 import { FlatList, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { CollecteService } from '../../../../../../lib/services/collecte';
+import { FarmFilesServiceInstance } from '../../../../../../lib/services/domain/farmfiles';
 import { ScreenContainer, Card, Button, Badge } from '../../../../../../components/ui';
 import { 
   Box, 
@@ -114,7 +114,7 @@ const ParcellesListScreen: React.FC = () => {
       if (!id) return;
       setLoading(true);
       try {
-        const data = await CollecteService.getFarmFilePlots(id);
+        const data = await FarmFilesServiceInstance.getFarmFilePlots(id);
         const mapped: Parcelle[] = (data || []).map((p: any) => ({
           id: p.id,
           code: p.name_season_snapshot,

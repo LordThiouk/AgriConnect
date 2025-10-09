@@ -11,13 +11,12 @@ import {
   ScreenContainer,
   FormContainer,
   FormFooter,
-  Card,
   FormField,
   FormInput
 } from '../../../../../../components/ui';
+import { Box } from 'native-base';
 import PhotoPicker from '../../../../../../components/PhotoPicker';
 import { MediaFile } from '../../../../../../lib/services/media';
-import { ScrollView } from 'native-base';
 
 interface OperationFormData {
   operation_type: string;
@@ -245,16 +244,15 @@ export default function EditOperationScreen() {
       showSubHeader={false}
       showBackButton={false}
       animationEnabled={false}
+      contentScrollable={false}
     >
       <FormContainer 
         title="Modifier l'Opération" 
         subtitle=""
+        enableKeyboardAvoidance
+        keyboardVerticalOffset={100}
       >
-        <ScrollView 
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <Card>
+        <Box p={4}>
             <FormField label="Type d'opération" required>
               <FormSelect
                 value={formData.operation_type}
@@ -326,8 +324,7 @@ export default function EditOperationScreen() {
                 enableGPS={true}
               />
             </FormField>
-          </Card>
-        </ScrollView>
+        </Box>
 
         <FormFooter 
           onCancel={() => router.back()}

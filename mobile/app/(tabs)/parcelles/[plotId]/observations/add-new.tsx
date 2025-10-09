@@ -1,19 +1,22 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
-import { Text, Button, Input, VStack, HStack } from 'native-base';
+import { VStack } from 'native-base';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { CollecteService } from '../../../../../lib/services/collecte';
+import { ObservationsServiceInstance } from '../../../../../lib/services/domain/observations';
+import { CropsServiceInstance } from '../../../../../lib/services/domain/crops';
 import { Crop } from '../../../../../types/collecte';
 import { useAuth } from '../../../../../context/AuthContext';
 import PhotoPicker from '../../../../../components/PhotoPicker';
 import { MediaFile } from '../../../../../lib/services/media';
 import { Feather } from '@expo/vector-icons';
-import { FormField } from '../../../../../components/ui';
 import { 
+  FormField,
   FormInput, 
   FormSelect, 
   FormDatePicker, 
-  FormFooter 
+  FormFooter,
+  FormContainer,
+  ScreenContainer
 } from '../../../../../components/ui';
 
 interface ObservationFormData {
@@ -60,7 +63,7 @@ export default function AddObservationScreen() {
   const loadCrops = useCallback(async () => {
     if (!plotId) return;
     try {
-      const fetchedCrops = await CollecteService.getCropsByPlotId(plotId);
+      const fetchedCrops = await CropsServiceInstance.getCropsByPlotId(plotId);
       setCrops(fetchedCrops);
     } catch (error) {
       console.error('Erreur lors du chargement des cultures:', error);
@@ -88,7 +91,7 @@ export default function AddObservationScreen() {
     try {
       setLoading(true);
       
-      const { data: agentProfile, error: agentError } = await CollecteService.supabase
+      const { data: agentProfile, error: agentError } = await ObservationsServiceInstance.supabase
         .from('profiles')
         .select('id')
         .eq('user_id', user?.id || '')
@@ -114,7 +117,7 @@ export default function AddObservationScreen() {
         observed_by: user?.id || ''
       };
 
-      const newObservation = await CollecteService.addObservation(observationData);
+      const newObservation = await ObservationsServiceInstance.createObservation(observationData);
       console.log('✅ Observation ajoutée:', newObservation);
 
       if (photos.length > 0) {
@@ -122,7 +125,7 @@ export default function AddObservationScreen() {
         
         for (const photo of photos) {
           try {
-            const { error: updateError } = await CollecteService.supabase
+            const { error: updateError } = await ObservationsServiceInstance.supabase
               .from('media')
               .update({ entity_id: newObservation.id })
               .eq('id', photo.id);
@@ -160,130 +163,121 @@ export default function AddObservationScreen() {
   ];
 
   return (
-    <VStack flex={1} bg="gray.50">
-      {/* Header */}
-      <HStack 
-        alignItems="center" 
-        justifyContent="space-between" 
-        px={4} 
-        py={4} 
-        bg="white" 
-        borderBottomWidth={1} 
-        borderBottomColor="gray.200"
+    <ScreenContainer 
+      title=""
+      subtitle=""
+      showSubHeader={false}
+      showBackButton={false}
+      animationEnabled={false}
+      contentScrollable={false}
+    >
+      <FormContainer 
+        title="Nouvelle Observation" 
+        subtitle="Ajouter une observation à cette parcelle"
       >
-        <Button variant="ghost" onPress={() => router.back()}>
-          <Feather name="arrow-left" size={24} color="#3D944B" />
-        </Button>
-        <Text fontSize="lg" fontWeight="bold" color="gray.800">
-          Nouvelle Observation
-        </Text>
-        <View style={{ width: 40 }} />
-      </HStack>
+        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+          <VStack space={4} p={4}>
+            <FormSelect
+              label="Culture"
+              value={formData.crop_id}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, crop_id: value }))}
+              options={crops.map(crop => ({ 
+                value: crop.id, 
+                label: `${crop.crop_type} - ${crop.variety} (${crop.status})` 
+              }))}
+              placeholder="Sélectionner une culture"
+            />
 
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-        <VStack space={4} p={4}>
-          <FormSelect
-            label="Culture"
-            required
-            value={formData.crop_id}
-            onValueChange={(value) => setFormData(prev => ({ ...prev, crop_id: value }))}
-            options={crops.map(crop => ({ 
-              value: crop.id, 
-              label: `${crop.crop_type} - ${crop.variety} (${crop.status})` 
-            }))}
-            placeholder="Sélectionner une culture"
-          />
+            <FormSelect
+              label="Type d'observation"
+              value={formData.observation_type}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, observation_type: value }))}
+              options={observationTypes}
+              placeholder="Sélectionner le type"
+            />
 
-          <FormSelect
-            label="Type d'observation"
-            required
-            value={formData.observation_type}
-            onValueChange={(value) => setFormData(prev => ({ ...prev, observation_type: value }))}
-            options={observationTypes}
-            placeholder="Sélectionner le type"
-          />
+            <FormDatePicker
+              label="Date d'observation"
+              required
+              value={formData.observation_date}
+              onChange={(value) => setFormData(prev => ({ ...prev, observation_date: value }))}
+            />
 
-          <FormDatePicker
-            label="Date d'observation"
-            required
-            value={formData.observation_date}
-            onChange={(value) => setFormData(prev => ({ ...prev, observation_date: value }))}
-          />
+            {formData.observation_type === 'levée' && (
+              <FormInput
+                label="Pourcentage de levée"
+                value={formData.emergence_percent}
+                onChangeText={(text) => setFormData(prev => ({ ...prev, emergence_percent: text }))}
+                placeholder="0-100"
+                keyboardType="numeric"
+              />
+            )}
 
-          {formData.observation_type === 'levée' && (
+            {(formData.observation_type === 'maladie' || formData.observation_type === 'ravageur') && (
+              <FormInput
+                label={`Nom du ${formData.observation_type === 'maladie' ? 'maladie' : 'ravageur'}`}
+                value={formData.pest_disease_name}
+                onChangeText={(text) => setFormData(prev => ({ ...prev, pest_disease_name: text }))}
+                placeholder="Nom du ravageur ou maladie"
+              />
+            )}
+
+            <FormSelect
+              label="Sévérité"
+              value={formData.severity?.toString() || ''}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, severity: parseInt(value) }))}
+              options={severityOptions}
+              placeholder="Sélectionner la sévérité"
+            />
+
             <FormInput
-              label="Pourcentage de levée"
-              value={formData.emergence_percent}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, emergence_percent: text }))}
+              label="Zone affectée (%)"
+              value={formData.affected_area_percent}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, affected_area_percent: text }))}
               placeholder="0-100"
               keyboardType="numeric"
             />
-          )}
 
-          {(formData.observation_type === 'maladie' || formData.observation_type === 'ravageur') && (
             <FormInput
-              label={`Nom du ${formData.observation_type === 'maladie' ? 'maladie' : 'ravageur'}`}
-              value={formData.pest_disease_name}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, pest_disease_name: text }))}
-              placeholder="Nom du ravageur ou maladie"
+              label="Description"
+              required
+              value={formData.description}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, description: text }))}
+              placeholder="Décrivez l'observation..."
+              multiline
+              numberOfLines={3}
             />
-          )}
 
-          <FormSelect
-            label="Sévérité"
-            value={formData.severity?.toString() || ''}
-            onValueChange={(value) => setFormData(prev => ({ ...prev, severity: parseInt(value) }))}
-            options={severityOptions}
-            placeholder="Sélectionner la sévérité"
-          />
-
-          <FormInput
-            label="Zone affectée (%)"
-            value={formData.affected_area_percent}
-            onChangeText={(text) => setFormData(prev => ({ ...prev, affected_area_percent: text }))}
-            placeholder="0-100"
-            keyboardType="numeric"
-          />
-
-          <FormInput
-            label="Description"
-            required
-            value={formData.description}
-            onChangeText={(text) => setFormData(prev => ({ ...prev, description: text }))}
-            placeholder="Décrivez l'observation..."
-            multiline
-            numberOfLines={3}
-          />
-
-          <FormInput
-            label="Recommandations"
-            value={formData.recommendations}
-            onChangeText={(text) => setFormData(prev => ({ ...prev, recommendations: text }))}
-            placeholder="Recommandations d'action..."
-            multiline
-            numberOfLines={3}
-          />
-
-          <FormField label="Photos">
-            <PhotoPicker
-              entityType="observation"
-              entityId={plotId || ''}
-              onPhotosChange={setPhotos}
-              existingPhotos={photos}
-              maxPhotos={5}
-              enableGPS={true}
+            <FormInput
+              label="Recommandations"
+              value={formData.recommendations}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, recommendations: text }))}
+              placeholder="Recommandations d'action..."
+              multiline
+              numberOfLines={3}
             />
-          </FormField>
-        </VStack>
-      </ScrollView>
 
-      <FormFooter
-        onCancel={() => router.back()}
-        onSave={handleSave}
-        loading={loading}
-        cancelText="Annuler"
-        saveText="Enregistrer"
-      />
-    </VStack>
+            <FormField label="Photos">
+              <PhotoPicker
+                entityType="observation"
+                entityId={plotId || ''}
+                onPhotosChange={setPhotos}
+                existingPhotos={photos}
+                maxPhotos={5}
+                enableGPS={true}
+              />
+            </FormField>
+          </VStack>
+        </ScrollView>
+
+        <FormFooter
+          onCancel={() => router.back()}
+          onSave={handleSave}
+          loading={loading}
+          cancelText="Annuler"
+          saveText="Enregistrer"
+        />
+      </FormContainer>
+    </ScreenContainer>
   );
 }

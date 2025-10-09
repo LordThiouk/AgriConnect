@@ -1,9 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Button, Alert, ActivityIndicator } from 'react-native';
+import { Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '../../../../../context/AuthContext';
-import { CollecteService } from '../../../../../lib/services/collecte';
-import { FormSelect } from '../../../../../components/ui';
+import { RecommendationsServiceInstance } from '../../../../../lib/services/domain/recommendations';
+import { CropsServiceInstance } from '../../../../../lib/services/domain/crops';
+import { 
+  ScreenContainer,
+  FormContainer,
+  FormFooter,
+  Card,
+  FormField,
+  FormInput,
+  FormSelect,
+  VStack,
+  Spinner
+} from '../../../../../components/ui';
+import { ScrollView, Text } from 'native-base';
 import { RecommendationInsert } from '../../../../../types/collecte';
 
 const recommendationTypes = [
@@ -30,7 +42,7 @@ export default function AddRecommendationScreen() {
     const fetchActiveCrop = async () => {
       if (plotId) {
         try {
-          const crop = await CollecteService.getActiveCropByPlotId(plotId);
+          const crop = await CropsServiceInstance.getActiveCropByPlotId(plotId);
           setActiveCropId(crop?.id || null);
         } catch (error) {
           console.error("Erreur_récupération_culture_active:", error);
@@ -48,18 +60,31 @@ export default function AddRecommendationScreen() {
       return;
     }
     setIsSaving(true);
-    const recData: RecommendationInsert = {
-      plot_id: plotId,
-      crop_id: activeCropId,
+    const typeMap: Record<string, 'fertilizer' | 'pesticide' | 'irrigation' | 'harvest' | 'planting' | 'general' | 'alert'> = {
+      fertilisation: 'fertilizer',
+      traitement: 'pesticide',
+      irrigation: 'irrigation',
+      pest_disease: 'alert',
+      autre: 'general'
+    };
+    const recData = {
       title,
-      message,
-      recommendation_type: type,
-      status: 'pending',
-      // 'producer_id' can be inferred in the backend if needed
+      description: message,
+      type: typeMap[type] || 'general',
+      priority: 'medium' as const,
+      applicable_crops: [],
+      applicable_regions: [],
+      applicable_seasons: [],
+      conditions: 'Applicable au contexte courant',
+      actions: [message],
+      expected_benefits: 'Amélioration des pratiques',
+      implementation_date: undefined,
+      expires_at: undefined,
+      metadata: { plot_id: plotId, crop_id: activeCropId, created_by: user.id }
     };
     
     try {
-      await CollecteService.createRecommendation(recData);
+      await RecommendationsServiceInstance.create(recData);
       Alert.alert('Succès', 'Conseil enregistré avec succès.');
       router.back();
     } catch (error) {
@@ -70,68 +95,72 @@ export default function AddRecommendationScreen() {
   };
   
   if (isLoading) {
-    return <ActivityIndicator style={{ flex: 1, justifyContent: 'center' }} />;
+    return (
+      <ScreenContainer 
+        title=""
+        subtitle=""
+        showSubHeader={false}
+        showBackButton={false}
+        animationEnabled={false}
+      >
+        <FormContainer title="Nouveau Conseil" subtitle="Chargement de la culture active...">
+          <VStack flex={1} alignItems="center" justifyContent="center" space={3} py={10}>
+            <Spinner color="primary.500" size="lg" />
+            <Text color="gray.600">Chargement...</Text>
+          </VStack>
+        </FormContainer>
+      </ScreenContainer>
+    );
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>Nouveau Conseil</Text>
-      
-      <Text style={styles.label}>Titre</Text>
-      <TextInput
-        style={styles.input}
-        value={title}
-        onChangeText={setTitle}
-        placeholder="Ex: Alerte Mildiou"
-      />
-      
-      <Text style={styles.label}>Type de conseil</Text>
-      <FormSelect
-        options={recommendationTypes}
-        onValueChange={(value) => setType(value || '')}
-        value={type}
-        placeholder="Sélectionner le type"
-        label="Type de conseil"
-      />
+    <ScreenContainer 
+      title=""
+      subtitle=""
+      showSubHeader={false}
+      showBackButton={false}
+      animationEnabled={false}
+      contentScrollable={false}
+    >
+      <FormContainer title="Nouveau Conseil" subtitle="Créer une recommandation pour cette parcelle" enableKeyboardAvoidance keyboardVerticalOffset={110}>
+        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <Card>
+            <FormField label="Titre" required>
+              <FormInput
+                value={title}
+                onChangeText={setTitle}
+                placeholder="Ex: Alerte Mildiou"
+              />
+            </FormField>
 
-      <Text style={styles.label}>Message / Recommandation</Text>
-      <TextInput
-        style={[styles.input, { height: 120 }]}
-        value={message}
-        onChangeText={setMessage}
-        placeholder="Détaillez le conseil ici..."
-        multiline
-      />
+            <FormField label="Type de conseil" required>
+              <FormSelect
+                options={recommendationTypes}
+                onValueChange={(value) => setType(value || '')}
+                value={type}
+                placeholder="Sélectionner le type"
+              />
+            </FormField>
 
-      <Button title={isSaving ? "Enregistrement..." : "Enregistrer"} onPress={handleSave} disabled={isSaving} />
-    </ScrollView>
+            <FormField label="Message / Recommandation" required>
+              <FormInput
+                value={message}
+                onChangeText={setMessage}
+                placeholder="Détaillez le conseil ici..."
+                multiline
+                numberOfLines={5}
+              />
+            </FormField>
+          </Card>
+        </ScrollView>
+
+        <FormFooter 
+          onCancel={() => router.back()}
+          onSave={handleSave}
+          loading={isSaving}
+          saveText={isSaving ? 'Enregistrement...' : 'Enregistrer'}
+        />
+      </FormContainer>
+    </ScreenContainer>
   );
 }
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        padding: 16,
-        backgroundColor: '#fff',
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        marginBottom: 24,
-    },
-    label: {
-        fontSize: 16,
-        fontWeight: '500',
-        color: '#374151',
-        marginBottom: 8,
-        marginTop: 16,
-    },
-    input: {
-        borderWidth: 1,
-        borderColor: '#d1d5db',
-        borderRadius: 8,
-        padding: 12,
-        fontSize: 16,
-        backgroundColor: '#f9fafb',
-    },
-});

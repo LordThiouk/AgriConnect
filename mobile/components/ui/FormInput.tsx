@@ -1,7 +1,6 @@
 import React from 'react';
-import { Input } from 'native-base';
-import { FormField } from './FormField';
-import { Platform } from 'react-native';
+import { TextInput } from 'react-native';
+import { Box } from 'native-base';
 
 interface FormInputProps {
   placeholder?: string;
@@ -50,43 +49,53 @@ export const FormInput: React.FC<FormInputProps> = ({
   autoCorrect = false,
   textContentType,
 }) => {
+  // Style basé sur NativeBase mais avec TextInput natif
+  const inputStyle = {
+    borderWidth: 1,
+    borderColor: '#E2E8F0', // gray.200
+    borderRadius: 6,
+    backgroundColor: 'white',
+    fontSize: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    minHeight: multiline ? 60 : 42,
+    textAlignVertical: multiline ? 'top' as const : 'center' as const,
+    color: '#1A202C', // gray.800
+    width: '100%' as const,
+  };
+
+  const placeholderTextColor = '#A0AEC0'; // gray.400
+
   return (
-    <Input
-      variant="outline"
-      size="md"
-      minH={multiline ? 60 : 42}
-      maxW="100%"
-      isDisabled={disabled}
-      placeholder={placeholder}
-      value={value}
-      onChangeText={onChangeText}
-      multiline={multiline}
-      numberOfLines={numberOfLines}
-      keyboardType={keyboardType}
-      secureTextEntry={secureTextEntry}
-      textAlignVertical={multiline ? 'top' : 'center'}
-      bg="white"
-      fontSize="sm"
-      px={3}
-      py={2}
-      returnKeyType={returnKeyType || (multiline ? 'default' : 'done')}
-      blurOnSubmit={blurOnSubmit !== undefined ? blurOnSubmit : !multiline}
-      autoCorrect={autoCorrect}
-      autoCapitalize={autoCapitalize}
-      autoComplete="off"
-      w="100%"
-      onSubmitEditing={onSubmitEditing}
-      onFocus={onFocus}
-      onBlur={onBlur}
-      selectTextOnFocus={selectTextOnFocus}
-      clearButtonMode={clearButtonMode}
-      maxLength={maxLength}
-      autoFocus={autoFocus}
-      textContentType={textContentType}
-      // Fix pour le clavier sur web
-      {...(Platform.OS === 'web' && {
-        focusable: true,
-      })}
-    />
+    <Box w="100%">
+      <TextInput
+        style={inputStyle}
+        placeholder={placeholder}
+        placeholderTextColor={placeholderTextColor}
+        value={value}
+        onChangeText={onChangeText}
+        multiline={multiline}
+        numberOfLines={numberOfLines}
+        keyboardType={keyboardType}
+        secureTextEntry={secureTextEntry}
+        editable={!disabled}
+        returnKeyType={returnKeyType || (multiline ? 'default' : 'next')}
+        blurOnSubmit={blurOnSubmit !== undefined ? blurOnSubmit : false}
+        autoCorrect={autoCorrect}
+        autoCapitalize={autoCapitalize}
+        onSubmitEditing={onSubmitEditing}
+        onFocus={onFocus}
+        onBlur={onBlur}
+        selectTextOnFocus={selectTextOnFocus}
+        clearButtonMode={clearButtonMode}
+        maxLength={maxLength}
+        autoFocus={autoFocus}
+        textContentType={textContentType}
+        // Props pour stabiliser le clavier
+        focusable={true}
+        disableFullscreenUI={true}
+        showSoftInputOnFocus={true}
+      />
+    </Box>
   );
 };

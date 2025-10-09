@@ -7,7 +7,7 @@ import { useCreateOperation } from '../../../../../lib/hooks';
 import { 
   FormContainer, 
   FormFooter, 
-  Card, 
+  Box, 
   FormField, 
   FormInput, 
   FormSelect, 
@@ -122,16 +122,19 @@ export default function AddOperationScreen() {
       showSubHeader={false}
       showBackButton={false}
       animationEnabled={false}
+      contentScrollable={false}
     >
       <FormContainer 
         title="Nouvelle Opération" 
         subtitle="Ajouter une opération à cette parcelle"
+        enableKeyboardAvoidance
+        keyboardVerticalOffset={100}
       >
         <ScrollView 
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Card>
+          <Box>
             <FormField label="Type d'opération" required>
               <FormSelect
                 value={formData.operation_type}
@@ -203,7 +206,7 @@ export default function AddOperationScreen() {
                 enableGPS={true}
               />
             </FormField>
-          </Card>
+          </Box>
         </ScrollView>
 
         <FormFooter 

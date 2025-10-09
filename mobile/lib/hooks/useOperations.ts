@@ -11,6 +11,7 @@ export interface UseOperationsOptions extends OperationServiceOptions {
   refetchOnMount?: boolean;
   onError?: (error: Error) => void;
   onSuccess?: (data: any[]) => void;
+  enabled?: boolean;
 }
 
 export interface UseOperationsResult {
@@ -29,18 +30,21 @@ export function useLatestOperations(
   options: UseOperationsOptions = {}
 ): UseOperationsResult {
   const [data, setData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
   const {
     refetchOnMount = true,
     onError,
     onSuccess,
+    enabled = true,
     ...serviceOptions
   } = options;
+  const [loading, setLoading] = useState(enabled && refetchOnMount);
+  const [error, setError] = useState<Error | null>(null);
 
   const fetchLatestOperations = useCallback(async () => {
-    if (!plotId) return;
+    if (!plotId || !enabled) {
+      if (loading) setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
@@ -66,13 +70,13 @@ export function useLatestOperations(
     } finally {
       setLoading(false);
     }
-  }, [plotId, limit, onError, onSuccess]);
+  }, [plotId, limit, JSON.stringify(serviceOptions), onError, onSuccess, enabled]);
 
   useEffect(() => {
-    if (refetchOnMount && plotId) {
+    if (refetchOnMount && plotId && enabled) {
       fetchLatestOperations();
     }
-  }, [fetchLatestOperations, refetchOnMount, plotId]);
+  }, [fetchLatestOperations, refetchOnMount, plotId, enabled]);
 
   const refetch = useCallback(async () => {
     await fetchLatestOperations();
@@ -94,18 +98,21 @@ export function useOperationsByPlot(
   options: UseOperationsOptions = {}
 ): UseOperationsResult {
   const [data, setData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
   const {
     refetchOnMount = true,
     onError,
     onSuccess,
+    enabled = true,
     ...serviceOptions
   } = options;
+  const [loading, setLoading] = useState(enabled && refetchOnMount);
+  const [error, setError] = useState<Error | null>(null);
 
   const fetchOperations = useCallback(async () => {
-    if (!plotId) return;
+    if (!plotId || !enabled) {
+      if (loading) setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
@@ -130,13 +137,13 @@ export function useOperationsByPlot(
     } finally {
       setLoading(false);
     }
-  }, [plotId, serviceOptions, onError, onSuccess]);
+  }, [plotId, JSON.stringify(serviceOptions), onError, onSuccess, enabled]);
 
   useEffect(() => {
-    if (refetchOnMount && plotId) {
+    if (refetchOnMount && plotId && enabled) {
       fetchOperations();
     }
-  }, [fetchOperations, refetchOnMount, plotId]);
+  }, [fetchOperations, refetchOnMount, plotId, enabled]);
 
   const refetch = useCallback(async () => {
     await fetchOperations();

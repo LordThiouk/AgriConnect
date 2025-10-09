@@ -13,9 +13,11 @@ import {
   IconButton,
   Button,
   Badge,
+  Spinner,
   useTheme
 } from 'native-base';
 import { EmptyState } from './ui/EmptyState';
+import { ScreenContainer } from './ui';
 
 interface CRUDItem {
   id: string;
@@ -28,28 +30,60 @@ interface CRUDItem {
 
 interface CRUDListProps {
   title: string;
+  subtitle?: string;
   items: CRUDItem[];
+  loading?: boolean;
+  error?: string | null;
   onEdit?: (item: CRUDItem) => void;
   onDelete?: (item: CRUDItem) => void;
   onView?: (item: CRUDItem) => void;
+  onRefresh?: () => void;
+  onRetry?: () => void;
   addButtonText?: string;
   addButtonRoute?: string;
   emptyMessage?: string;
   getStatusColor?: (status: string) => string;
   getStatusText?: (status: string) => string;
+  emptyState?: {
+    icon: string;
+    title: string;
+    subtitle: string;
+    action?: {
+      label: string;
+      onPress: () => void;
+    };
+  };
+  errorState?: {
+    icon: string;
+    title: string;
+    subtitle: string;
+    retryAction?: {
+      label: string;
+      onPress: () => void;
+    };
+  };
+  headerActions?: React.ReactNode;
 }
 
 export function CRUDList({
   title,
+  subtitle,
   items,
+  loading = false,
+  error = null,
   onEdit,
   onDelete,
   onView,
+  onRefresh,
+  onRetry,
   addButtonText = "Ajouter",
   addButtonRoute,
   emptyMessage = "Aucun élément trouvé",
   getStatusColor,
   getStatusText,
+  emptyState,
+  errorState,
+  headerActions,
 }: CRUDListProps) {
   const theme = useTheme();
 
@@ -161,34 +195,94 @@ export function CRUDList({
     </Box>
   );
 
-  return (
-    <VStack flex={1} bg="gray.50">
-      {/* Header */}
-      <HStack justifyContent="space-between" alignItems="center" px={4} py={3} bg="white" borderBottomWidth={1} borderBottomColor="gray.200">
-        <Text fontSize="lg" fontWeight="bold" color="gray.800">
-          {title}
-        </Text>
-        {addButtonRoute && (
-          <Button
-            size="sm"
-            bg="primary.500"
-            _pressed={{ bg: 'primary.600' }}
-            onPress={handleAdd}
-            leftIcon={<Ionicons name="add" size={16} color="white" />}
-          >
-            <Text color="white" fontWeight="medium">
-              {addButtonText}
-            </Text>
-          </Button>
-        )}
-      </HStack>
+  // Prepare header actions (right side), including optional add button
+  const headerRight = (
+    <HStack space={2} alignItems="center">
+      {headerActions}
+      {addButtonRoute && (
+        <Button
+          size="sm"
+          bg="primary.500"
+          _pressed={{ bg: 'primary.600' }}
+          onPress={handleAdd}
+          leftIcon={<Ionicons name="add" size={16} color="white" />}
+        >
+          <Text color="white" fontWeight="medium">
+            {addButtonText}
+          </Text>
+        </Button>
+      )}
+    </HStack>
+  );
 
-      {/* List */}
+  // Loading State
+  if (loading) {
+    return (
+      <ScreenContainer 
+        title={title}
+        showSubHeader={true}
+        showBackButton={true}
+        subHeaderActions={headerRight}
+        animationEnabled={true}
+        contentScrollable={false}
+      >
+        <VStack flex={1} justifyContent="center" alignItems="center" space={4}>
+          <Spinner size="lg" color="primary.500" />
+          <Text color="gray.600" fontSize="md">Chargement...</Text>
+        </VStack>
+      </ScreenContainer>
+    );
+  }
+
+  // Error State
+  if (error) {
+    return (
+      <ScreenContainer 
+        title={title}
+        showSubHeader={true}
+        showBackButton={true}
+        subHeaderActions={headerRight}
+        animationEnabled={true}
+        contentScrollable={false}
+      >
+        <VStack flex={1} justifyContent="center" alignItems="center" space={4} p={8}>
+          <Box bg="error.100" borderRadius="full" p={4} alignItems="center" justifyContent="center">
+            <Ionicons name="alert-circle" size={48} color={theme.colors.error?.[500] || '#ef4444'} />
+          </Box>
+          <VStack space={2} alignItems="center">
+            <Text fontSize="lg" fontWeight="semibold" color="gray.800" textAlign="center">
+              {errorState?.title || "Erreur de chargement"}
+            </Text>
+            <Text fontSize="md" color="gray.600" textAlign="center" maxW="300px">
+              {errorState?.subtitle || error}
+            </Text>
+          </VStack>
+          {onRetry && (
+            <Button variant="outline" colorScheme="error" onPress={onRetry} leftIcon={<Ionicons name="refresh" size={16} />}>
+              {errorState?.retryAction?.label || "Réessayer"}
+            </Button>
+          )}
+        </VStack>
+      </ScreenContainer>
+    );
+  }
+
+  return (
+    <ScreenContainer 
+      title={title}
+      showSubHeader={true}
+      showBackButton={true}
+      subHeaderActions={headerRight}
+      animationEnabled={true}
+      contentScrollable={false}
+    >
       {items.length === 0 ? (
         <EmptyState 
-          title="Aucun élément"
-          description={emptyMessage}
-          icon="list"
+          title={emptyState?.title || "Aucun élément"}
+          description={emptyState?.subtitle || emptyMessage}
+          icon={emptyState?.icon as any || "list"}
+          actionLabel={emptyState?.action?.label}
+          onAction={emptyState?.action?.onPress}
         />
       ) : (
         <FlatList
@@ -197,9 +291,11 @@ export function CRUDList({
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ padding: 16 }}
           showsVerticalScrollIndicator={false}
+          refreshing={loading}
+          onRefresh={onRefresh}
         />
       )}
-    </VStack>
+    </ScreenContainer>
   );
 }
 

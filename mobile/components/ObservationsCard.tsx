@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ActivityIndicator } from 'react-native';
-import { CollecteService } from '../lib/services/collecte';
-import { ObservationDisplay } from '../lib/types/core/collecte';
+import { ObservationDisplay } from '../lib/services/domain/observations/observations.types';
+import { useLatestObservations } from '../lib/hooks/useObservations';
 import { Feather } from '@expo/vector-icons';
 import { 
   Box, 
@@ -16,27 +16,13 @@ import {
 interface ObservationsCardProps {
   plotId: string;
   onSeeAll: () => void;
+  enabled?: boolean;
 }
 
-export function ObservationsCard({ plotId, onSeeAll }: ObservationsCardProps) {
+export function ObservationsCard({ plotId, onSeeAll, enabled = true }: ObservationsCardProps) {
   const theme = useTheme();
-  const [observations, setObservations] = useState<ObservationDisplay[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchObservations = async () => {
-      try {
-        setLoading(true);
-        const data = await CollecteService.getLatestObservations(plotId);
-        setObservations(data);
-      } catch (error) {
-        console.error("Failed to fetch observations:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchObservations();
-  }, [plotId]);
+  const { data, loading } = useLatestObservations(plotId, { enabled, refetchOnMount: true });
+  const observations = (data as ObservationDisplay[]) || [];
 
   const getSeverityColor = (severity: number) => {
     switch (severity) {

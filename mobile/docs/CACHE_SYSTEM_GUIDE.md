@@ -182,8 +182,10 @@ function CacheStatsComponent() {
 ### Étape 1: Remplacer les services
 ```typescript
 // AVANT
-import { CollecteService } from '../lib/services/collecte';
-const plots = await CollecteService.getPlots(agentId);
+// @deprecated - Use domain services instead
+// import { CollecteService } from '../lib/services/collecte';
+// @deprecated - Use PlotsService instead
+// const plots = await CollecteService.getPlots(agentId);
 
 // APRÈS
 import { agriConnectApi } from '../lib/services/core';
@@ -197,7 +199,8 @@ const [plots, setPlots] = useState([]);
 const [loading, setLoading] = useState(true);
 
 useEffect(() => {
-  CollecteService.getPlots(agentId).then(setPlots);
+  // @deprecated - Use PlotsService instead
+  // CollecteService.getPlots(agentId).then(setPlots);
 }, [agentId]);
 
 // APRÈS
@@ -207,10 +210,12 @@ const { data: plots, loading } = usePlotsCache(agentId);
 ### Étape 3: Invalidation après modifications
 ```typescript
 // AVANT
-await CollecteService.addPlot(plotData);
+// @deprecated - Use PlotsService instead
+// await CollecteService.addPlot(plotData);
 
 // APRÈS
-await CollecteService.addPlot(plotData);
+// @deprecated - Use PlotsService instead
+// await CollecteService.addPlot(plotData);
 await agriConnectCache.invalidate({ pattern: `plots:agent:${agentId}` });
 ```
 

@@ -11,6 +11,7 @@ export interface UseParticipantsOptions extends ParticipantServiceOptions {
   refetchOnMount?: boolean;
   onError?: (error: Error) => void;
   onSuccess?: (data: any[]) => void;
+  enabled?: boolean;
 }
 
 export interface UseParticipantsResult {
@@ -28,18 +29,21 @@ export function useParticipantsByPlot(
   options: UseParticipantsOptions = {}
 ): UseParticipantsResult {
   const [data, setData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
   const {
     refetchOnMount = true,
     onError,
     onSuccess,
+    enabled = true,
     ...serviceOptions
   } = options;
+  const [loading, setLoading] = useState(enabled && refetchOnMount);
+  const [error, setError] = useState<Error | null>(null);
 
   const fetchParticipants = useCallback(async () => {
-    if (!plotId) return;
+    if (!plotId || !enabled) {
+      if (loading) setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
@@ -64,13 +68,13 @@ export function useParticipantsByPlot(
     } finally {
       setLoading(false);
     }
-  }, [plotId, onError, onSuccess]);
+  }, [plotId, onError, onSuccess, enabled]);
 
   useEffect(() => {
-    if (refetchOnMount && plotId) {
+    if (refetchOnMount && plotId && enabled) {
       fetchParticipants();
     }
-  }, [fetchParticipants, refetchOnMount, plotId]);
+  }, [fetchParticipants, refetchOnMount, plotId, enabled]);
 
   const refetch = useCallback(async () => {
     await fetchParticipants();

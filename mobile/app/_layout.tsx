@@ -6,8 +6,15 @@ import { AuthProvider } from '../context/AuthContext';
 import { NativeBaseProvider, Box } from 'native-base';
 import { agriconnectTheme } from '../theme/agriconnect';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { FormActivityProvider } from '../context/FormActivityContext';
 import { useEffect } from 'react';
 import { agriConnectCache } from '../lib/services/core/cache';
+import { enableFreeze } from 'react-native-screens';
+
+// Activer le gel des écrans inactifs pour toute l'application
+// C'est la solution la plus robuste pour éviter les re-rendus en arrière-plan
+// qui volent le focus du clavier.
+enableFreeze(true);
 
 function RootLayout() {
   // Layout simplifié - tous les écrans utilisent maintenant ScreenContainer
@@ -41,7 +48,9 @@ export default function Layout() {
     <SafeAreaProvider>
              <NativeBaseProvider theme={agriconnectTheme}>
         <AuthProvider>
-          <RootLayout />
+          <FormActivityProvider>
+            <RootLayout />
+          </FormActivityProvider>
         </AuthProvider>
       </NativeBaseProvider>
     </SafeAreaProvider>

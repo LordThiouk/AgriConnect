@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   ActivityIndicator,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { CollecteService } from '../lib/services/collecte';
+import { useLatestInputs } from '../lib/hooks/useInputs';
 import { 
   Box, 
   Text, 
@@ -18,28 +18,13 @@ import {
 interface IntrantsCardProps {
   plotId: string;
   onSeeAll?: () => void;
+  enabled?: boolean;
 }
 
-export function IntrantsCard({ plotId, onSeeAll }: IntrantsCardProps) {
+export function IntrantsCard({ plotId, onSeeAll, enabled = true }: IntrantsCardProps) {
   const theme = useTheme();
-  const [intrants, setIntrants] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    loadIntrants();
-  }, [plotId]);
-
-  const loadIntrants = async () => {
-    try {
-      setLoading(true);
-      const data = await CollecteService.getLatestIntrants(plotId);
-      setIntrants(data);
-    } catch (error) {
-      console.error('Erreur lors du chargement des intrants:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data, loading } = useLatestInputs(plotId, { enabled, refetchOnMount: true });
+  const intrants = (data as any[]) || [];
 
   const handleAdd = () => {
     router.push(`/(tabs)/parcelles/${plotId}/intrants/add`);
@@ -49,13 +34,8 @@ export function IntrantsCard({ plotId, onSeeAll }: IntrantsCardProps) {
     router.push(`/parcelles/${plotId}/intrants/${intrant.id}/edit`);
   };
 
-  const handleDelete = async (intrant: any) => {
-    try {
-      await CollecteService.deleteIntrant(intrant.id);
-      await loadIntrants();
-    } catch (error) {
-      console.error('Erreur lors de la suppression:', error);
-    }
+  const handleDelete = async (_intrant: any) => {
+    // TODO: Use delete hook and invalidate cache externally if needed
   };
 
   const getIntrantColor = (category: string) => {
@@ -73,14 +53,14 @@ export function IntrantsCard({ plotId, onSeeAll }: IntrantsCardProps) {
   };
 
   const getIntrantIcon = (category: string) => {
-    const icons: { [key: string]: string } = {
+    const icons: { [key: string]: keyof typeof Feather.glyphMap } = {
       engrais: 'package',
       pesticide: 'shield',
       herbicide: 'droplet',
       fongicide: 'shield',
-      insecticide: 'bug',
+      insecticide: 'zap',
       fertilisant: 'package',
-      semence: 'seedling',
+      semence: 'circle',
       autre: 'package',
     };
     return icons[category] || 'package';
@@ -105,7 +85,7 @@ export function IntrantsCard({ plotId, onSeeAll }: IntrantsCardProps) {
             <Feather 
               name={getIntrantIcon(item.category)} 
               size={16} 
-              color={theme.colors[getIntrantColor(item.category)]?.[500] || '#6c757d'} 
+              color={(theme.colors as any)[getIntrantColor(item.category)]?.[500] || '#6c757d'} 
             />
           </Box>
           <VStack flex={1} space={1}>

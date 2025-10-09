@@ -4,7 +4,7 @@ import {
   Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { CollecteService } from '../../../../../../lib/services/collecte';
+import { ParticipantsServiceInstance } from '../../../../../../lib/services/domain/participants';
 import { 
   FormSelect, 
   FormDatePicker, 
@@ -72,7 +72,7 @@ export default function EditIntervenantScreen() {
       setLoading(true);
       
       // Récupérer tous les participants de la parcelle via le service
-      const participants = await CollecteService.getParticipantsByPlotId(plotId);
+      const participants = await ParticipantsServiceInstance.getParticipantsByPlotId(plotId);
       const participant = participants.find(p => p.id === participantId);
 
       if (!participant) {
@@ -139,7 +139,7 @@ export default function EditIntervenantScreen() {
         languages: formData.languages ? formData.languages.split(',').map(s => s.trim()) : null,
       };
 
-      await CollecteService.updateParticipant(participantId!, updateData);
+      await ParticipantsServiceInstance.updateParticipant(participantId!, updateData);
       
       Alert.alert(
         'Succès', 
@@ -166,7 +166,7 @@ export default function EditIntervenantScreen() {
           onPress: async () => {
             try {
               setLoading(true);
-              await CollecteService.deleteParticipant(participantId!);
+              await ParticipantsServiceInstance.deleteParticipant(participantId!);
               Alert.alert(
                 'Succès',
                 'Intervenant supprimé avec succès',

@@ -9,7 +9,7 @@ interface FormFieldProps {
   children: React.ReactNode;
 }
 
-export const FormField: React.FC<FormFieldProps> = ({
+const FormFieldComponent: React.FC<FormFieldProps> = ({
   label,
   required = false,
   helperText,
@@ -41,3 +41,7 @@ export const FormField: React.FC<FormFieldProps> = ({
     </VStack>
   );
 };
+
+FormFieldComponent.displayName = 'FormField';
+
+export const FormField = React.memo(FormFieldComponent);

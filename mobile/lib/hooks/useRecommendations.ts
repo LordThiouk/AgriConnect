@@ -11,6 +11,7 @@ export interface UseRecommendationsOptions extends RecommendationServiceOptions 
   refetchOnMount?: boolean;
   onError?: (error: Error) => void;
   onSuccess?: (data: any[]) => void;
+  enabled?: boolean;
 }
 
 export interface UseRecommendationsResult {
@@ -28,18 +29,21 @@ export function useRecommendationsByPlot(
   options: UseRecommendationsOptions = {}
 ): UseRecommendationsResult {
   const [data, setData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
   const {
     refetchOnMount = true,
     onError,
     onSuccess,
+    enabled = true,
     ...serviceOptions
   } = options;
+  const [loading, setLoading] = useState(enabled && refetchOnMount);
+  const [error, setError] = useState<Error | null>(null);
 
   const fetchRecommendations = useCallback(async () => {
-    if (!plotId) return;
+    if (!plotId || !enabled) {
+      if (loading) setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
@@ -64,13 +68,13 @@ export function useRecommendationsByPlot(
     } finally {
       setLoading(false);
     }
-  }, [plotId, serviceOptions, onError, onSuccess]);
+  }, [plotId, JSON.stringify(serviceOptions), onError, onSuccess, enabled]);
 
   useEffect(() => {
-    if (refetchOnMount && plotId) {
+    if (refetchOnMount && plotId && enabled) {
       fetchRecommendations();
     }
-  }, [fetchRecommendations, refetchOnMount, plotId]);
+  }, [fetchRecommendations, refetchOnMount, plotId, enabled]);
 
   const refetch = useCallback(async () => {
     await fetchRecommendations();
@@ -92,18 +96,21 @@ export function useLatestRecommendations(
   options: UseRecommendationsOptions = {}
 ): UseRecommendationsResult {
   const [data, setData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
   const {
     refetchOnMount = true,
     onError,
     onSuccess,
+    enabled = true,
     ...serviceOptions
   } = options;
+  const [loading, setLoading] = useState(enabled && refetchOnMount);
+  const [error, setError] = useState<Error | null>(null);
 
   const fetchLatestRecommendations = useCallback(async () => {
-    if (!plotId) return;
+    if (!plotId || !enabled) {
+      if (loading) setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
@@ -128,13 +135,13 @@ export function useLatestRecommendations(
     } finally {
       setLoading(false);
     }
-  }, [plotId, onError, onSuccess]);
+  }, [plotId, JSON.stringify(serviceOptions), onError, onSuccess, enabled]);
 
   useEffect(() => {
-    if (refetchOnMount && plotId) {
+    if (refetchOnMount && plotId && enabled) {
       fetchLatestRecommendations();
     }
-  }, [fetchLatestRecommendations, refetchOnMount, plotId]);
+  }, [fetchLatestRecommendations, refetchOnMount, plotId, enabled]);
 
   const refetch = useCallback(async () => {
     await fetchLatestRecommendations();
