@@ -93,7 +93,7 @@ npm run setup:env
 ### **1. Hardcoding des Informations Sensibles**
 ```typescript
 // ❌ INTERDIT - Hardcoding d'URL
-const API_URL = 'https://swggnqbymblnyjcocqxi.supabase.co/functions/v1';
+const API_URL = 'https://your-supabase-project.supabase.co/functions/v1';
 
 // ✅ AUTORISÉ - Variable d'environnement
 const API_URL = process.env.API_BASE_URL;

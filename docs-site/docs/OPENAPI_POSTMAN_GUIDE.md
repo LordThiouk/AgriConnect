@@ -8,7 +8,7 @@ Supabase expose automatiquement une **spécification OpenAPI complète** via Pos
 
 ### **Endpoint OpenAPI découvert :**
 ```
-URL: https://swggnqbymblnyjcocqxi.supabase.co/rest/v1/
+URL: https://your-supabase-project.supabase.co/rest/v1/
 Headers: 
   - apikey: [VOTRE_CLÉ_ANON]
   - Authorization: Bearer [VOTRE_CLÉ_ANON]
@@ -31,7 +31,7 @@ Headers:
 
 ### **Méthode 2: Import via URL**
 1. **Dans Postman** → "Import" → "Link"
-2. **URL** : `https://swggnqbymblnyjcocqxi.supabase.co/rest/v1/`
+2. **URL** : `https://your-supabase-project.supabase.co/rest/v1/`
 3. **Headers** : `Accept: application/openapi+json`
 4. **Postman récupère** la spécification en temps réel
 
@@ -85,7 +85,7 @@ AgriConnect API (PostgREST)
 ### **Variables d'environnement :**
 ```json
 {
-  "SUPABASE_URL": "https://swggnqbymblnyjcocqxi.supabase.co",
+  "SUPABASE_URL": "https://your-supabase-project.supabase.co",
   "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIs...",
   "SUPABASE_SERVICE_KEY": "eyJhbGciOiJIUzI1NiIs..."
 }
@@ -265,7 +265,7 @@ pm.test("Response time is less than 500ms", function () {
 ## 📚 **Documentation interactive**
 
 ### **Swagger UI intégré :**
-- **URL** : `https://swggnqbymblnyjcocqxi.supabase.co/rest/v1/`
+- **URL** : `https://your-supabase-project.supabase.co/rest/v1/`
 - **Fonctionnalités** : Test en ligne, documentation complète
 - **Avantages** : Pas besoin de Postman pour les tests rapides
 

@@ -74,7 +74,7 @@ Le prototype AgriConnect a été **déployé avec succès** sur un environnement
 | Service | URL | Statut | Description |
 |---------|-----|--------|-------------|
 | **Web App** | `https://agriconnect-taupe.vercel.app` | ✅ Live | Interface web complète |
-| **API Backend** | `https://swggnqbymblnyjcocqxi.supabase.co` | ✅ Live | API Supabase |
+| **API Backend** | `https://your-supabase-project.supabase.co` | ✅ Live | API Supabase |
 | **Dashboard Supabase** | `https://supabase.com/dashboard` | ✅ Live | Administration backend |
 | **Mobile APK** | `EAS Build` | ✅ Ready | Application Android (app-bundle) |
 | **Mobile IPA** | `EAS Build` | ✅ Ready | Application iOS (Release) |
@@ -87,7 +87,7 @@ Le prototype AgriConnect a été **déployé avec succès** sur un environnement
 
 #### **Web (Vercel)**
 ```env
-VITE_SUPABASE_URL=https://swggnqbymblnyjcocqxi.supabase.co
+VITE_SUPABASE_URL=https://your-supabase-project.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 VITE_APP_ENV=production
 VITE_TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -97,7 +97,7 @@ VITE_TWILIO_PHONE_NUMBER=+221xxxxxxxxx
 
 #### **Mobile (EAS)**
 ```env
-EXPO_PUBLIC_SUPABASE_URL=https://swggnqbymblnyjcocqxi.supabase.co
+EXPO_PUBLIC_SUPABASE_URL=https://your-supabase-project.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 EXPO_PUBLIC_APP_ENV=production
 EXPO_PUBLIC_TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxx

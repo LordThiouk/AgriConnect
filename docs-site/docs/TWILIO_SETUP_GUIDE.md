@@ -37,7 +37,7 @@ Ce guide vous explique comment configurer Twilio avec Supabase pour l'authentifi
 #### **Fichier : `mobile/.env`**
 ```bash
 # Configuration Supabase
-EXPO_PUBLIC_SUPABASE_URL=https://swggnqbymblnyjcocqxi.supabase.co
+EXPO_PUBLIC_SUPABASE_URL=https://your-supabase-project.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
 EXPO_PUBLIC_SUPABASE_PROJECT_ID=swggnqbymblnyjcocqxi
 

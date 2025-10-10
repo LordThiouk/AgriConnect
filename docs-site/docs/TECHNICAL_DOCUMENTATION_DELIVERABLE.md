@@ -373,7 +373,7 @@ const performanceOptimizations = {
 ```typescript
 // Pattern des endpoints PostgREST
 const apiPattern = {
-  "base_url": "https://swggnqbymblnyjcocqxi.supabase.co/rest/v1",
+  "base_url": "https://your-supabase-project.supabase.co/rest/v1",
   "authentication": "Bearer JWT token",
   "content_type": "application/json",
   "versioning": "Header: apikey"
@@ -678,14 +678,14 @@ const mobileDemoFlow = {
 #### **Démonstration API**
 ```bash
 # Exemples de requêtes API pour la démo
-curl -X GET "https://swggnqbymblnyjcocqxi.supabase.co/rest/v1/producers?select=*,cooperatives(name),plots(count)" \
+curl -X GET "https://your-supabase-project.supabase.co/rest/v1/producers?select=*,cooperatives(name),plots(count)" \
   -H "apikey: YOUR_ANON_KEY" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 
-curl -X GET "https://swggnqbymblnyjcocqxi.supabase.co/rest/v1/plots?geom=st_dwithin(geometry,st_point(14.7,-17.4),1000)" \
+curl -X GET "https://your-supabase-project.supabase.co/rest/v1/plots?geom=st_dwithin(geometry,st_point(14.7,-17.4),1000)" \
   -H "apikey: YOUR_ANON_KEY"
 
-curl -X POST "https://swggnqbymblnyjcocqxi.supabase.co/functions/v1/send-notifications" \
+curl -X POST "https://your-supabase-project.supabase.co/functions/v1/send-notifications" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -d '{"notification_id": "uuid", "channel": "sms"}'
