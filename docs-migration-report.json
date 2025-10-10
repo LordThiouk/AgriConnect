@@ -1,0 +1,780 @@
+{
+  "timestamp": "2025-10-10T00:15:17.159Z",
+  "summary": {
+    "totalFiles": 80,
+    "errors": 0,
+    "categories": {
+      "development": 30,
+      "integrations": 1,
+      "troubleshooting": 12,
+      "deployment": 2,
+      "getting-started": 3,
+      "api": 2,
+      "mobile": 29,
+      "architecture": 1
+    }
+  },
+  "files": [
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\ALERTS_SYSTEM_ANALYSIS.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\development\\ALERTS_SYSTEM_ANALYSIS.md",
+      "category": "development",
+      "title": "Analyse du système d'alertes - AgriConnect",
+      "internalLinks": [],
+      "wordCount": 751,
+      "lastModified": "2025-10-02T05:04:29.360Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\ALERTS_SYSTEM_FUNCTIONALITY_SUMMARY.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\development\\ALERTS_SYSTEM_FUNCTIONALITY_SUMMARY.md",
+      "category": "development",
+      "title": "Fonctionnement du système d'alertes - AgriConnect",
+      "internalLinks": [],
+      "wordCount": 701,
+      "lastModified": "2025-10-02T05:08:30.226Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\ANALYSIS_RESULTS.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\development\\ANALYSIS_RESULTS.md",
+      "category": "development",
+      "title": "📊 Résultats de l'Analyse Comparative",
+      "internalLinks": [],
+      "wordCount": 866,
+      "lastModified": "2025-10-01T08:15:28.256Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\APPLICATION_INTEGRATION_SUMMARY.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\integrations\\APPLICATION_INTEGRATION_SUMMARY.md",
+      "category": "integrations",
+      "title": "Application Integration Summary - AgriConnect",
+      "internalLinks": [],
+      "wordCount": 1312,
+      "lastModified": "2025-09-16T16:02:58.613Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\automation-system-summary.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\development\\automation-system-summary.md",
+      "category": "development",
+      "title": "Système d'Automatisation AgriConnect - Résumé",
+      "internalLinks": [],
+      "wordCount": 478,
+      "lastModified": "2025-09-24T05:03:34.279Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\data-flow-parcelles.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\development\\data-flow-parcelles.md",
+      "category": "development",
+      "title": "Documentation : Récupération des données parcelles",
+      "internalLinks": [],
+      "wordCount": 337,
+      "lastModified": "2025-09-26T04:25:17.436Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\DEBUG_VISITS_RLS.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\troubleshooting\\DEBUG_VISITS_RLS.md",
+      "category": "troubleshooting",
+      "title": "Debug Visits - DELETE/UPDATE ne fonctionnent pas",
+      "internalLinks": [],
+      "wordCount": 835,
+      "lastModified": "2025-10-01T12:31:01.491Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\DEPLOY_MIGRATION_GUIDE.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\deployment\\DEPLOY_MIGRATION_GUIDE.md",
+      "category": "deployment",
+      "title": "Guide de Déploiement de la Migration Auth Logs",
+      "internalLinks": [],
+      "wordCount": 635,
+      "lastModified": "2025-09-16T16:02:58.614Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\DUAL_AUTHENTICATION_SETUP.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\getting-started\\DUAL_AUTHENTICATION_SETUP.md",
+      "category": "getting-started",
+      "title": "Guide de Configuration - Authentification Duale AgriConnect",
+      "internalLinks": [],
+      "wordCount": 758,
+      "lastModified": "2025-09-16T16:02:58.615Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\executive-summary.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\development\\executive-summary.md",
+      "category": "development",
+      "title": "AgriConnect - Executive Summary",
+      "internalLinks": [],
+      "wordCount": 1049,
+      "lastModified": "2025-09-22T06:21:19.180Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\FINAL_MIGRATION_SUMMARY.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\development\\FINAL_MIGRATION_SUMMARY.md",
+      "category": "development",
+      "title": "🎉 MIGRATION COMPLÈTE: farm_file_plots → plots",
+      "internalLinks": [],
+      "wordCount": 808,
+      "lastModified": "2025-10-01T09:31:39.795Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\FINAL_STABLE_VERSION_DELIVERABLE.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\development\\FINAL_STABLE_VERSION_DELIVERABLE.md",
+      "category": "development",
+      "title": "Livrable : Version Stable AgriConnect - Supabase/React/React Native",
+      "internalLinks": [],
+      "wordCount": 2111,
+      "lastModified": "2025-10-06T08:33:17.013Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\FRONTEND_MIGRATION_COMPLETE.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\development\\FRONTEND_MIGRATION_COMPLETE.md",
+      "category": "development",
+      "title": "✅ Frontend Migration Complète - farm_file_plots → plots",
+      "internalLinks": [],
+      "wordCount": 593,
+      "lastModified": "2025-10-01T09:29:40.471Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\GEOLOCATION_FIX_SUMMARY.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\troubleshooting\\GEOLOCATION_FIX_SUMMARY.md",
+      "category": "troubleshooting",
+      "title": "🗺️ Correctif Géolocalisation - Résumé",
+      "internalLinks": [],
+      "wordCount": 567,
+      "lastModified": "2025-10-01T09:55:47.470Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\GEOM_TYPE_DEBUG_JOURNEY.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\troubleshooting\\GEOM_TYPE_DEBUG_JOURNEY.md",
+      "category": "troubleshooting",
+      "title": "🔍 Parcours de Debug: Erreur Type GEOM",
+      "internalLinks": [],
+      "wordCount": 453,
+      "lastModified": "2025-10-01T09:49:13.514Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\GPS_DISPLAY_FIX_SUMMARY.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\troubleshooting\\GPS_DISPLAY_FIX_SUMMARY.md",
+      "category": "troubleshooting",
+      "title": "Résumé de la correction GPS - AgriConnect",
+      "internalLinks": [],
+      "wordCount": 704,
+      "lastModified": "2025-10-02T04:44:47.653Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\HOW_TO_USE_VISITS_DIAGNOSTIC.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\development\\HOW_TO_USE_VISITS_DIAGNOSTIC.md",
+      "category": "development",
+      "title": "Guide d'Utilisation : Service de Diagnostic Visits",
+      "internalLinks": [],
+      "wordCount": 659,
+      "lastModified": "2025-10-01T12:50:08.483Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\INTERNATIONALIZATION_IMPLEMENTATION_DELIVERABLE.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\development\\INTERNATIONALIZATION_IMPLEMENTATION_DELIVERABLE.md",
+      "category": "development",
+      "title": "Livrable : Internationalisation AgriConnect - React/React Native",
+      "internalLinks": [],
+      "wordCount": 2015,
+      "lastModified": "2025-10-06T08:22:31.619Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\INVALID_DATE_FIX_SUMMARY.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\troubleshooting\\INVALID_DATE_FIX_SUMMARY.md",
+      "category": "troubleshooting",
+      "title": "Résolution du Bug \"Invalid Date\" - Dashboard Agent Mobile",
+      "internalLinks": [],
+      "wordCount": 474,
+      "lastModified": "2025-10-01T11:39:53.812Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\KEYBOARD_FOCUS_BUG_RESOLUTION.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\development\\KEYBOARD_FOCUS_BUG_RESOLUTION.md",
+      "category": "development",
+      "title": "Résolution du Bug de Focus Clavier - AgriConnect",
+      "internalLinks": [],
+      "wordCount": 881,
+      "lastModified": "2025-10-09T21:32:53.929Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\LOGIN_NAVIGATION_FIX_SUMMARY.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\troubleshooting\\LOGIN_NAVIGATION_FIX_SUMMARY.md",
+      "category": "troubleshooting",
+      "title": "Résumé de la Correction de Navigation - Page Login",
+      "internalLinks": [],
+      "wordCount": 588,
+      "lastModified": "2025-09-16T16:02:58.616Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\map-localization-explain.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\development\\map-localization-explain.md",
+      "category": "development",
+      "title": "Documentation : Localisation dans la carte",
+      "internalLinks": [
+        {
+          "text": "fallback coords",
+          "url": "kept_for_display"
+        }
+      ],
+      "wordCount": 389,
+      "lastModified": "2025-09-26T04:39:12.680Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\MIGRATION_COMPLETE.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\development\\MIGRATION_COMPLETE.md",
+      "category": "development",
+      "title": "🎉 MIGRATION TERMINÉE AVEC SUCCÈS !",
+      "internalLinks": [],
+      "wordCount": 942,
+      "lastModified": "2025-10-01T09:21:24.350Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\MIGRATION_COMPLETE_FINAL.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\development\\MIGRATION_COMPLETE_FINAL.md",
+      "category": "development",
+      "title": "🎉 MIGRATION COMPLÈTE - farm_file_plots → plots",
+      "internalLinks": [],
+      "wordCount": 925,
+      "lastModified": "2025-10-01T10:26:11.297Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\MIGRATION_FINAL_STATUS.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\development\\MIGRATION_FINAL_STATUS.md",
+      "category": "development",
+      "title": "📊 Statut Final de la Migration",
+      "internalLinks": [],
+      "wordCount": 1795,
+      "lastModified": "2025-10-01T12:46:48.431Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\MIGRATION_PROGRESS.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\development\\MIGRATION_PROGRESS.md",
+      "category": "development",
+      "title": "📊 Progression de la Migration: farm_file_plots → plots",
+      "internalLinks": [],
+      "wordCount": 884,
+      "lastModified": "2025-10-01T09:21:34.052Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\MIGRATION_SUCCESS_SUMMARY.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\development\\MIGRATION_SUCCESS_SUMMARY.md",
+      "category": "development",
+      "title": "Résumé de la Migration Réussie - AgriConnect",
+      "internalLinks": [],
+      "wordCount": 615,
+      "lastModified": "2025-09-16T16:02:58.616Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\MIGRATION_SUCCESS_VALIDATED.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\development\\MIGRATION_SUCCESS_VALIDATED.md",
+      "category": "development",
+      "title": "🎉 MIGRATION VALIDÉE ET COMPLÈTE",
+      "internalLinks": [],
+      "wordCount": 778,
+      "lastModified": "2025-10-01T11:24:48.823Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\MOBILE_AUTH_IMPLEMENTATION_SUMMARY.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\api\\MOBILE_AUTH_IMPLEMENTATION_SUMMARY.md",
+      "category": "api",
+      "title": "Résumé de l'Implémentation de l'Authentification Mobile - AgriConnect",
+      "internalLinks": [],
+      "wordCount": 964,
+      "lastModified": "2025-09-16T16:02:58.617Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\MOBILE_DYNAMIC_TITLES_IMPLEMENTATION.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\mobile\\MOBILE_DYNAMIC_TITLES_IMPLEMENTATION.md",
+      "category": "mobile",
+      "title": "Implémentation des titres dynamiques mobile - AgriConnect",
+      "internalLinks": [],
+      "wordCount": 1010,
+      "lastModified": "2025-10-02T03:49:57.885Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\MOBILE_FILTERS_IMPLEMENTATION_SUMMARY.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\mobile\\MOBILE_FILTERS_IMPLEMENTATION_SUMMARY.md",
+      "category": "mobile",
+      "title": "Résumé de l'implémentation des filtres mobile - AgriConnect",
+      "internalLinks": [],
+      "wordCount": 801,
+      "lastModified": "2025-10-02T03:39:39.103Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\MOBILE_LOGIN_PAGE_SUMMARY.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\mobile\\MOBILE_LOGIN_PAGE_SUMMARY.md",
+      "category": "mobile",
+      "title": "Résumé de la Page de Login Mobile - AgriConnect",
+      "internalLinks": [],
+      "wordCount": 997,
+      "lastModified": "2025-09-16T16:02:58.619Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\next-phase-implementation-plan.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\development\\next-phase-implementation-plan.md",
+      "category": "development",
+      "title": "AgriConnect - Next Phase Implementation Plan",
+      "internalLinks": [],
+      "wordCount": 1129,
+      "lastModified": "2025-09-22T06:21:08.463Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\OPENAPI_POSTMAN_GUIDE.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\api\\OPENAPI_POSTMAN_GUIDE.md",
+      "category": "api",
+      "title": "🚀 Guide OpenAPI + Postman - AgriConnect PostgREST",
+      "internalLinks": [],
+      "wordCount": 823,
+      "lastModified": "2025-09-25T01:54:53.684Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\PHASE4_CORRECTION_NOTES.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\development\\PHASE4_CORRECTION_NOTES.md",
+      "category": "development",
+      "title": "📝 Notes sur la Correction Phase 4",
+      "internalLinks": [],
+      "wordCount": 403,
+      "lastModified": "2025-10-01T09:09:08.858Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\PLOT_DISPLAY_ENHANCEMENT_SUMMARY.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\development\\PLOT_DISPLAY_ENHANCEMENT_SUMMARY.md",
+      "category": "development",
+      "title": "Résumé des améliorations d'affichage des parcelles - AgriConnect",
+      "internalLinks": [],
+      "wordCount": 753,
+      "lastModified": "2025-10-02T04:39:22.270Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\PROTOTYPE_DEPLOYMENT_DELIVERABLE.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\deployment\\PROTOTYPE_DEPLOYMENT_DELIVERABLE.md",
+      "category": "deployment",
+      "title": "Livrable : Prototype AgriConnect Déployé sur Environnement Cloud",
+      "internalLinks": [],
+      "wordCount": 1704,
+      "lastModified": "2025-10-06T08:15:37.241Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\refactoring-plots-to-farm-file-plots.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\development\\refactoring-plots-to-farm-file-plots.md",
+      "category": "development",
+      "title": "Refactoring: plots → farm_file_plots",
+      "internalLinks": [],
+      "wordCount": 1893,
+      "lastModified": "2025-10-01T08:14:31.064Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\REFACTORING_SUMMARY.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\development\\REFACTORING_SUMMARY.md",
+      "category": "development",
+      "title": "📊 Résumé de l'Analyse: farm_file_plots vs plots",
+      "internalLinks": [],
+      "wordCount": 856,
+      "lastModified": "2025-10-01T08:14:33.117Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\RENAME_MIGRATION_PLAN.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\development\\RENAME_MIGRATION_PLAN.md",
+      "category": "development",
+      "title": "🔄 Plan de Migration: Renommage farm_file_plots → plots",
+      "internalLinks": [],
+      "wordCount": 2169,
+      "lastModified": "2025-10-01T08:24:09.272Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\RENAME_MIGRATION_SIMPLIFIED.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\development\\RENAME_MIGRATION_SIMPLIFIED.md",
+      "category": "development",
+      "title": "🚀 Plan de Migration SIMPLIFIÉ: farm_file_plots → plots",
+      "internalLinks": [],
+      "wordCount": 1095,
+      "lastModified": "2025-10-01T08:28:25.196Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\ROLE_CONSTRAINT_FIX_GUIDE.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\troubleshooting\\ROLE_CONSTRAINT_FIX_GUIDE.md",
+      "category": "troubleshooting",
+      "title": "Guide de Correction de la Contrainte de Rôle - AgriConnect",
+      "internalLinks": [],
+      "wordCount": 648,
+      "lastModified": "2025-09-16T16:02:58.621Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\ROLE_SYNC_MAINTENANCE.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\development\\ROLE_SYNC_MAINTENANCE.md",
+      "category": "development",
+      "title": "Guide de Maintenance - Synchronisation des Rôles",
+      "internalLinks": [],
+      "wordCount": 672,
+      "lastModified": "2025-09-16T16:02:58.622Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\RPC_FIXES_SUMMARY.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\troubleshooting\\RPC_FIXES_SUMMARY.md",
+      "category": "troubleshooting",
+      "title": "🔧 Corrections Fonctions RPC - Migration plots",
+      "internalLinks": [],
+      "wordCount": 730,
+      "lastModified": "2025-10-01T10:18:10.632Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\SECURITY.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\architecture\\SECURITY.md",
+      "category": "architecture",
+      "title": "Security Guidelines - AgriConnect",
+      "internalLinks": [],
+      "wordCount": 724,
+      "lastModified": "2025-09-16T16:02:58.623Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\SUPABASE_AUTH_SETUP.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\getting-started\\SUPABASE_AUTH_SETUP.md",
+      "category": "getting-started",
+      "title": "Configuration Supabase Auth - AgriConnect",
+      "internalLinks": [],
+      "wordCount": 1601,
+      "lastModified": "2025-09-16T16:02:58.625Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\system-test-analysis.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\development\\system-test-analysis.md",
+      "category": "development",
+      "title": "AgriConnect System Test Analysis & Implementation Status",
+      "internalLinks": [],
+      "wordCount": 981,
+      "lastModified": "2025-09-22T06:20:04.325Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\TECHNICAL_DOCUMENTATION_DELIVERABLE.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\development\\TECHNICAL_DOCUMENTATION_DELIVERABLE.md",
+      "category": "development",
+      "title": "Livrable : Documentation Technique AgriConnect - Démo Technique",
+      "internalLinks": [],
+      "wordCount": 2855,
+      "lastModified": "2025-10-06T09:15:32.512Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\TWILIO_SETUP_GUIDE.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\getting-started\\TWILIO_SETUP_GUIDE.md",
+      "category": "getting-started",
+      "title": "🔧 Guide de Configuration Twilio - AgriConnect",
+      "internalLinks": [],
+      "wordCount": 584,
+      "lastModified": "2025-09-16T16:02:58.625Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\VISITS_CRUD_DEBUG_GUIDE.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\troubleshooting\\VISITS_CRUD_DEBUG_GUIDE.md",
+      "category": "troubleshooting",
+      "title": "Guide de Debug CRUD Visits - Mobile",
+      "internalLinks": [],
+      "wordCount": 578,
+      "lastModified": "2025-10-01T12:37:53.399Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\VISITS_UPDATE_DELETE_FIX.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\troubleshooting\\VISITS_UPDATE_DELETE_FIX.md",
+      "category": "troubleshooting",
+      "title": "Fix UPDATE/DELETE Visites - Guide Complet",
+      "internalLinks": [],
+      "wordCount": 892,
+      "lastModified": "2025-10-01T11:55:29.058Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\VISIT_CREATION_FIXES_SUMMARY.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\troubleshooting\\VISIT_CREATION_FIXES_SUMMARY.md",
+      "category": "troubleshooting",
+      "title": "Résumé des corrections de création de visite - AgriConnect",
+      "internalLinks": [],
+      "wordCount": 704,
+      "lastModified": "2025-10-02T04:56:50.836Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\VISIT_CRUD_IMPLEMENTATION_SUMMARY.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\development\\VISIT_CRUD_IMPLEMENTATION_SUMMARY.md",
+      "category": "development",
+      "title": "Résumé de l'implémentation CRUD des visites - AgriConnect",
+      "internalLinks": [],
+      "wordCount": 909,
+      "lastModified": "2025-10-02T03:55:58.007Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\VISIT_FORM_FIXES_SUMMARY.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\troubleshooting\\VISIT_FORM_FIXES_SUMMARY.md",
+      "category": "troubleshooting",
+      "title": "Résumé des corrections du formulaire de visite - AgriConnect",
+      "internalLinks": [],
+      "wordCount": 752,
+      "lastModified": "2025-10-02T04:07:33.523Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs\\web-mobile-localization-comparison.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\mobile\\web-mobile-localization-comparison.md",
+      "category": "mobile",
+      "title": "Comparaison : Localisation carte Web vs Mobile",
+      "internalLinks": [],
+      "wordCount": 299,
+      "lastModified": "2025-09-26T04:44:03.587Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\mobile\\docs\\agent-dashboard-mobile-implementation.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\mobile\\agent-dashboard-mobile-implementation.md",
+      "category": "mobile",
+      "title": "Agent Dashboard Mobile Implementation - AgriConnect",
+      "internalLinks": [],
+      "wordCount": 924,
+      "lastModified": "2025-09-16T16:02:58.709Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\mobile\\docs\\CACHE_SYSTEM_GUIDE.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\mobile\\CACHE_SYSTEM_GUIDE.md",
+      "category": "mobile",
+      "title": "Guide du Système de Cache AgriConnect",
+      "internalLinks": [],
+      "wordCount": 1114,
+      "lastModified": "2025-10-08T08:13:30.061Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\mobile\\docs\\COMPONENT_MIGRATION_GUIDE.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\mobile\\COMPONENT_MIGRATION_GUIDE.md",
+      "category": "mobile",
+      "title": "Guide de Migration vers le Nouveau Système de Composants - AgriConnect",
+      "internalLinks": [
+        {
+          "text": "Guide du Système de Layout",
+          "url": "./LAYOUT_SYSTEM_GUIDE.md"
+        },
+        {
+          "text": "Guide des Composants UI",
+          "url": "./UI_COMPONENTS_GUIDE.md"
+        },
+        {
+          "text": "Guide du Système de Design",
+          "url": "./DESIGN_SYSTEM.md"
+        }
+      ],
+      "wordCount": 1503,
+      "lastModified": "2025-10-03T17:16:42.100Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\mobile\\docs\\dashboard-implementation-update.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\mobile\\dashboard-implementation-update.md",
+      "category": "mobile",
+      "title": "Dashboard Implementation Update - AgriConnect",
+      "internalLinks": [],
+      "wordCount": 755,
+      "lastModified": "2025-09-16T16:02:58.710Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\mobile\\docs\\DASHBOARD_ENHANCEMENT_SUMMARY.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\mobile\\DASHBOARD_ENHANCEMENT_SUMMARY.md",
+      "category": "mobile",
+      "title": "✅ Amélioration du Dashboard Parcelle - Résumé",
+      "internalLinks": [],
+      "wordCount": 523,
+      "lastModified": "2025-10-09T22:48:06.425Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\mobile\\docs\\DASHBOARD_SIMPLIFICATION_SUMMARY.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\mobile\\DASHBOARD_SIMPLIFICATION_SUMMARY.md",
+      "category": "mobile",
+      "title": "📋 Simplification du Dashboard Parcelle - Résumé",
+      "internalLinks": [],
+      "wordCount": 478,
+      "lastModified": "2025-10-09T22:24:13.126Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\mobile\\docs\\database_schema.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\mobile\\database_schema.md",
+      "category": "mobile",
+      "title": "Database Schema Documentation - AgriConnect",
+      "internalLinks": [],
+      "wordCount": 1697,
+      "lastModified": "2025-09-16T16:02:58.711Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\mobile\\docs\\dual_authentication_strategy.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\mobile\\dual_authentication_strategy.md",
+      "category": "mobile",
+      "title": "Dual Authentication Strategy - AgriConnect",
+      "internalLinks": [],
+      "wordCount": 1537,
+      "lastModified": "2025-09-16T16:02:58.713Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\mobile\\docs\\dual_auth_implementation_plan.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\mobile\\dual_auth_implementation_plan.md",
+      "category": "mobile",
+      "title": "Dual Authentication Implementation Plan - AgriConnect",
+      "internalLinks": [],
+      "wordCount": 2338,
+      "lastModified": "2025-09-16T16:02:58.712Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\mobile\\docs\\INTERVENANTS_SECTION_FIX.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\mobile\\INTERVENANTS_SECTION_FIX.md",
+      "category": "mobile",
+      "title": "✅ Correction Section Intervenants - Résumé",
+      "internalLinks": [],
+      "wordCount": 478,
+      "lastModified": "2025-10-09T23:09:07.229Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\mobile\\docs\\KEYBOARD_CONTROL_GUIDE.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\mobile\\KEYBOARD_CONTROL_GUIDE.md",
+      "category": "mobile",
+      "title": "Guide de Contrôle du Clavier - AgriConnect",
+      "internalLinks": [],
+      "wordCount": 874,
+      "lastModified": "2025-10-03T16:53:40.194Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\mobile\\docs\\LAYOUT_SYSTEM_GUIDE.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\mobile\\LAYOUT_SYSTEM_GUIDE.md",
+      "category": "mobile",
+      "title": "Guide du Système de Layout - AgriConnect",
+      "internalLinks": [
+        {
+          "text": "Guide des Composants UI",
+          "url": "./UI_COMPONENTS_GUIDE.md"
+        },
+        {
+          "text": "Guide du Système de Design",
+          "url": "./DESIGN_SYSTEM.md"
+        },
+        {
+          "text": "Guide de Migration",
+          "url": "./MIGRATION_GUIDE.md"
+        }
+      ],
+      "wordCount": 1391,
+      "lastModified": "2025-10-03T17:04:54.770Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\mobile\\docs\\memory_bank_update_summary.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\mobile\\memory_bank_update_summary.md",
+      "category": "mobile",
+      "title": "Memory Bank Update Summary - Dual Authentication Strategy",
+      "internalLinks": [],
+      "wordCount": 941,
+      "lastModified": "2025-09-16T16:02:58.713Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\mobile\\docs\\MIGRATION_PLAN_VALIDATED.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\mobile\\MIGRATION_PLAN_VALIDATED.md",
+      "category": "mobile",
+      "title": "Plan de Migration Validé - AgriConnect",
+      "internalLinks": [],
+      "wordCount": 503,
+      "lastModified": "2025-10-06T11:03:49.793Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\mobile\\docs\\mobileDevelopmentStatus.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\mobile\\mobileDevelopmentStatus.md",
+      "category": "mobile",
+      "title": "Mobile Development Status - AgriConnect",
+      "internalLinks": [],
+      "wordCount": 950,
+      "lastModified": "2025-09-16T16:02:58.714Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\mobile\\docs\\PHOTO_GALLERY_IMPLEMENTATION_SUMMARY.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\mobile\\PHOTO_GALLERY_IMPLEMENTATION_SUMMARY.md",
+      "category": "mobile",
+      "title": "✅ Implémentation PhotoGallery - Résumé",
+      "internalLinks": [],
+      "wordCount": 593,
+      "lastModified": "2025-10-09T22:49:13.939Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\mobile\\docs\\REFACTORING_PLAN.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\mobile\\REFACTORING_PLAN.md",
+      "category": "mobile",
+      "title": "Plan Global de Refactorisation AgriConnect - Services et Cache",
+      "internalLinks": [],
+      "wordCount": 971,
+      "lastModified": "2025-10-06T16:59:04.720Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\mobile\\docs\\SCREENCONTAINER_AND_BUTTON_LOGIC_IMPROVEMENTS.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\mobile\\SCREENCONTAINER_AND_BUTTON_LOGIC_IMPROVEMENTS.md",
+      "category": "mobile",
+      "title": "✅ Améliorations ScreenContainer et Logique des Boutons - Résumé",
+      "internalLinks": [],
+      "wordCount": 660,
+      "lastModified": "2025-10-09T22:59:45.449Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\mobile\\docs\\SERVICES_REFACTORING_COMPLETE.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\mobile\\SERVICES_REFACTORING_COMPLETE.md",
+      "category": "mobile",
+      "title": "Services Refactoring Complete - AgriConnect",
+      "internalLinks": [],
+      "wordCount": 2154,
+      "lastModified": "2025-10-08T08:01:06.401Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\mobile\\docs\\SERVICE_REFACTORING_ANALYSIS.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\mobile\\SERVICE_REFACTORING_ANALYSIS.md",
+      "category": "mobile",
+      "title": "Analyse de la Refactorisation des Services AgriConnect",
+      "internalLinks": [
+        {
+          "text": "Plan de Refactorisation",
+          "url": "REFACTORING_PLAN.md"
+        },
+        {
+          "text": "Guide du Système de Cache",
+          "url": "CACHE_SYSTEM_GUIDE.md"
+        }
+      ],
+      "wordCount": 1120,
+      "lastModified": "2025-10-06T18:18:31.390Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\mobile\\docs\\SYSTEM_COMPONENTS_SUMMARY.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\mobile\\SYSTEM_COMPONENTS_SUMMARY.md",
+      "category": "mobile",
+      "title": "Résumé du Système de Composants AgriConnect",
+      "internalLinks": [],
+      "wordCount": 1333,
+      "lastModified": "2025-10-03T17:16:44.996Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\mobile\\docs\\TAB_STANDARDIZATION_SUMMARY.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\mobile\\TAB_STANDARDIZATION_SUMMARY.md",
+      "category": "mobile",
+      "title": "📋 Standardisation des Tabs - Résumé",
+      "internalLinks": [],
+      "wordCount": 513,
+      "lastModified": "2025-10-09T22:09:23.192Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\mobile\\docs\\TWILIO_SETUP.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\mobile\\TWILIO_SETUP.md",
+      "category": "mobile",
+      "title": "Configuration Twilio pour AgriConnect Mobile",
+      "internalLinks": [],
+      "wordCount": 591,
+      "lastModified": "2025-09-16T16:02:58.709Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\mobile\\docs\\UI_UX_REFACTORING_PLAN.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\mobile\\UI_UX_REFACTORING_PLAN.md",
+      "category": "mobile",
+      "title": "📋 Plan de Refactoring UI/UX - Standardisation Complète",
+      "internalLinks": [],
+      "wordCount": 1114,
+      "lastModified": "2025-10-09T21:51:44.986Z"
+    },
+    {
+      "source": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\mobile\\docs\\userRoleEnum.md",
+      "target": "C:\\Users\\user\\OneDrive\\Bureau\\AgriConnect\\docs-site\\docs\\mobile\\userRoleEnum.md",
+      "category": "mobile",
+      "title": "User Role Enum Implementation - AgriConnect",
+      "internalLinks": [],
+      "wordCount": 1069,
+      "lastModified": "2025-09-16T16:02:58.715Z"
+    }
+  ],
+  "errors": []
+}

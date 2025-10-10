@@ -68,7 +68,7 @@
 | 15 | web/src/pages/plots/index.tsx | ✅ | Key tableau corrigé |
 | 16 | mobile/lib/services/collecte.ts | ✅ | agent_assignments (2x) + getVisitById (profiles→producers FK fix) |
 | 17 | mobile/lib/services/farmFileGenerator.ts | ✅ | agent_assignments + profiles→producers join + display_name fix |
-| 18 | mobile/lib/services/dashboard.js | ✅ | agent_assignments (2x) + profiles→producers + name/location fix |
+| 18 | mobile/lib/services/dashboard.js | ✅ | **REFACTORISÉ** → domain/plots/plots.service.ts |
 | 19 | types/database.ts | ✅ | **Types régénérés depuis Supabase** |
 | 20 | lib/supabase/types/database.ts | ✅ | Types copiés (synchronisé) |
 | 21 | web/src/types/database.ts | ✅ | Types copiés (synchronisé) |
@@ -76,7 +76,7 @@
 | 23 | mobile/lib/supabase.ts | ✅ | Import corrigé → ../types/database |
 | 24 | mobile/lib/services/collecte.ts | ✅ | Import corrigé → ../../types/database |
 | 25 | mobile/lib/services/farmFileGenerator.ts | ✅ | Import corrigé → ../../types/database |
-| 26 | mobile/lib/services/dashboard.ts | ✅ | Import corrigé → ../../types/database |
+| 26 | mobile/lib/services/dashboard.ts | ✅ | **REFACTORISÉ** → domain/plots/plots.service.ts |
 | 27 | mobile/types/collecte.ts | ✅ | Import corrigé → ./database |
 | 28 | mobile/app/(tabs)/visite-form.tsx | ✅ | Gestion null pour getVisitById (RLS) |
 | 29 | mobile/lib/services/visitsDiagnostic.ts | ✅ | **Service de diagnostic RLS/Auth (nouveau)** |

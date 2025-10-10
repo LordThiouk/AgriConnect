@@ -18,7 +18,7 @@ import { VisitsDiagnostic } from '@/lib/services/visitsDiagnostic';
 
 ### 1️⃣ Log Rapide de la Session (Recommandé au Démarrage)
 
-**Dans** : `mobile/app/(tabs)/agent-dashboard.tsx`
+**Dans** : `mobile/app/(tabs)/agent-dashboard.tsx (existe toujours)`
 
 **Ajouter après les imports** (ligne 14) :
 
@@ -49,7 +49,7 @@ React.useEffect(() => {
 
 ### 2️⃣ Diagnostic Complet Avant UPDATE/DELETE
 
-**Dans** : `mobile/app/(tabs)/agent-dashboard.tsx`
+**Dans** : `mobile/app/(tabs)/agent-dashboard.tsx (existe toujours)`
 
 **Dans la fonction `confirmDeleteVisit`** (ligne ~82) :
 

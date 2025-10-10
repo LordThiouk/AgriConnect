@@ -15,7 +15,7 @@ L'interface mobile affichait "Localisation non disponible" pour toutes les parce
 
 ### 1. **Correction de l'interface TypeScript**
 
-**Fichier** : `mobile/lib/services/dashboard.ts`
+**Fichier** : `mobile/lib/services/domain/plots/plots.service.ts` (refactorisé)
 
 **AVANT** :
 ```typescript
@@ -37,7 +37,7 @@ export interface TodayVisit {
 
 ### 2. **Correction de l'interface mobile**
 
-**Fichier** : `mobile/app/(tabs)/agent-dashboard.tsx`
+**Fichier** : `mobile/app/(tabs)/agent-dashboard.tsx (existe toujours)`
 
 **AVANT** :
 ```tsx

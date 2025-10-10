@@ -166,7 +166,7 @@
 ## 📱 Écrans Migrés
 
 ### ✅ Agent Dashboard (1/1 écran)
-- **`mobile/app/(tabs)/agent-dashboard.tsx`** - Tableau de bord principal
+- **`mobile/app/(tabs)/agent-dashboard.tsx (existe toujours)`** - Tableau de bord principal
   - ✅ Migré vers tous les nouveaux services domain
   - ✅ Utilise `useFarmFiles()`, `useProducerStats()`, `usePlotStats()`, `useAgentAssignments()`
   - ✅ Affiche le nombre de **producteurs assignés** via `agent-assignments`

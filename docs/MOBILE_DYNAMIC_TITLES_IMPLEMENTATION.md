@@ -68,7 +68,7 @@ Les sous-titres des boutons de filtre fournissent plus de contexte :
 ## 🔧 Implémentation technique
 
 ### **Fichier modifié :**
-- `mobile/app/(tabs)/agent-dashboard.tsx`
+- `mobile/app/(tabs)/agent-dashboard.tsx (existe toujours)`
 
 ### **Sections mises à jour :**
 

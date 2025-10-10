@@ -10,7 +10,7 @@ Les opérations DELETE et UPDATE sur les visites échouent, probablement à caus
 
 ### Étape 1 : Vérifier la session auth
 
-Dans `mobile/app/(tabs)/agent-dashboard.tsx`, **ligne ~50** (début du composant), ajouter :
+Dans `mobile/app/(tabs)/agent-dashboard.tsx (existe toujours)`, **ligne ~50** (début du composant), ajouter :
 
 ```typescript
 useEffect(() => {

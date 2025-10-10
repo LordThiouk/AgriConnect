@@ -30,7 +30,7 @@ END as latitude
 - **Performance** : Coûteuse (calcul client)
 
 ```typescript
-// mobile/lib/services/collecte.ts
+// mobile/lib/services/domain/plots/plots.service.ts (refactorisé)
 if (plot.geom.type === 'Point') {
   coords = [plot.geom.coordinates];
 } else if (plot.geom.type === 'Polygon') {

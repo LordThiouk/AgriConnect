@@ -98,7 +98,7 @@ app/
 
 ### **Components**
 - `mobile/app/(auth)/login.tsx`: Modern login screen with OTP SMS
-- `mobile/app/(tabs)/agent-dashboard.tsx`: Agent dashboard with stats and actions
+- `mobile/app/(tabs)/agent-dashboard.tsx (existe toujours)`: Agent dashboard with stats and actions
 - `mobile/app/(tabs)/producer-dashboard.tsx`: Producer dashboard with plots and recommendations
 - `mobile/app/(tabs)/test-redirect.tsx`: Debug page for navigation testing
 

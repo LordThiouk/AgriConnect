@@ -16,7 +16,7 @@ Complete implementation of the Agent Dashboard for the AgriConnect mobile applic
 - **Action Buttons**: "Nouvelles visites" and "Carte" buttons
 
 #### 2. **Data Service Layer**
-- **File**: `mobile/lib/services/dashboard.ts`
+- **File**: `mobile/lib/services/domain/plots/plots.service.ts (refactorisé)`
 - **Features**:
   - Supabase integration for real data fetching
   - Comprehensive error handling with fallback to simulated data
@@ -166,8 +166,8 @@ PostgreSQL Database (with fallback to simulated data)
 ### Files Modified/Created
 
 #### Core Implementation
-- `mobile/app/(tabs)/agent-dashboard.tsx` - Main dashboard component
-- `mobile/lib/services/dashboard.ts` - Data service layer
+- `mobile/app/(tabs)/agent-dashboard.tsx (existe toujours)` - Main dashboard component
+- `mobile/lib/services/domain/plots/plots.service.ts (refactorisé)` - Data service layer
 - `mobile/hooks/useAgentDashboard.ts` - State management hook
 
 #### Configuration

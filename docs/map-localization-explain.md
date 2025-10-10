@@ -21,7 +21,7 @@ farm_file_plots.geom:
 ### 🎯 **2. Extraction des coordonnées**
 
 ```typescript
-// mobile/lib/services/collecte.ts : getAgentPlots()
+// mobile/lib/services/domain/plots/plots.service.ts (refactorisé) : getAgentPlots()
 plot.geom:
   - Point geometry: lon ~ lat  
   - Polygon: coords[0] contains rings
@@ -35,7 +35,7 @@ procedure extract_coordinates():
 ```
 
 #### **Types supportés:**
-```328:335:mobile/lib/services/collecte.ts
+```328:335:mobile/lib/services/domain/plots/plots.service.ts (refactorisé)
 if (plot.geom.type === 'Point') {
     coords = [plot.geom.coordinates];
 } else if (plot.geom.type === 'Polygon') {

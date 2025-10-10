@@ -29,7 +29,7 @@ plot_status text
 
 ### 2. **Frontend - Interface mobile améliorée**
 
-**Fichier** : `mobile/app/(tabs)/agent-dashboard.tsx`
+**Fichier** : `mobile/app/(tabs)/agent-dashboard.tsx (existe toujours)`
 
 **Nouvelle section d'informations de parcelle** :
 ```tsx
@@ -98,7 +98,7 @@ plotDetailsSeparator: {
 
 ### 3. **Types TypeScript mis à jour**
 
-**Fichier** : `mobile/lib/services/dashboard.ts`
+**Fichier** : `mobile/lib/services/domain/plots/plots.service.ts` (refactorisé)
 
 **Interface `TodayVisit` étendue** :
 ```typescript

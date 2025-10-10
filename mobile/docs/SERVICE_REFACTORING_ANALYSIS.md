@@ -87,7 +87,7 @@ Avec une couche de services **et de hooks** entièrement refactorisée et valid�
 
 2.  **Dépréciation et Suppression** :
     -   **Action** : Une fois que plus aucun composant n'importe `collecte.ts`.
-    -   **Objectif** : Archiver ou supprimer définitivement le fichier `mobile/lib/services/collecte.ts` pour solder la dette technique.
+    -   **Objectif** : Archiver ou supprimer définitivement le fichier `mobile/lib/services/domain/plots/plots.service.ts (refactorisé)` pour solder la dette technique.
 
 3.  **Monitoring (Phase 4)** :
     -   **Action** : Commencer à utiliser les métriques exposées par le système de cache (`agriConnectCache.getMetrics()`) pour surveiller le taux de "hit" et les performances en conditions réelles.
