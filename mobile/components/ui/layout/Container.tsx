@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { Keyboard, TouchableWithoutFeedback } from 'react-native';
 import { Box, VStack, HStack } from 'native-base';
 // import { useRouter, usePathname } from 'expo-router'; // Désactivé - utilisation TabBar native
 // import { useAuth } from '../../../context/AuthContext'; // Désactivé - utilisation TabBar native
@@ -167,6 +168,7 @@ interface ScreenContainerProps {
   }[];
   footerLoading?: boolean;
   contentPadding?: number | string;
+  contentPaddingTop?: number | string;
   contentScrollable?: boolean;
   showTabBar?: boolean;
   // Nouvelles props pour SubHeader
@@ -188,6 +190,7 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
   footerActions,
   footerLoading = false,
   contentPadding = 0,
+  contentPaddingTop,
   contentScrollable = true,
   showTabBar = true,
   // Nouvelles props pour SubHeader
@@ -215,7 +218,7 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
         // } : undefined}
         content={{
           padding: contentPadding,
-          paddingTop: showSubHeader ? 68 : contentPadding, // Compense la hauteur du Header + SubHeader
+          paddingTop: contentPaddingTop !== undefined ? contentPaddingTop : (showSubHeader ? 68 : contentPadding), // Compense la hauteur du Header + SubHeader
           scrollable: contentScrollable,
           space: showSubHeader ? 0 : undefined, // Pas d'espace quand SubHeader est présent
         }}
@@ -335,10 +338,18 @@ export const FormContainer: React.FC<FormContainerProps> = ({
         padding: contentPadding,
         scrollable: true,
         keyboardShouldPersistTaps: 'always',
+        // allow iOS drag-to-dismiss
+        // @ts-ignore: property forwarded to ScrollView in Content component
+        keyboardDismissMode: 'on-drag',
         backgroundColor: 'white',
       }}
     >
-      {children}
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        {/* Any tap outside inputs will dismiss the keyboard */}
+        <Box flex={1} bg="transparent">
+          {children}
+        </Box>
+      </TouchableWithoutFeedback>
     </Container>
   );
 };

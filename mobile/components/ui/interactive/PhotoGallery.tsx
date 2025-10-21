@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   ScrollView,
   Image,
@@ -7,7 +7,8 @@ import {
   Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { MediaService, MediaFile } from '../../../lib/services/media';
+import { MediaFile } from '../../../lib/services/media';
+import { useMediaByEntity } from '../../../lib/hooks/useMedia';
 import { 
   Box, 
   Text, 
@@ -15,7 +16,6 @@ import {
   VStack, 
   Pressable, 
   IconButton,
-  Badge,
   Spinner,
   useTheme
 } from 'native-base';
@@ -35,6 +35,9 @@ interface PhotoGalleryProps {
   enableDelete?: boolean;
   showBadge?: boolean;
   badgeColor?: string;
+  openImmediately?: boolean; // auto-open modal when photos ready
+  modalOnly?: boolean; // render only fullscreen modal, no inline gallery
+  onClose?: () => void; // notify parent on close
 }
 
 const PhotoGallery: React.FC<PhotoGalleryProps> = ({
@@ -52,42 +55,52 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({
   enableDelete = true,
   showBadge = true,
   badgeColor = 'error.500',
+  openImmediately = false,
+  modalOnly = false,
+  onClose,
 }) => {
   const theme = useTheme();
-  const [photos, setPhotos] = useState<MediaFile[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: photos, loading, deleteMedia } = useMediaByEntity(entityType, entityId, { refetchOnMount: true });
   const [selectedPhoto, setSelectedPhoto] = useState<MediaFile | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [modalVisible, setModalVisible] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
 
   const screenWidth = Dimensions.get('window').width;
   const photoSize = (screenWidth - (spacing * (columns + 1) * 4)) / columns;
 
-  const loadPhotos = useCallback(async () => {
-    try {
-      setLoading(true);
-      console.log('📸 [PhotoGallery] Chargement photos pour:', { entityType, entityId });
-      const mediaPhotos = await MediaService.getMediaByEntity(entityType, entityId);
-      console.log('📸 [PhotoGallery] Photos récupérées:', mediaPhotos.length, 'photos');
-      setPhotos(mediaPhotos.slice(0, maxPhotos));
-    } catch (error) {
-      console.error('❌ [PhotoGallery] Erreur chargement photos:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [entityType, entityId, maxPhotos]);
+  // Limiter à maxPhotos si fourni
+  const limitedPhotos = (photos || []).slice(0, maxPhotos);
 
+  // Auto-open fullscreen if requested and photos are available
   useEffect(() => {
-    loadPhotos();
-  }, [loadPhotos]);
+    if (openImmediately && !modalVisible && limitedPhotos.length > 0) {
+      setSelectedPhoto(limitedPhotos[0]);
+      setSelectedIndex(0);
+      setModalVisible(true);
+    }
+  }, [openImmediately, limitedPhotos, modalVisible]);
 
   const handlePhotoPress = (photo: MediaFile) => {
     if (onPhotoPress) {
       onPhotoPress(photo);
     } else {
       setSelectedPhoto(photo);
+      const index = limitedPhotos.findIndex(p => p.id === photo.id);
+      setSelectedIndex(index >= 0 ? index : 0);
       setModalVisible(true);
     }
   };
+
+  // When modal opens, scroll to the selected index once
+  useEffect(() => {
+    if (modalVisible && scrollRef.current) {
+      const x = selectedIndex * screenWidth;
+      requestAnimationFrame(() => {
+        scrollRef.current?.scrollTo({ x, y: 0, animated: false });
+      });
+    }
+  }, [modalVisible, selectedIndex, screenWidth]);
 
   const handlePhotoDelete = async (photoId: string) => {
     if (onPhotoDelete) {
@@ -103,8 +116,7 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({
             style: 'destructive',
             onPress: async () => {
               try {
-                await MediaService.deleteMedia(photoId);
-                setPhotos(photos.filter(p => p.id !== photoId));
+                await deleteMedia(photoId);
                 Alert.alert('Succès', 'Photo supprimée avec succès');
               } catch (error) {
                 console.error('Erreur suppression photo:', error);
@@ -195,7 +207,7 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({
     );
   }
 
-  if (photos.length === 0) {
+  if (limitedPhotos.length === 0) {
     if (isHeaderGallery) {
       return (
         <Pressable
@@ -238,7 +250,7 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({
 
   // Mode header - afficher une seule photo en grand format
   if (isHeaderGallery) {
-    const firstPhoto = photos[0];
+    const firstPhoto = limitedPhotos[0];
     return (
       <Pressable
         onPress={() => handlePhotoPress(firstPhoto)}
@@ -277,6 +289,73 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({
     );
   }
 
+  if (modalOnly) {
+    return (
+      <Box style={style}>
+        <Modal
+          visible={modalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => {
+            setModalVisible(false);
+            onClose?.();
+          }}
+        >
+          <Box flex={1} bg="rgba(0,0,0,0.95)" justifyContent="center" alignItems="center">
+            <Box w="100%" h="100%" position="relative">
+              <IconButton
+                icon={<Ionicons name="close" size={24} color="#FFFFFF" />}
+                onPress={() => {
+                  setModalVisible(false);
+                  onClose?.();
+                }}
+                variant="ghost"
+                position="absolute"
+                top={10}
+                right={10}
+                zIndex={1}
+                bg="rgba(0,0,0,0.5)"
+                borderRadius={20}
+                _pressed={{ opacity: 0.7 }}
+              />
+              {selectedPhoto && (
+                <>
+                  <ScrollView
+                    ref={scrollRef}
+                    horizontal
+                    pagingEnabled
+                    showsHorizontalScrollIndicator={false}
+                    onMomentumScrollEnd={(e) => {
+                      const idx = Math.round(e.nativeEvent.contentOffset.x / screenWidth);
+                      setSelectedIndex(idx);
+                      setSelectedPhoto(limitedPhotos[idx]);
+                    }}
+                    style={{ flex: 1 }}
+                  >
+                    {limitedPhotos.map((p) => (
+                      <Box key={p.id} width={screenWidth} height="100%" alignItems="center" justifyContent="center">
+                        <Image
+                          source={{ uri: p.url }}
+                          style={{ width: screenWidth, height: '100%' }}
+                          resizeMode="contain"
+                        />
+                      </Box>
+                    ))}
+                  </ScrollView>
+                  <HStack position="absolute" bottom={24} alignSelf="center" space={1}>
+                    {limitedPhotos.map((_, i) => (
+                      <Box key={i} w={2} h={2} borderRadius={10} bg={i === selectedIndex ? 'white' : 'gray.500'} opacity={i === selectedIndex ? 1 : 0.5} />
+                    ))}
+                  </HStack>
+                </>
+              )}
+            </Box>
+          </Box>
+        </Modal>
+      </Box>
+    );
+  }
+
   return (
     <Box style={style} my={2.5}>
       {showTitle && (
@@ -291,7 +370,7 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({
         contentContainerStyle={{ paddingRight: 16 }}
       >
         <HStack flexWrap="wrap" space={0}>
-          {photos.map((photo, index) => renderPhoto(photo, index))}
+          {limitedPhotos.map((photo, index) => renderPhoto(photo, index))}
         </HStack>
       </ScrollView>
 
@@ -302,15 +381,15 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({
         animationType="fade"
         onRequestClose={() => setModalVisible(false)}
       >
-        <Box flex={1} bg="rgba(0,0,0,0.9)" justifyContent="center" alignItems="center">
-          <Box w="90%" h="80%" position="relative">
+        <Box flex={1} bg="rgba(0,0,0,0.95)" justifyContent="center" alignItems="center">
+          <Box w="100%" h="100%" position="relative">
             <IconButton
               icon={<Ionicons name="close" size={24} color="#FFFFFF" />}
               onPress={() => setModalVisible(false)}
               variant="ghost"
               position="absolute"
-              top={2.5}
-              right={2.5}
+              top={10}
+              right={10}
               zIndex={1}
               bg="rgba(0,0,0,0.5)"
               borderRadius={20}
@@ -318,56 +397,35 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({
             />
             
             {selectedPhoto && (
-              <ScrollView style={{ flex: 1 }}>
-                <Image
-                  source={{ uri: selectedPhoto.url }}
-                  style={{ width: '100%', height: '70%' }}
-                  resizeMode="contain"
-                />
-                
-                <VStack p={4} bg="rgba(255,255,255,0.1)">
-                  <Text color="#FFFFFF" fontSize="md" fontWeight="semibold" mb={2}>
-                    {selectedPhoto.file_name}
-                  </Text>
-                  {selectedPhoto.description && (
-                    <Text color="#FFFFFF" fontSize="sm" mb={2}>
-                      {selectedPhoto.description}
-                    </Text>
-                  )}
-                  {selectedPhoto.gps_coordinates && (
-                    <Text color={theme.colors.primary?.[500] || '#3D944B'} fontSize="xs" mb={1}>
-                      📍 {selectedPhoto.gps_coordinates.lat.toFixed(6)}, {selectedPhoto.gps_coordinates.lon.toFixed(6)}
-                    </Text>
-                  )}
-                  <Text color="#CCCCCC" fontSize="xs" mb={2}>
-                    📅 {new Date(selectedPhoto.taken_at || selectedPhoto.created_at).toLocaleString()}
-                  </Text>
-                  {selectedPhoto.tags && selectedPhoto.tags.length > 0 && (
-                    <VStack mt={2}>
-                      <Text color="#FFFFFF" fontSize="xs" mb={1}>
-                        Tags:
-                      </Text>
-                      <HStack flexWrap="wrap">
-                        {selectedPhoto.tags.map((tag, index) => (
-                          <Badge
-                            key={index}
-                            bg={`rgba(${theme.colors.primary?.[500] || '#3D944B'}, 0.8)`}
-                            borderRadius="full"
-                            px={2}
-                            py={1}
-                            mr={1}
-                            mb={1}
-                          >
-                            <Text color="#FFFFFF" fontSize="xs">
-                              {tag}
-                            </Text>
-                          </Badge>
-                        ))}
-                      </HStack>
-                    </VStack>
-                  )}
-                </VStack>
-              </ScrollView>
+              <>
+                <ScrollView
+                  ref={scrollRef}
+                  horizontal
+                  pagingEnabled
+                  showsHorizontalScrollIndicator={false}
+                  onMomentumScrollEnd={(e) => {
+                    const idx = Math.round(e.nativeEvent.contentOffset.x / screenWidth);
+                    setSelectedIndex(idx);
+                    setSelectedPhoto(limitedPhotos[idx]);
+                  }}
+                  style={{ flex: 1 }}
+                >
+                  {limitedPhotos.map((p) => (
+                    <Box key={p.id} width={screenWidth} height="100%" alignItems="center" justifyContent="center">
+                      <Image
+                        source={{ uri: p.url }}
+                        style={{ width: screenWidth, height: '100%' }}
+                        resizeMode="contain"
+                      />
+                    </Box>
+                  ))}
+                </ScrollView>
+                <HStack position="absolute" bottom={24} alignSelf="center" space={1}>
+                  {limitedPhotos.map((_, i) => (
+                    <Box key={i} w={2} h={2} borderRadius={10} bg={i === selectedIndex ? 'white' : 'gray.500'} opacity={i === selectedIndex ? 1 : 0.5} />
+                  ))}
+                </HStack>
+              </>
             )}
           </Box>
         </Box>

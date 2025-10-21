@@ -1,7 +1,8 @@
 import React from 'react';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { BarChart3, Users, MapPin, Megaphone, Settings, X, LogOut, Wheat, UserCheck, Bell, Building2 } from 'lucide-react';
 import { Button } from '../ui/button';
+import { useAuth } from '../../context/AuthContext';
 
 // Type assertions pour résoudre le conflit de types
 const BarChart3Icon = BarChart3 as any;
@@ -23,6 +24,8 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { signOut } = useAuth();
   
   const menuItems = [
     { icon: BarChart3Icon, label: 'Tableau de bord', path: '/dashboard' },
@@ -33,6 +36,16 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
     { icon: BellIcon, label: 'Alertes & Recommandations', path: '/alerts' },
     { icon: SettingsIcon, label: 'Paramètres', path: '/settings' },
   ];
+
+  // Fonction de déconnexion
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate('/login');
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error);
+    }
+  };
 
   return (
     <>
@@ -48,7 +61,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
       <div className={`
         fixed top-0 left-0 z-50 w-64 bg-white shadow-xl border-r border-gray-200 transform transition-transform duration-300 ease-in-out
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
-        lg:relative lg:translate-x-0 lg:z-auto lg:shadow-none
+        lg:translate-x-0 lg:z-50
       `}>
         <div className="flex flex-col h-screen lg:h-screen">
           {/* Header */}
@@ -106,6 +119,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
             <Button
               variant="ghost"
               className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+              onClick={handleSignOut}
             >
               <LogOutIcon className="h-4 w-4 mr-3" />
               Déconnexion

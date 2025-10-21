@@ -11,7 +11,8 @@ export default function IntervenantsListScreen() {
   const { 
     data: participants, 
     loading: loadingParticipants, 
-    error: errorParticipants
+    error: errorParticipants,
+    refetch: refetchParticipants
   } = useParticipantsByPlot(plotId!);
   
   // TODO: Implémenter useDeleteParticipant
@@ -26,7 +27,8 @@ export default function IntervenantsListScreen() {
   const handleDelete = async (participant: any) => {
     try {
       await deleteParticipant(participant.id);
-      // Le hook gère automatiquement le rechargement
+      // Rafraîchir la liste après suppression
+      await refetchParticipants();
     } catch (error) {
       console.error('Erreur lors de la suppression:', error);
     }
@@ -75,6 +77,7 @@ export default function IntervenantsListScreen() {
       onEdit={handleEdit}
       onDelete={handleDelete}
       onView={handleView}
+      onRefresh={refetchParticipants}
       addButtonRoute={`/(tabs)/parcelles/${plotId}/intervenants/add`}
       getStatusColor={getStatusColor}
       getStatusText={getStatusText}
@@ -93,7 +96,7 @@ export default function IntervenantsListScreen() {
         subtitle: "Impossible de charger les intervenants",
         retryAction: {
           label: "Réessayer",
-          onPress: () => window.location.reload()
+          onPress: refetchParticipants
         }
       }}
     />

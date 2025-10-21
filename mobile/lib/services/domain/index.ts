@@ -13,6 +13,7 @@ export * from './intervenants';
 export * from './media';
 export * from './farmfiles';
 export * from './auth';
+export * from './profiles';
 
 // Services de base
 export * from '../core';

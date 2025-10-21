@@ -20,6 +20,7 @@ export * from './useParticipants';
 export * from './useVisits';
 export * from './useAgentVisits';
 export * from './useAgentAssignments';
+export * from './useProfiles';
 
 // Hooks pour les services existants (si nécessaire)
 export * from './useCrops';

@@ -3,9 +3,9 @@
  * Interface principale pour les agents de terrain
  */
 
-import React, { useState, useMemo } from 'react';
-import { ScrollView, Alert, Modal } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import React, { useState } from 'react';
+import { Alert, Modal } from 'react-native';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useIsFocused } from '@react-navigation/native';
@@ -14,12 +14,12 @@ import {
   usePlotStats,
   useFarmFiles,
   useAgentVisits,
-  useAgentAlerts,
+  useAgentAlerts, // Utilise le hook pour les alertes
+  // useAlertStats, // Utilise le hook pour les stats d'alertes
   // useAgentAssignments, // Commenté - utilise producerStats
 } from '../../lib/hooks';
-import { Visit } from '../../lib/services/domain/visits/visits.types';
 import { VisitsServiceInstance as VisitsService } from '../../lib/services/domain/visits';
-import { AlertsServiceInstance as AlertsService } from '../../lib/services/domain/alerts';
+import { AlertsServiceInstance as AlertsService, AlertsServiceInstance } from '../../lib/services/domain/alerts';
 import { 
   ScreenContainer, 
   VStack, 
@@ -27,53 +27,80 @@ import {
   Box, 
   Text, 
   Button, 
-  Badge, 
   Pressable, 
   Spinner
 } from '../../components/ui';
 import { Card } from '../../components/ui/Card';
-import { VisitFilterModal } from '../../components/VisitFilterModal';
+import { VisitList, VisitDetailModal } from '../../components/visits';
+import { AlertList, AlertDetailModal } from '../../components/alerts';
 // import { LinearGradient } from 'expo-linear-gradient';
 
 export default function AgentDashboard() {
   const { user } = useAuth();
   const router = useRouter();
   const isFocused = useIsFocused();
+  const { refresh: refreshParam } = useLocalSearchParams<{ refresh?: string }>();
   const agentId = user?.id || null;
   const enabled = Boolean(agentId && isFocused);
 
   // --- Gestion de l'état local ---
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [selectedVisit, setSelectedVisit] = useState<any>(null);
-  const [modalVisible, setModalVisible] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [visitToDelete, setVisitToDelete] = useState<any>(null);
+  const [visitDetailModalVisible, setVisitDetailModalVisible] = useState(false);
   const [selectedAlert, setSelectedAlert] = useState<any>(null);
   const [alertModalVisible, setAlertModalVisible] = useState(false);
-  const [filterModalVisible, setFilterModalVisible] = useState(false);
-  const [currentFilter, setFilter] = useState<string>('today');
+  // Ancien filtre (supprimé, géré désormais par VisitList)
 
   // --- Récupération des données avec les nouveaux hooks ---
-  const visitFilter: any = useMemo(() => {
-    if (['completed', 'pending', 'in_progress'].includes(currentFilter)) {
-      return { status: currentFilter };
-    }
-    if (['today', 'week', 'month', 'past', 'future'].includes(currentFilter)) {
-      return { period: currentFilter };
-    }
-    return {};
-  }, [currentFilter]);
 
-  const { data: producerStats, loading: loadingProducers, error: errorProducers, refetch: refetchProducers } = useProducerStats(agentId || '', { enabled, refetchOnMount: true });
-  const { data: plotStats, loading: loadingPlots, error: errorPlots, refetch: refetchPlots } = usePlotStats(agentId, { enabled, refetchOnMount: false });
+  const { data: producerStats, loading: loadingProducers, error: errorProducers, refetch: refetchProducers } = useProducerStats(agentId || '', { enabled });
+  const { data: plotStats, loading: loadingPlots, error: errorPlots, refetch: refetchPlots } = usePlotStats(agentId, { enabled });
   const { data: farmFilesData, loading: loadingFarmFiles, error: errorFarmFiles, refetch: refetchFarmFiles } = useFarmFiles(agentId || '');
-  const { data: visitsData, loading: loadingVisits, error: errorVisits, refetch: refetchVisits } = useAgentVisits(agentId, visitFilter as any, { enabled, refetchOnMount: false });
-  const { data: alertsData, /* loading: loadingAlerts, */ error: errorAlerts, refetch: refetchAlerts } = useAgentAlerts(agentId, { is_resolved: false } as any, { enabled, refetchOnMount: false });
+  const { data: visitsData, loading: loadingVisits, error: errorVisits, refetch: refetchVisits } = useAgentVisits(agentId, undefined as any, { enabled });
+  const { data: alertsData, loading: loadingAlerts, error: errorAlerts, refetch: refetchAlerts } = useAgentAlerts(agentId, undefined, { enabled, force: false });
   // const { assignments, loading: loadingAssignments, error: errorAssignments, refetch: refetchAssignments, producersCount } = useAgentAssignments({ agentId, enabled, refetchOnMount: true });
 
   const visits = visitsData || [];
   const alerts = alertsData || [];
   const farmFiles = farmFilesData || [];
+
+  // Debug logs pour les visites
+  console.log('🔍 [DASHBOARD] Debug visites:', {
+    agentId,
+    enabled,
+    loadingVisits,
+    errorVisits: errorVisits?.message,
+    visitsData,
+    visitsCount: visits.length,
+    visits: visits.map(v => ({
+      id: v.id,
+      type: v.visit_type,
+      status: v.status,
+      date: v.visit_date,
+      producer: v.producer_name,
+      plot: v.plot_name
+    }))
+  });
+
+  // Debug logs pour les alertes
+  console.log('🔍 [DASHBOARD] Debug alertes:', {
+    agentId,
+    enabled,
+    loadingAlerts,
+    errorAlerts: errorAlerts?.message,
+    alertsData,
+    alertsCount: alerts.length,
+    userInfo: {
+      id: user?.id,
+      email: user?.email,
+      role: user?.user_metadata?.role
+    }
+  });
+
+
+
 
   // Debug logs pour les producteurs
   console.log('🔍 [DASHBOARD] Debug producteurs:', {
@@ -89,7 +116,7 @@ export default function AgentDashboard() {
   }
 
   // --- Fonction de rafraîchissement unifiée ---
-  const refresh = async () => {
+  const refresh = React.useCallback(async () => {
     if (!enabled) return;
     console.log('🔄 Refreshing all dashboard data...');
     
@@ -104,10 +131,22 @@ export default function AgentDashboard() {
       refetchPlots(),
       refetchFarmFiles(),
       refetchVisits(),
-      refetchAlerts(),
+      refetchAlerts(), // Utilise le hook useAgentAlerts
       // refetchAssignments(), // Commenté - utilise producerStats
     ]);
-  };
+  }, [enabled, agentId, refetchProducers, refetchPlots, refetchFarmFiles, refetchVisits, refetchAlerts]);
+
+  // Rafraîchir les données quand on revient du formulaire de visite
+  useFocusEffect(
+    React.useCallback(() => {
+      if (refreshParam === 'true') {
+        console.log('🔄 Rafraîchissement des données après modification de visite');
+        refresh();
+        // Nettoyer le paramètre refresh
+        router.replace('/(tabs)/agent-dashboard');
+      }
+    }, [refreshParam, router, refresh])
+  );
   
   const today = new Date().toLocaleDateString();
   const agentName = user?.user_metadata?.display_name || 'Agent terrain';
@@ -145,14 +184,7 @@ export default function AgentDashboard() {
   );
 
   // --- Fonctions CRUD (inchangées car elles utilisent déjà les services) ---
-  const handleEditVisit = (visitId: string) => {
-    router.push(`/(tabs)/visite-form?edit=${visitId}`);
-  };
 
-  const handleDeleteVisit = (visit: any) => {
-    setVisitToDelete(visit);
-    setDeleteModalVisible(true);
-  };
 
   const confirmDeleteVisit = async () => {
     if (!visitToDelete) return;
@@ -175,27 +207,51 @@ export default function AgentDashboard() {
     setVisitToDelete(null);
   };
   
-  const handleMarkAsCompleted = async (visitId: string) => {
-    setActionLoading(visitId);
+
+
+  // Nouveaux handlers pour VisitList et VisitDetailModal
+  const handleVisitPress = (visit: any) => {
+    setSelectedVisit(visit);
+    setVisitDetailModalVisible(true);
+  };
+
+  const handleVisitEdit = (visit: any) => {
+    console.log('🔍 [DASHBOARD] handleVisitEdit appelé avec visit:', {
+      id: visit.id,
+      type: visit.visit_type,
+      status: visit.status,
+      producer: visit.producer_name,
+      plot: visit.plot_name
+    });
+    
+    setVisitDetailModalVisible(false);
+    
+    console.log('🔄 [DASHBOARD] Navigation vers visite-form avec edit:', visit.id);
+    
+    router.push({
+      pathname: '/(tabs)/visite-form',
+      params: { edit: visit.id }
+    });
+  };
+
+  const handleVisitComplete = async (visit: any) => {
+    setActionLoading(visit.id);
     try {
-      await VisitsService.updateVisit(visitId, { status: 'completed' });
+      await VisitsService.updateVisit(visit.id, { status: 'completed' });
       await refresh();
+      setVisitDetailModalVisible(false);
       Alert.alert('Succès', 'Visite marquée comme terminée');
     } catch (err) {
-      Alert.alert('Erreur', `Impossible de mettre à jour la visite: ${(err as Error).message}`);
+      Alert.alert('Erreur', `Impossible de marquer la visite comme terminée: ${(err as Error).message}`);
     } finally {
       setActionLoading(null);
     }
   };
 
-  const handleViewVisitDetails = (visit: any) => {
-    setSelectedVisit(visit);
-    setModalVisible(true);
-  };
-
-  const closeModal = () => {
-    setModalVisible(false);
-    setSelectedVisit(null);
+  const handleVisitDelete = (visit: any) => {
+    setVisitToDelete(visit);
+    setDeleteModalVisible(true);
+    setVisitDetailModalVisible(false);
   };
 
   const handleViewAlertDetails = (alert: any) => {
@@ -209,12 +265,23 @@ export default function AgentDashboard() {
   };
 
   const handleMarkAlertAsResolved = async (alertId: string) => {
+    console.log('🔧 [DASHBOARD] Tentative de résolution de l\'alerte:', alertId);
     setActionLoading(alertId);
     try {
       await AlertsService.markAlertAsResolved(alertId);
+      console.log('✅ [DASHBOARD] Alerte résolue avec succès:', alertId);
+      
+      // Attendre un peu pour que la base de données soit mise à jour
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      console.log('🔄 [DASHBOARD] Rafraîchissement des données...');
+      // Rafraîchir toutes les données
       await refresh();
+      console.log('✅ [DASHBOARD] Données rafraîchies');
+      
       Alert.alert('Succès', 'Alerte marquée comme résolue');
     } catch (err) {
+      console.error('❌ [DASHBOARD] Erreur lors de la résolution:', err);
       Alert.alert('Erreur', `Impossible de marquer l'alerte comme résolue: ${(err as Error).message}`);
     } finally {
       setActionLoading(null);
@@ -242,18 +309,6 @@ export default function AgentDashboard() {
     });
   };
 
-  const handleMarkVisitAsCompleted = async (visitId: string) => {
-    setActionLoading(visitId);
-    try {
-      await VisitsService.updateVisit(visitId, { status: 'completed' });
-      await refresh();
-      Alert.alert('Succès', 'Visite marquée comme terminée');
-    } catch (err) {
-      Alert.alert('Erreur', `Impossible de marquer la visite comme terminée: ${(err as Error).message}`);
-    } finally {
-      setActionLoading(null);
-    }
-  };
 
   // --- Rendu des états de chargement et d'erreur ---
   if (!enabled) {
@@ -263,6 +318,7 @@ export default function AgentDashboard() {
         subtitle="Connexion en cours..."
         showBackButton={false}
         contentPadding={5}
+        contentPaddingTop={25}
       >
         <VStack flex={1} justifyContent="center" alignItems="center" space={4}>
           <Spinner size="lg" color="primary.500" />
@@ -274,7 +330,7 @@ export default function AgentDashboard() {
     );
   }
 
-  const errorMessage = (errorProducers?.message || errorPlots?.message || errorFarmFiles?.message || errorVisits?.message || errorAlerts?.message);
+  const errorMessage = (errorProducers?.message || errorPlots?.message || errorFarmFiles?.message || errorVisits?.message);
 
   if (loadingProducers || loadingPlots || loadingFarmFiles) {
     return (
@@ -283,6 +339,7 @@ export default function AgentDashboard() {
         subtitle="Chargement..."
         showBackButton={false}
         contentPadding={5}
+        contentPaddingTop={25}
       >
         <VStack flex={1} justifyContent="center" alignItems="center" space={4}>
           <Spinner size="lg" color="primary.500" />
@@ -301,6 +358,7 @@ export default function AgentDashboard() {
         subtitle="Erreur"
         showBackButton={false}
         contentPadding={5}
+        contentPaddingTop={25}
       >
         <VStack flex={1} justifyContent="center" alignItems="center" space={4} p={8}>
           <Ionicons name="alert-circle" size={48} color="error.500" />
@@ -334,6 +392,7 @@ export default function AgentDashboard() {
         showNotifications={true}
         contentScrollable={true}
         contentPadding={5}
+        contentPaddingTop={100}
       >
         {/* Cartes KPI */}
         <Card p={5} mb={4}>
@@ -419,470 +478,36 @@ export default function AgentDashboard() {
         </Card>
 
         {/* Filtres de visites */}
+        
+
+        {/* Visites - Nouveau composant moderne */}
         <Card p={4} mb={4}>
-          <HStack justifyContent="space-between" alignItems="center" mb={3}>
-            <Text fontSize="md" fontWeight="semibold" color="gray.800">
-              Filtrer les visites
-            </Text>
-            <HStack alignItems="center" space={2}>
-              <Badge bg="gray.100" borderRadius="full" px={2} py={1}>
-                <Text fontSize="xs" color="gray.600">
-                  {visits.length} visite{visits.length !== 1 ? 's' : ''}
-                </Text>
-              </Badge>
-              <Pressable
-                onPress={async () => {
-                  console.log('🔍 DEBUG: État actuel des visites:', {
-                    filter: currentFilter,
-                    count: visits.length,
-                    visits: visits.map(v => ({
-                      id: v.id,
-                      type: v.visit_type,
-                      status: v.status,
-                      date: v.visit_date
-                    }))
-                  });
-                  
-                  console.log('🔄 Refresh forcé...');
-                  await refresh();
-                }}
-                p={2}
-                borderRadius="md"
-                bg="gray.50"
-                _pressed={{ opacity: 0.7 }}
-              >
-                <Ionicons name="refresh" size={16} color="gray.600" />
-              </Pressable>
-            </HStack>
-          </HStack>
-          
-          <Pressable
-            onPress={() => setFilterModalVisible(true)}
-            disabled={loadingVisits}
-            _pressed={{ opacity: loadingVisits ? 1 : 0.7 }}
-            bg="white"
-            borderRadius="lg"
-            borderWidth={1}
-            borderColor="gray.200"
-            p={4}
-            shadow={1}
-          >
-            <HStack alignItems="center" justifyContent="space-between">
-              <HStack alignItems="center" space={3} flex={1}>
-                <Box
-                  w={9}
-                  h={9}
-                  borderRadius="full"
-                  bg="primary.50"
-                  alignItems="center"
-                  justifyContent="center"
-                >
-                  <Ionicons name="calendar" size={20} color="primary.500" />
-                </Box>
-                <VStack flex={1}>
-                  <Text fontSize="md" fontWeight="semibold" color="gray.800">
-                    {currentFilter === 'today' ? 'Aujourd\'hui' : 
-                     currentFilter === 'week' ? 'Cette semaine' :
-                     currentFilter === 'month' ? 'Ce mois' :
-                     currentFilter === 'past' ? 'Passées' :
-                     currentFilter === 'future' ? 'À venir' :
-                     currentFilter === 'completed' ? 'Faites' :
-                     currentFilter === 'pending' ? 'À faire' :
-                     currentFilter === 'in_progress' ? 'En cours' :
-                     'Toutes les visites'}
-                  </Text>
-                  <Text fontSize="sm" color="gray.500">
-                    {currentFilter === 'today' ? 'Visites du jour' : 
-                     currentFilter === 'week' ? '7 prochains jours' :
-                     currentFilter === 'month' ? '30 prochains jours' :
-                     currentFilter === 'past' ? 'Visites terminées' :
-                     currentFilter === 'future' ? 'Visites planifiées' :
-                     currentFilter === 'completed' ? 'Visites terminées' :
-                     currentFilter === 'pending' ? 'Visites en attente' :
-                     currentFilter === 'in_progress' ? 'Visites en cours' :
-                     'Toutes les visites'}
-                  </Text>
-                </VStack>
-              </HStack>
-              <Ionicons name="chevron-down" size={20} color="gray.500" />
-            </HStack>
-          </Pressable>
+          <VisitList
+            agentId={agentId!}
+            onVisitPress={handleVisitPress}
+            onVisitEdit={handleVisitEdit}
+            onVisitComplete={handleVisitComplete}
+            onVisitDelete={handleVisitDelete}
+            showFilter={true}
+            showRefresh={true}
+            maxHeight={400}
+          />
         </Card>
 
-        {/* Visites */}
+        {/* Alertes terrain - Nouveau composant moderne */}
         <Card p={4} mb={4}>
-          <HStack justifyContent="space-between" alignItems="center" mb={4}>
-            <HStack alignItems="center" space={3}>
-              <Box
-                w={10}
-                h={10}
-                borderRadius="full"
-                bg="primary.100"
-                alignItems="center"
-                justifyContent="center"
-              >
-                <Ionicons name="calendar" size={22} color="primary.500" />
-              </Box>
-              <VStack>
-                <Text fontSize="md" fontWeight="bold" color="gray.800">
-                  {currentFilter === 'today' ? 'Visites du jour' : 
-                   currentFilter === 'week' ? 'Visites de la semaine' :
-                   currentFilter === 'month' ? 'Visites du mois' :
-                   currentFilter === 'past' ? 'Visites passées' :
-                   currentFilter === 'future' ? 'Visites à venir' :
-                   currentFilter === 'completed' ? 'Visites terminées' :
-                   currentFilter === 'pending' ? 'Visites à faire' :
-                   currentFilter === 'in_progress' ? 'Visites en cours' :
-                   'Toutes les visites'}
-                </Text>
-                <Text fontSize="sm" color="gray.500">
-                  {visits.length} {visits.length === 1 ? 'visite' : 'visites'}
-                </Text>
-              </VStack>
-            </HStack>
-            <Button
-              size="sm"
-              variant="solid"
-              bg="primary.500"
-              _pressed={{ bg: 'primary.600' }}
-              leftIcon={<Ionicons name="add" size={16} color="white" />}
-              onPress={() => router.push('/(tabs)/visite-form')}
-            >
-              Nouvelle
-            </Button>
-          </HStack>
-          
-          {visits.length === 0 ? (
-            <VStack alignItems="center" p={8} bg="gray.50" borderRadius="lg">
-              <Ionicons name="calendar-outline" size={48} color="gray.400" />
-              <Text fontSize="md" fontWeight="semibold" color="gray.600" mt={3} textAlign="center">
-                {currentFilter === 'today' ? 'Aucune visite aujourd&apos;hui' :
-                 currentFilter === 'week' ? 'Aucune visite cette semaine' :
-                 currentFilter === 'month' ? 'Aucune visite ce mois' :
-                 currentFilter === 'past' ? 'Aucune visite passée' :
-                 currentFilter === 'future' ? 'Aucune visite à venir' :
-                 currentFilter === 'completed' ? 'Aucune visite terminée' :
-                 currentFilter === 'pending' ? 'Aucune visite à faire' :
-                 currentFilter === 'in_progress' ? 'Aucune visite en cours' :
-                 'Aucune visite trouvée'}
-              </Text>
-              <Text fontSize="sm" color="gray.500" mt={2} textAlign="center">
-                {currentFilter === 'today' ? 'Planifiez vos visites pour commencer' :
-                 currentFilter === 'week' ? 'Aucune visite planifiée cette semaine' :
-                 currentFilter === 'month' ? 'Aucune visite planifiée ce mois' :
-                 currentFilter === 'past' ? 'Aucune visite passée enregistrée' :
-                 currentFilter === 'future' ? 'Aucune visite à venir planifiée' :
-                 currentFilter === 'completed' ? 'Aucune visite terminée enregistrée' :
-                 currentFilter === 'pending' ? 'Aucune visite en attente' :
-                 currentFilter === 'in_progress' ? 'Aucune visite en cours' :
-                 'Aucune visite trouvée avec ce filtre'}
-              </Text>
-            </VStack>
-          ) : (
-            <VStack space={3}>
-              {visits.map((v: Visit, index: number) => (
-                <Pressable 
-                  key={v.id} 
-                  onPress={() => handleViewVisitDetails(v)}
-                  _pressed={{ opacity: 0.7 }}
-                  bg="white"
-                  borderRadius="lg"
-                  p={4}
-                  borderWidth={1}
-                  borderColor={(v as any).urgency ? "error.200" : "gray.200"}
-                  shadow={1}
-                >
-                  {/* Header avec type et priorité */}
-                  <HStack justifyContent="space-between" alignItems="center" mb={3}>
-                    <HStack alignItems="center" space={2}>
-                      <Box
-                        w={8}
-                        h={8}
-                        borderRadius="full"
-                        bg={(v as any).visit_type_color || 'gray.500'}
-                        alignItems="center"
-                        justifyContent="center"
-                      >
-                   <Ionicons 
-                     name={(v as any).visit_type_icon || 'list'} 
-                     size={16} 
-                     color="white" 
-                   />
-                      </Box>
-                      <Text fontSize="sm" fontWeight="semibold" color="gray.700">
-                        {(v as any).visit_type_label || v.visit_type || 'Visite'}
-                      </Text>
-                    </HStack>
-                    <HStack alignItems="center" space={2}>
-                   {(v as any).urgency && (
-                     <Badge bg="error.100" borderRadius="full" px={2} py={1}>
-                       <HStack alignItems="center" space={1}>
-                         <Ionicons name="warning" size={12} color="error.600" />
-                         <Text fontSize="xs" fontWeight="medium" color="error.600">
-                           Urgent
-                         </Text>
-                       </HStack>
-                     </Badge>
-                   )}
-                      <Badge
-                        bg={
-                          v.status === 'terminé' ? 'success.100' : 
-                          v.status === 'en cours' ? 'warning.100' : 
-                          'gray.100'
-                        }
-                        borderRadius="full"
-                        px={2}
-                        py={1}
-                      >
-                        <Text
-                          fontSize="xs"
-                          fontWeight="medium"
-                          color={
-                            v.status === 'terminé' ? 'success.700' : 
-                            v.status === 'en cours' ? 'warning.700' : 
-                            'gray.700'
-                          }
-                        >
-                          {v.status === 'terminé' ? 'Fait' : v.status}
-                        </Text>
-                      </Badge>
-                    </HStack>
-                  </HStack>
-
-                  {/* Informations principales */}
-                  <VStack space={3}>
-                    <Text fontSize="md" fontWeight="bold" color="gray.800">
-                      {v.producer_name}
-                    </Text>
-                    
-                    {/* Informations de la parcelle */}
-                    <VStack space={2}>
-                      <HStack alignItems="center" space={2}>
-                        <Ionicons name="leaf" size={16} color="primary.500" />
-                        <Text fontSize="sm" color="gray.700">
-                          {v.plot_name}
-                        </Text>
-                      </HStack>
-                      
-                      {v.parcel_area && (
-                        <HStack alignItems="center" space={2}>
-                          <Ionicons name="resize" size={14} color="gray.500" />
-                          <Text fontSize="sm" color="gray.600">
-                            {v.parcel_area} ha
-                          </Text>
-                        </HStack>
-                      )}
-                    </VStack>
-                    
-                    {/* Métadonnées */}
-                    <VStack space={2}>
-                      <HStack alignItems="center" space={2}>
-                        <Ionicons name="time" size={14} color="gray.500" />
-                        <Text fontSize="sm" color="gray.600">
-                          {v.visit_date || 'N/A'}
-                        </Text>
-                      </HStack>
-                      
-                      <HStack alignItems="center" space={2}>
-                        <Ionicons 
-                          name="location" 
-                          size={14} 
-                          color={v.parcel_location ? 'success.500' : 'gray.300'} 
-                        />
-                        <Text 
-                          fontSize="sm" 
-                          color={v.parcel_location ? 'success.600' : 'gray.400'}
-                        >
-                          {v.parcel_location ? 'GPS disponible' : 'Localisation non disponible'}
-                        </Text>
-                      </HStack>
-                    </VStack>
-                  </VStack>
-
-                  {/* Actions rapides */}
-                  <HStack justifyContent="flex-end" space={2} mt={3}>
-                    {v.status !== 'terminé' && (
-                      <Button
-                        size="sm"
-                        variant="solid"
-                        bg="success.500"
-                        _pressed={{ bg: 'success.600' }}
-                        onPress={() => handleMarkVisitAsCompleted(v.id)}
-                        disabled={actionLoading === v.id}
-                        leftIcon={
-                          actionLoading === v.id ? (
-                            <Spinner size="sm" color="white" />
-                          ) : (
-                            <Ionicons name="checkmark" size={16} color="white" />
-                          )
-                        }
-                      >
-                        Terminer
-                      </Button>
-                    )}
-                    
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      borderColor="primary.500"
-                      _text={{ color: 'primary.500' }}
-                      onPress={() => handleEditVisit(v.id)}
-                      disabled={actionLoading === v.id}
-                      leftIcon={<Ionicons name="pencil" size={16} color="primary.500" />}
-                    >
-                      Modifier
-                    </Button>
-                    
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      borderColor="error.500"
-                      _text={{ color: 'error.500' }}
-                      onPress={() => handleDeleteVisit(v)}
-                      disabled={actionLoading === v.id}
-                      leftIcon={
-                        actionLoading === v.id ? (
-                          <Spinner size="sm" color="error.500" />
-                        ) : (
-                          <Ionicons name="trash" size={16} color="error.500" />
-                        )
-                      }
-                    >
-                      Supprimer
-                    </Button>
-                  </HStack>
-                </Pressable>
-              ))}
-            </VStack>
-          )}
-        </Card>
-
-        {/* Alertes terrain */}
-        <Card p={4} mb={4}>
-          <HStack justifyContent="space-between" alignItems="center" mb={4}>
-            <HStack alignItems="center" space={3}>
-              <Box
-                w={10}
-                h={10}
-                borderRadius="full"
-                bg="error.100"
-                alignItems="center"
-                justifyContent="center"
-              >
-                <Ionicons name="warning" size={22} color="error.600" />
-              </Box>
-              <VStack>
-                <Text fontSize="md" fontWeight="bold" color="gray.800">
-                  Alertes terrain
-                </Text>
-                <Text fontSize="sm" color="gray.500">
-                  {alerts.length} {alerts.length === 1 ? 'alerte critique' : 'alertes critiques'}
-                </Text>
-              </VStack>
-            </HStack>
-            <Badge bg="error.100" borderRadius="full" px={3} py={2}>
-              <Text fontSize="xs" fontWeight="bold" color="error.700">
-                {alerts.length} {alerts.length === 1 ? 'critique' : 'critiques'}
-              </Text>
-            </Badge>
-          </HStack>
-          
-          {alerts.length === 0 ? (
-            <VStack alignItems="center" p={8} bg="gray.50" borderRadius="lg">
-              <Ionicons name="checkmark-circle-outline" size={48} color="success.500" />
-              <Text fontSize="md" fontWeight="semibold" color="gray.600" mt={3} textAlign="center">
-                Aucune alerte
-              </Text>
-              <Text fontSize="sm" color="gray.500" mt={2} textAlign="center">
-                Toutes les parcelles sont en bon état
-              </Text>
-            </VStack>
-          ) : (
-            <VStack space={3}>
-              {alerts.map((a: any, index: number) => (
-                <Pressable 
-                  key={a.id} 
-                  onPress={() => handleViewAlertDetails(a)}
-                  _pressed={{ opacity: 0.7 }}
-                  bg="white"
-                  borderRadius="lg"
-                  p={4}
-                  borderWidth={1}
-                  borderColor={a.severity === 'high' ? "error.200" : "warning.200"}
-                  borderLeftWidth={4}
-                  borderLeftColor={a.severity === 'high' ? "error.500" : "warning.500"}
-                  shadow={1}
-                >
-                  <HStack justifyContent="space-between" alignItems="flex-start">
-                    <HStack alignItems="flex-start" space={3} flex={1}>
-                      <Box
-                        w={10}
-                        h={10}
-                        borderRadius="full"
-                        bg={a.severity === 'high' ? "error.500" : "warning.500"}
-                        alignItems="center"
-                        justifyContent="center"
-                      >
-                        <Ionicons 
-                          name={a.severity === 'high' ? 'warning' : 'alert-circle'} 
-                          size={20} 
-                          color="white" 
-                        />
-                      </Box>
-                      <VStack flex={1} space={2}>
-                        <Text fontSize="md" fontWeight="semibold" color="gray.800">
-                          {a.title}
-                        </Text>
-                        <Text fontSize="sm" color="gray.600" numberOfLines={2}>
-                          {a.description}
-                        </Text>
-                        <Text fontSize="xs" color="gray.500">
-                          {new Date(a.createdAt).toLocaleDateString('fr-FR', {
-                            day: 'numeric',
-                            month: 'short',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </Text>
-                      </VStack>
-                    </HStack>
-                    
-                    <HStack alignItems="center" space={2}>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        borderColor="success.500"
-                        _text={{ color: 'success.500' }}
-                        onPress={() => handleMarkAlertAsResolved(a.id)}
-                        disabled={actionLoading === a.id}
-                        leftIcon={
-                          actionLoading === a.id ? (
-                            <Spinner size="sm" color="success.500" />
-                          ) : (
-                            <Ionicons name="checkmark" size={16} color="success.500" />
-                          )
-                        }
-                      >
-                        Résoudre
-                      </Button>
-                      
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        borderColor="primary.500"
-                        _text={{ color: 'primary.500' }}
-                        onPress={() => handleCreateVisitFromAlert(a)}
-                        disabled={actionLoading === a.id}
-                        leftIcon={<Ionicons name="calendar" size={16} color="primary.500" />}
-                      >
-                        Visite
-                      </Button>
-                    </HStack>
-                  </HStack>
-                </Pressable>
-              ))}
-            </VStack>
-          )}
+          <AlertList
+            agentId={agentId!}
+            onAlertPress={handleViewAlertDetails}
+            onAlertResolve={handleMarkAlertAsResolved}
+            onAlertCreateVisit={handleCreateVisitFromAlert}
+            loading={!!actionLoading}
+            maxHeight={400}
+            alerts={alerts}
+            alertsLoading={loadingAlerts}
+            alertsError={errorAlerts}
+            onRefresh={refetchAlerts}
+          />
         </Card>
 
         {/* Actions de fin de page */}
@@ -910,436 +535,25 @@ export default function AgentDashboard() {
             Carte
           </Button>
         </HStack>
+
       </ScreenContainer>
 
-      {/* Modal de détail de visite */}
-      <Modal
-        visible={modalVisible}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={closeModal}
-      >
-        <Box flex={1} bg="gray.50">
-          <HStack
-            justifyContent="space-between"
-            alignItems="center"
-            p={4}
-            bg="white"
-            borderBottomWidth={1}
-            borderBottomColor="gray.200"
-          >
-            <Text fontSize="lg" fontWeight="bold" color="gray.800">
-              Détails de la visite
-            </Text>
-            <Pressable
-              onPress={closeModal}
-              p={2}
-              borderRadius="md"
-              _pressed={{ opacity: 0.7 }}
-            >
-              <Ionicons name="close" size={24} color="gray.600" />
-            </Pressable>
-          </HStack>
-          
-          {selectedVisit && (
-            <ScrollView style={{ flex: 1, padding: 16 }} showsVerticalScrollIndicator={false}>
-              {/* Informations producteur */}
-              <Card p={4} mb={4}>
-                <Text fontSize="md" fontWeight="bold" color="gray.800" mb={3}>
-                  Producteur
-                </Text>
-                <VStack space={3}>
-                  <HStack alignItems="center" space={3}>
-                    <Ionicons name="person" size={20} color="primary.500" />
-                    <Text fontSize="sm" color="gray.700">
-                      {selectedVisit.producer}
-                    </Text>
-                  </HStack>
-                  {selectedVisit.producer_phone && (
-                    <HStack alignItems="center" space={3}>
-                      <Ionicons name="call" size={20} color="primary.500" />
-                      <Text fontSize="sm" color="gray.700">
-                        {selectedVisit.producer_phone}
-                      </Text>
-                    </HStack>
-                  )}
-                </VStack>
-              </Card>
 
-              {/* Informations parcelle */}
-              <Card p={4} mb={4}>
-                <Text fontSize="md" fontWeight="bold" color="gray.800" mb={3}>
-                  Parcelle
-                </Text>
-                <VStack space={3}>
-                  <HStack alignItems="center" space={3}>
-                    <Ionicons name="location" size={20} color="primary.500" />
-                    <Text fontSize="sm" color="gray.700">
-                      {selectedVisit.location}
-                    </Text>
-                  </HStack>
-                  {selectedVisit.plot_area && (
-                    <HStack alignItems="center" space={3}>
-                      <Ionicons name="resize" size={20} color="primary.500" />
-                      <Text fontSize="sm" color="gray.700">
-                        {selectedVisit.plot_area} hectares
-                      </Text>
-                    </HStack>
-                  )}
-                  <HStack alignItems="center" space={3}>
-                    <Ionicons 
-                      name="navigate" 
-                      size={20} 
-                      color={selectedVisit.has_gps ? "primary.500" : "gray.300"} 
-                    />
-                    <Text 
-                      fontSize="sm" 
-                      color={selectedVisit.has_gps ? "gray.700" : "gray.400"}
-                    >
-                      {selectedVisit.has_gps ? 'GPS disponible' : 'Localisation non disponible'}
-                    </Text>
-                  </HStack>
-                </VStack>
-              </Card>
-
-              {/* Informations visite */}
-              <Card p={4} mb={4}>
-                <Text fontSize="md" fontWeight="bold" color="gray.800" mb={3}>
-                  Visite
-                </Text>
-                <VStack space={3}>
-                  <HStack alignItems="center" space={3}>
-                    <Ionicons name="calendar" size={20} color="primary.500" />
-                    <Text fontSize="sm" color="gray.700">
-                      {new Date(selectedVisit.visit_date).toLocaleDateString('fr-FR', {
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </Text>
-                  </HStack>
-                  {selectedVisit.visit_type && (
-                    <HStack alignItems="center" space={3}>
-                      <Ionicons name="list" size={20} color="primary.500" />
-                      <Text fontSize="sm" color="gray.700">
-                        Type: {selectedVisit.visit_type}
-                      </Text>
-                    </HStack>
-                  )}
-                  {selectedVisit.duration_minutes && (
-                    <HStack alignItems="center" space={3}>
-                      <Ionicons name="time" size={20} color="primary.500" />
-                      <Text fontSize="sm" color="gray.700">
-                        Durée prévue: {selectedVisit.duration_minutes} minutes
-                      </Text>
-                    </HStack>
-                  )}
-                  <HStack alignItems="center" space={3}>
-                    <Ionicons name="flag" size={20} color="primary.500" />
-                    <Badge
-                      bg={
-                        selectedVisit.status === 'terminé' ? 'success.100' : 
-                        selectedVisit.status === 'en cours' ? 'warning.100' : 
-                        'gray.100'
-                      }
-                      borderRadius="full"
-                      px={3}
-                      py={1}
-                    >
-                      <Text
-                        fontSize="xs"
-                        fontWeight="medium"
-                        color={
-                          selectedVisit.status === 'terminé' ? 'success.700' : 
-                          selectedVisit.status === 'en cours' ? 'warning.700' : 
-                          'gray.700'
-                        }
-                      >
-                        {selectedVisit.status === 'terminé' ? 'Terminé' : selectedVisit.status}
-                      </Text>
-                    </Badge>
-                  </HStack>
-                </VStack>
-              </Card>
-
-              {/* Conditions météo */}
-              {selectedVisit.weather_conditions && (
-                <Card p={4} mb={4}>
-                  <Text fontSize="md" fontWeight="bold" color="gray.800" mb={3}>
-                    Conditions météo
-                  </Text>
-                  <HStack alignItems="center" space={3}>
-                    <Ionicons name="partly-sunny" size={20} color="primary.500" />
-                    <Text fontSize="sm" color="gray.700">
-                      {selectedVisit.weather_conditions}
-                    </Text>
-                  </HStack>
-                </Card>
-              )}
-
-              {/* Notes */}
-              {selectedVisit.notes && (
-                <Card p={4} mb={4}>
-                  <Text fontSize="md" fontWeight="bold" color="gray.800" mb={3}>
-                    Notes
-                  </Text>
-                  <Box bg="gray.50" p={3} borderRadius="md">
-                    <Text fontSize="sm" color="gray.700" lineHeight={20}>
-                      {selectedVisit.notes}
-                    </Text>
-                  </Box>
-                </Card>
-              )}
-
-              {/* Actions */}
-              <VStack space={3} p={4}>
-                {selectedVisit.status !== 'terminé' && (
-                  <Button
-                    variant="solid"
-                    bg="success.500"
-                    _pressed={{ bg: 'success.600' }}
-                    onPress={() => {
-                      closeModal();
-                      handleMarkAsCompleted(selectedVisit.id);
-                    }}
-                    disabled={actionLoading === selectedVisit.id}
-                    leftIcon={
-                      actionLoading === selectedVisit.id ? (
-                        <Spinner size="sm" color="white" />
-                      ) : (
-                        <Ionicons name="checkmark" size={20} color="white" />
-                      )
-                    }
-                    h={12}
-                  >
-                    Marquer comme terminé
-                  </Button>
-                )}
-                
-                {selectedVisit.has_gps && selectedVisit.lat && selectedVisit.lon && (
-                  <Button
-                    variant="solid"
-                    bg="primary.500"
-                    _pressed={{ bg: 'primary.600' }}
-                    onPress={() => {
-                      console.log('🗺️ [NAVIGATION] Données de selectedVisit:', {
-                        id: selectedVisit.id,
-                        plotId: selectedVisit.plotId,
-                        lat: selectedVisit.lat,
-                        lon: selectedVisit.lon,
-                        has_gps: selectedVisit.has_gps,
-                        plot_name: selectedVisit.plot_name
-                      });
-                      
-                      closeModal();
-                      // Navigation vers la carte avec focus sur la parcelle spécifique
-                      router.push({
-                        pathname: '/(tabs)/parcelles',
-                        params: {
-                          focusPlotId: selectedVisit.plotId,
-                          centerLat: selectedVisit.lat!.toString(),
-                          centerLng: selectedVisit.lon!.toString(),
-                          zoom: '18'
-                        }
-                      });
-                    }}
-                    leftIcon={<Ionicons name="map" size={20} color="white" />}
-                    h={12}
-                  >
-                    Voir localisation parcelle
-                  </Button>
-                )}
-                
-                <Button
-                  variant="outline"
-                  borderColor="primary.500"
-                  _text={{ color: 'primary.500' }}
-                  onPress={() => {
-                    closeModal();
-                    handleEditVisit(selectedVisit.id);
-                  }}
-                  leftIcon={<Ionicons name="pencil" size={20} color="primary.500" />}
-                  h={12}
-                >
-                  Modifier
-                </Button>
-              </VStack>
-            </ScrollView>
-          )}
-        </Box>
-      </Modal>
-
-      {/* Modal de détail d'alerte */}
-      <Modal
+      {/* Modal de détail d'alerte - Nouveau composant moderne */}
+      <AlertDetailModal
         visible={alertModalVisible}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={closeAlertModal}
-      >
-        <Box flex={1} bg="gray.50">
-          <HStack
-            justifyContent="space-between"
-            alignItems="center"
-            p={4}
-            bg="white"
-            borderBottomWidth={1}
-            borderBottomColor="gray.200"
-          >
-            <Text fontSize="lg" fontWeight="bold" color="gray.800">
-              Détails de l&apos;alerte
-            </Text>
-            <Pressable
-              onPress={closeAlertModal}
-              p={2}
-              borderRadius="md"
-              _pressed={{ opacity: 0.7 }}
-            >
-              <Ionicons name="close" size={24} color="gray.600" />
-            </Pressable>
-          </HStack>
-          
-          {selectedAlert && (
-            <ScrollView style={{ flex: 1, padding: 16 }} showsVerticalScrollIndicator={false}>
-              {/* Informations de l'alerte */}
-              <Card p={4} mb={4}>
-                <Text fontSize="md" fontWeight="bold" color="gray.800" mb={3}>
-                  Alerte
-                </Text>
-                <VStack space={3}>
-                  <HStack alignItems="center" space={3}>
-                    <Ionicons 
-                      name="warning" 
-                      size={20} 
-                      color={selectedAlert.severity === 'high' ? 'error.500' : 'warning.500'} 
-                    />
-                    <Text fontSize="sm" color="gray.700">
-                      {selectedAlert.title}
-                    </Text>
-                  </HStack>
-                  <HStack alignItems="flex-start" space={3}>
-                    <Ionicons name="information-circle" size={20} color="primary.500" />
-                    <Text fontSize="sm" color="gray.700" flex={1}>
-                      {selectedAlert.description}
-                    </Text>
-                  </HStack>
-                  <HStack alignItems="center" space={3}>
-                    <Ionicons name="flag" size={20} color="primary.500" />
-                    <Badge
-                      bg={selectedAlert.severity === 'high' ? 'error.100' : 'warning.100'}
-                      borderRadius="full"
-                      px={3}
-                      py={1}
-                    >
-                      <Text
-                        fontSize="xs"
-                        fontWeight="medium"
-                        color={selectedAlert.severity === 'high' ? 'error.700' : 'warning.700'}
-                      >
-                        {selectedAlert.severity === 'high' ? 'Critique' : 'Moyenne'}
-                      </Text>
-                    </Badge>
-                  </HStack>
-                </VStack>
-              </Card>
-
-              {/* Informations producteur */}
-              {selectedAlert.producerName && (
-                <Card p={4} mb={4}>
-                  <Text fontSize="md" fontWeight="bold" color="gray.800" mb={3}>
-                    Producteur concerné
-                  </Text>
-                  <HStack alignItems="center" space={3}>
-                    <Ionicons name="person" size={20} color="primary.500" />
-                    <Text fontSize="sm" color="gray.700">
-                      {selectedAlert.producerName}
-                    </Text>
-                  </HStack>
-                </Card>
-              )}
-
-              {/* Informations parcelle */}
-              {selectedAlert.plotId && (
-                <Card p={4} mb={4}>
-                  <Text fontSize="md" fontWeight="bold" color="gray.800" mb={3}>
-                    Parcelle concernée
-                  </Text>
-                  <HStack alignItems="center" space={3}>
-                    <Ionicons name="map" size={20} color="primary.500" />
-                    <VStack flex={1}>
-                      <Text fontSize="sm" color="gray.700">
-                        {selectedAlert.plotName || 'Parcelle non nommée'}
-                      </Text>
-                      <Text fontSize="xs" color="gray.500">
-                        ID: {selectedAlert.plotId}
-                      </Text>
-                    </VStack>
-                  </HStack>
-                </Card>
-              )}
-
-              {/* Date de création */}
-              <Card p={4} mb={4}>
-                <Text fontSize="md" fontWeight="bold" color="gray.800" mb={3}>
-                  Date de détection
-                </Text>
-                <HStack alignItems="center" space={3}>
-                  <Ionicons name="time" size={20} color="primary.500" />
-                  <Text fontSize="sm" color="gray.700">
-                    {new Date(selectedAlert.createdAt).toLocaleDateString('fr-FR', {
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </Text>
-                </HStack>
-              </Card>
-
-              {/* Actions */}
-              <VStack space={3} p={4}>
-                <Button
-                  variant="solid"
-                  bg="success.500"
-                  _pressed={{ bg: 'success.600' }}
-                  onPress={() => {
-                    closeAlertModal();
-                    handleMarkAlertAsResolved(selectedAlert.id);
-                  }}
-                  disabled={actionLoading === selectedAlert.id}
-                  leftIcon={
-                    actionLoading === selectedAlert.id ? (
-                      <Spinner size="sm" color="white" />
-                    ) : (
-                      <Ionicons name="checkmark" size={20} color="white" />
-                    )
-                  }
-                  h={12}
-                >
-                  Marquer comme résolue
-                </Button>
-                
-                <Button
-                  variant="solid"
-                  bg="primary.500"
-                  _pressed={{ bg: 'primary.600' }}
-                  onPress={() => {
-                    closeAlertModal();
-                    handleCreateVisitFromAlert(selectedAlert);
-                  }}
-                  leftIcon={<Ionicons name="calendar" size={20} color="white" />}
-                  h={12}
-                >
-                  Créer visite d&apos;urgence
-                </Button>
-              </VStack>
-            </ScrollView>
-          )}
-        </Box>
-      </Modal>
+        alert={selectedAlert}
+        onClose={closeAlertModal}
+        onResolve={() => {
+          closeAlertModal();
+          handleMarkAlertAsResolved(selectedAlert?.id);
+        }}
+        onCreateVisit={() => {
+          closeAlertModal();
+          handleCreateVisitFromAlert(selectedAlert);
+        }}
+        loading={!!actionLoading}
+      />
 
       {/* Modal de suppression de visite */}
       <Modal
@@ -1433,15 +647,16 @@ export default function AgentDashboard() {
         </Box>
       </Modal>
 
-      {/* Modal de filtres de visites */}
-      <VisitFilterModal
-        visible={filterModalVisible}
-        currentFilter={currentFilter}
-        onFilterSelect={(newFilter) => {
-          setFilter(newFilter);
-          setFilterModalVisible(false);
-        }}
-        onClose={() => setFilterModalVisible(false)}
+      {/* Ancien modal de filtres supprimé: VisitList gère les filtres */}
+
+      {/* Modal de détails des visites - Nouveau composant moderne */}
+      <VisitDetailModal
+        visit={selectedVisit}
+        visible={visitDetailModalVisible}
+        onClose={() => setVisitDetailModalVisible(false)}
+        onEdit={handleVisitEdit}
+        onComplete={handleVisitComplete}
+        onDelete={handleVisitDelete}
       />
     </>
   );

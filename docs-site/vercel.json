@@ -1,4 +1,5 @@
 {
+  "name": "agriconnect-docs",
   "buildCommand": "npm run build",
   "outputDirectory": "build",
   "framework": null,

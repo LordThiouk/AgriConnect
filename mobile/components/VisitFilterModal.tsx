@@ -9,7 +9,7 @@ import {
   ScrollView
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { VisitFilter } from '../lib/services/dashboard';
+import { VisitFilter } from '../lib/types/visit-filters';
 import { 
   Box, 
   Text, 
@@ -137,7 +137,7 @@ export const VisitFilterModal: React.FC<VisitFilterModalProps> = ({
 
           {/* Filter Options */}
           <Box px={5}>
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
             {filterOptions.map((option) => (
               <Pressable
                 key={option.key}

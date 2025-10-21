@@ -77,9 +77,15 @@ export class ProducersService {
    */
   private async fetchProducersByAgentId(agentId: string, filters?: ProducerFilters): Promise<Producer[]> {
     try {
+      // Convert user_id → profile.id for agents to match RPC expectations
+      console.log('📊 [ProducersService] Récupération de l\'ID profil pour l\'utilisateur:', agentId);
+      const profileId = await this.getProfileIdFromUserId(agentId);
+
+      const agentParam = profileId || agentId; // fallback to provided id if mapping not found
+
       const { data, error } = await supabase
         .rpc('get_agent_producers_unified', {
-          p_agent_id: agentId
+          p_agent_id: agentParam
         });
 
       if (error) {

@@ -2,20 +2,16 @@
  * Hook pour la gestion des médias avec cache
  */
 
-import { useCallback, useEffect, useState } from 'react';
-import { useCache } from './useCache';
-import { MediaService } from '../services/domain/media';
-import { MediaCache } from '../services/domain/media';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { MediaServiceInstance } from '../services/domain/media/media.service';
 import {
   MediaFile,
-  MediaDisplay,
-  UploadMediaParams,
-  MediaUpdateData,
-  MediaServiceOptions
-} from '../services/domain/media';
+  UploadMediaParams
+} from '../services/domain/media/media.types';
 
-export interface UseMediaOptions extends MediaServiceOptions {
+export interface UseMediaOptions {
   refetchOnMount?: boolean;
+  enabled?: boolean; // allow gating fetches
   onError?: (error: Error) => void;
   onSuccess?: (data: MediaFile[] | MediaFile) => void;
 }
@@ -33,46 +29,63 @@ export interface UseMediaReturn {
  * Hook pour récupérer les médias d'une entité
  */
 export const useMediaByEntity = (
-  entityType: 'plot' | 'crop' | 'operation' | 'observation' | 'producer',
+  entityType: 'plot' | 'crop' | 'operation' | 'observation' | 'producer' | 'agent',
   entityId: string,
   options: UseMediaOptions = {}
 ): UseMediaReturn => {
   const [data, setData] = useState<MediaFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const isMountedRef = useRef(true);
+  const enabled = options.enabled !== false; // default true
 
   const fetchMedia = useCallback(async () => {
+    if (!enabled) return;
     if (!entityId) {
-      setData([]);
-      setLoading(false);
+      if (isMountedRef.current) {
+        setData([]);
+        setLoading(false);
+      }
       return;
     }
 
-    setLoading(true);
-    setError(null);
+    if (isMountedRef.current) {
+      setLoading(true);
+      setError(null);
+    }
 
     try {
-      const media = await MediaService.getMediaByEntity(entityType, entityId, options);
-      setData(media);
+      const media = await MediaServiceInstance.getMediaByEntity(entityType, entityId);
+      if (isMountedRef.current) {
+        setData(media);
+      }
       options.onSuccess?.(media);
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Erreur lors de la récupération des médias');
-      setError(error);
+      if (isMountedRef.current) {
+        setError(error);
+      }
       options.onError?.(error);
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
-  }, [entityType, entityId, options]);
+  }, [entityType, entityId, enabled]);
 
   useEffect(() => {
-    if (options.refetchOnMount !== false) {
+    isMountedRef.current = true;
+    if (options.refetchOnMount !== false && enabled) {
       fetchMedia();
     }
-  }, [fetchMedia, options.refetchOnMount]);
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, [fetchMedia, options.refetchOnMount, enabled]);
 
   const uploadMedia = useCallback(async (params: UploadMediaParams): Promise<MediaFile | null> => {
     try {
-      const newMedia = await MediaService.uploadMedia(params, options);
+      const newMedia = await MediaServiceInstance.uploadMedia(params);
       
       // Rafraîchir les données après upload
       await fetchMedia();
@@ -83,11 +96,11 @@ export const useMediaByEntity = (
       options.onError?.(error);
       return null;
     }
-  }, [fetchMedia, options]);
+  }, [fetchMedia]);
 
   const deleteMedia = useCallback(async (id: string): Promise<void> => {
     try {
-      await MediaService.deleteMedia(id, options);
+      await MediaServiceInstance.deleteMedia(id);
       
       // Rafraîchir les données après suppression
       await fetchMedia();
@@ -96,7 +109,7 @@ export const useMediaByEntity = (
       options.onError?.(error);
       throw error;
     }
-  }, [fetchMedia, options]);
+  }, [fetchMedia]);
 
   return {
     data,
@@ -135,7 +148,7 @@ export const useMediaById = (
     setError(null);
 
     try {
-      const media = await MediaService.getMediaById(mediaId, options);
+      const media = await MediaServiceInstance.getMediaById(mediaId, options);
       setData(media);
       options.onSuccess?.(media);
     } catch (err) {
@@ -179,7 +192,7 @@ export const useUploadMedia = (
     setError(null);
 
     try {
-      const newMedia = await MediaService.uploadMedia(params, options);
+      const newMedia = await MediaServiceInstance.uploadMedia(params, options);
       options.onSuccess?.(newMedia);
       return newMedia;
     } catch (err) {
@@ -217,7 +230,7 @@ export const useDeleteMedia = (
     setError(null);
 
     try {
-      await MediaService.deleteMedia(id, options);
+      await MediaServiceInstance.deleteMedia(id, options);
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Erreur lors de la suppression du média');
       setError(error);
@@ -251,7 +264,7 @@ export const useSignedUrl = (): {
     setError(null);
 
     try {
-      const url = await MediaService.getSignedUrl(filePath, expiresIn);
+      const url = await MediaServiceInstance.getSignedUrl(filePath, expiresIn);
       return url;
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Erreur lors de la génération de l\'URL signée');
@@ -273,21 +286,8 @@ export const useSignedUrl = (): {
  * Hook pour invalider le cache des médias
  */
 export const useInvalidateMediaCache = () => {
-  const invalidateEntityCache = useCallback(async (entityType: string, entityId: string) => {
-    await MediaCache.invalidateEntityCache(entityType, entityId);
-  }, []);
-
-  const invalidateOwnerCache = useCallback(async (ownerId: string) => {
-    await MediaCache.invalidateOwnerCache(ownerId);
-  }, []);
-
-  const invalidateAllCache = useCallback(async () => {
-    await MediaCache.invalidateAllCache();
-  }, []);
-
-  return {
-    invalidateEntityCache,
-    invalidateOwnerCache,
-    invalidateAllCache
-  };
+  const invalidateEntityCache = useCallback(async () => {}, []);
+  const invalidateOwnerCache = useCallback(async () => {}, []);
+  const invalidateAllCache = useCallback(async () => {}, []);
+  return { invalidateEntityCache, invalidateOwnerCache, invalidateAllCache };
 };

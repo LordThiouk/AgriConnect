@@ -1,11 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Alert,
   Image,
   Modal,
   ScrollView,
-  Dimensions,
-  ActivityIndicator
+  Dimensions
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -22,7 +21,25 @@ import {
   Badge,
   useTheme
 } from 'native-base';
-import { MediaService, MediaFile, UploadMediaParams } from '../lib/services/media';
+import { useMediaByEntity, useUploadMedia } from '../lib/hooks/useMedia';
+import { MediaFile, UploadMediaParams } from '../lib/services/domain/media/media.types';
+
+// Interface locale pour les photos sélectionnées
+interface SelectedPhoto {
+  id: string;
+  uri: string;
+  width: number;
+  height: number;
+  type: string;
+  entityType: 'plot' | 'crop' | 'operation' | 'observation' | 'producer';
+  entityId: string;
+  location?: {
+    lat: number;
+    lon: number;
+  };
+  description?: string;
+  tags?: string[];
+}
 
 interface PhotoPickerProps {
   entityType: 'plot' | 'crop' | 'operation' | 'observation' | 'producer';
@@ -46,15 +63,42 @@ export default function PhotoPicker({
   style
 }: PhotoPickerProps) {
   const theme = useTheme();
-  const [photos, setPhotos] = useState<MediaFile[]>(existingPhotos);
-  const [uploading, setUploading] = useState(false);
-  const [selectedPhoto, setSelectedPhoto] = useState<MediaFile | null>(null);
+  const [selectedPhoto, setSelectedPhoto] = useState<SelectedPhoto | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [description, setDescription] = useState('');
   const [tags, setTags] = useState<string[]>([]);
 
+  // Utiliser le hook pour gérer les médias
+  const { 
+    data: photos, 
+    loading: loadingPhotos, 
+    error: errorPhotos, 
+    deleteMedia,
+    refetch: refetchPhotos
+  } = useMediaByEntity(entityType, entityId, {
+    enabled: !!entityId,
+    refetchOnMount: true
+  });
+
+  // Hook séparé pour l'upload avec état de chargement
+  const { 
+    uploadMedia, 
+    loading: uploading 
+  } = useUploadMedia();
+
   const screenWidth = Dimensions.get('window').width;
   const photoSize = (screenWidth - 60) / 3; // 3 photos par ligne avec marges
+  const lastPhotosRef = useRef<MediaFile[]>([]);
+
+  // Notifier le parent quand les photos changent
+  useEffect(() => {
+    // Éviter les appels inutiles si les photos n'ont pas changé
+    const photosChanged = JSON.stringify(photos) !== JSON.stringify(lastPhotosRef.current);
+    if (photosChanged) {
+      lastPhotosRef.current = photos;
+      onPhotosChange(photos);
+    }
+  }, [photos, onPhotosChange]);
 
   // Demander les permissions
   const requestPermissions = async () => {
@@ -123,11 +167,9 @@ export default function PhotoPicker({
           type: 'image',
           entityType,
           entityId,
-          location,
+          location: location ? { lat: location.latitude, lon: location.longitude } : undefined,
           description: '',
           tags: [],
-          createdAt: new Date().toISOString(),
-          fileSize: 0, // Sera calculé lors de l'upload
         });
         setModalVisible(true);
       }
@@ -140,32 +182,38 @@ export default function PhotoPicker({
   const uploadPhoto = async () => {
     if (!selectedPhoto) return;
 
-    setUploading(true);
     try {
+      // Générer un nom de fichier basé sur l'URI
+      const fileName = selectedPhoto.uri.split('/').pop() || `photo_${Date.now()}.jpg`;
+      
+      // Pour React Native, convertir l'URI en ArrayBuffer
+      const response = await fetch(selectedPhoto.uri);
+      const arrayBuffer = await response.arrayBuffer();
+      
       const uploadParams: UploadMediaParams = {
         entityType: selectedPhoto.entityType,
         entityId: selectedPhoto.entityId,
-        uri: selectedPhoto.uri,
+        file: arrayBuffer,
+        fileName: fileName,
         description: enableDescription ? description : undefined,
         tags: tags.length > 0 ? tags : undefined,
-        location: selectedPhoto.location,
+        gpsCoordinates: selectedPhoto.location,
       };
 
-      const uploadedMedia = await MediaService.uploadMedia(uploadParams);
-      const newPhotos = [...photos, uploadedMedia];
+      const uploadedMedia = await uploadMedia(uploadParams);
       
-      setPhotos(newPhotos);
-      onPhotosChange(newPhotos);
-      
-      setModalVisible(false);
-      setSelectedPhoto(null);
-      setDescription('');
-      setTags([]);
+      if (uploadedMedia) {
+        // Rafraîchir les données après upload
+        await refetchPhotos();
+        
+        setModalVisible(false);
+        setSelectedPhoto(null);
+        setDescription('');
+        setTags([]);
+      }
     } catch (error) {
       console.error('Erreur lors de l\'upload:', error);
       Alert.alert('Erreur', 'Impossible d\'uploader la photo.');
-    } finally {
-      setUploading(false);
     }
   };
 
@@ -180,13 +228,9 @@ export default function PhotoPicker({
           style: 'destructive',
           onPress: async () => {
             try {
-              const photo = photos.find(p => p.id === photoId);
-              if (photo) {
-                await MediaService.deleteMedia(photoId);
-                const newPhotos = photos.filter(p => p.id !== photoId);
-                setPhotos(newPhotos);
-                onPhotosChange(newPhotos);
-              }
+              await deleteMedia(photoId);
+              // Le hook gère automatiquement la mise à jour des données
+              // Le useEffect notifiera automatiquement le parent
             } catch (error) {
               console.error('Erreur lors de la suppression:', error);
               Alert.alert('Erreur', 'Impossible de supprimer la photo.');
@@ -197,11 +241,6 @@ export default function PhotoPicker({
     );
   };
 
-  const addTag = (tag: string) => {
-    if (tag.trim() && !tags.includes(tag.trim())) {
-      setTags([...tags, tag.trim()]);
-    }
-  };
 
   const removeTag = (tagToRemove: string) => {
     setTags(tags.filter(tag => tag !== tagToRemove));
@@ -236,7 +275,30 @@ export default function PhotoPicker({
 
       {/* Grille de photos */}
       <HStack flexWrap="wrap" space={2}>
-        {photos.map((photo, index) => (
+        {loadingPhotos ? (
+          <Box
+            w={photoSize}
+            h={photoSize}
+            borderRadius="md"
+            bg="gray.200"
+            justifyContent="center"
+            alignItems="center"
+          >
+            <Text fontSize="xs" color="gray.500">Chargement...</Text>
+          </Box>
+        ) : errorPhotos ? (
+          <Box
+            w={photoSize}
+            h={photoSize}
+            borderRadius="md"
+            bg="red.100"
+            justifyContent="center"
+            alignItems="center"
+          >
+            <Text fontSize="xs" color="red.500">Erreur</Text>
+          </Box>
+        ) : (
+          photos.map((photo, index) => (
           <Box
             key={photo.id}
             position="relative"
@@ -247,7 +309,7 @@ export default function PhotoPicker({
             bg="gray.200"
           >
             <Image
-              source={{ uri: photo.uri }}
+              source={{ uri: photo.url || photo.file_path }}
               style={{
                 width: photoSize,
                 height: photoSize,
@@ -265,7 +327,7 @@ export default function PhotoPicker({
               size="xs"
               _pressed={{ bg: 'rgba(0,0,0,0.8)' }}
             />
-            {photo.location && (
+            {photo.gps_coordinates && (
               <Badge
                 position="absolute"
                 bottom={1}
@@ -279,9 +341,10 @@ export default function PhotoPicker({
               </Badge>
             )}
           </Box>
-        ))}
+        ))
+        )}
         
-        {photos.length < maxPhotos && (
+        {!loadingPhotos && !errorPhotos && photos.length < maxPhotos && (
           <Pressable
             onPress={() => handleImagePicker('library')}
             w={photoSize}
@@ -395,7 +458,7 @@ export default function PhotoPicker({
                     bg="primary.500"
                     onPress={uploadPhoto}
                     isLoading={uploading}
-                    loadingText="Upload..."
+                    isLoadingText="Upload..."
                     _text={{ color: 'white', fontWeight: 'medium' }}
                     _pressed={{ bg: 'primary.600' }}
                   >

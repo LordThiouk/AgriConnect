@@ -1,7 +1,6 @@
-import { Database, CacheTTL } from '../../../../types/database';
-
+import { Database } from '../../../../types/database';
 type Media = Database['public']['Tables']['media']['Row'];
-type MediaUpdate = Database['public']['Tables']['media']['Update'];
+// type MediaUpdate = Database['public']['Tables']['media']['Update'];
 
 /**
  * Types pour le service des médias
@@ -16,7 +15,7 @@ export interface MediaItem {
   file_size: number;
   storage_path: string;
   url: string;
-  entity_type: 'plot' | 'crop' | 'operation' | 'observation' | 'producer';
+  entity_type: 'plot' | 'crop' | 'operation' | 'observation' | 'producer' | 'agent';
   entity_id: string;
   owner_profile_id: string;
   metadata?: Record<string, any>;
@@ -33,8 +32,17 @@ export interface MediaDisplay extends Media {
   owner_name?: string;
 }
 
+// Représentation complète d'un média utilisable côté app (row + champs dérivés)
+export type MediaFile = Media & {
+  url?: string;
+  gps_coordinates?: {
+    lat: number;
+    lon: number;
+  };
+};
+
 export interface MediaFilters {
-  entity_type?: 'plot' | 'crop' | 'operation' | 'observation' | 'producer';
+  entity_type?: 'plot' | 'crop' | 'operation' | 'observation' | 'producer' | 'agent';
   entity_id?: string;
   owner_profile_id?: string;
   mime_type?: string;
@@ -49,7 +57,7 @@ export interface MediaSort {
 
 export interface UploadMediaParams {
   file: File | Blob | ArrayBuffer | Uint8Array;
-  entityType: 'plot' | 'crop' | 'operation' | 'observation' | 'producer';
+  entityType: 'plot' | 'crop' | 'operation' | 'observation' | 'producer' | 'agent';
   entityId: string;
   fileName: string;
   description?: string;
@@ -63,7 +71,7 @@ export interface UploadMediaParams {
 
 export interface MediaCreateData {
   owner_profile_id: string;
-  entity_type: 'plot' | 'crop' | 'operation' | 'observation' | 'producer';
+  entity_type: 'plot' | 'crop' | 'operation' | 'observation' | 'producer' | 'agent';
   entity_id: string;
   file_path: string;
   file_name: string;

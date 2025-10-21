@@ -141,7 +141,7 @@ class MediaService {
    * Récupère les médias d'une entité avec cache
    */
   async getMediaByEntity(
-    entityType: 'plot' | 'crop' | 'operation' | 'observation' | 'producer',
+    entityType: 'plot' | 'crop' | 'operation' | 'observation' | 'producer' | 'agent',
     entityId: string,
     options: MediaServiceOptions = {}
   ): Promise<MediaFile[]> {
@@ -367,6 +367,41 @@ class MediaService {
   async invalidateOwnerCache(ownerId: string): Promise<void> {
     console.log('🗑️ [MediaService] Invalidation du cache pour le propriétaire:', ownerId);
     await this.cache.invalidateOwnerCache(ownerId);
+  }
+
+  /**
+   * Met à jour l'entité associée à un média
+   */
+  async updateMediaEntity(
+    mediaId: string,
+    newEntityType: 'plot' | 'crop' | 'operation' | 'observation' | 'producer' | 'agent',
+    newEntityId: string
+  ): Promise<void> {
+    console.log('🔄 [MediaService] Mise à jour de l\'entité du média:', { mediaId, newEntityType, newEntityId });
+
+    try {
+      const { error } = await this.supabase
+        .from('media')
+        .update({
+          entity_type: newEntityType,
+          entity_id: newEntityId,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', mediaId);
+
+      if (error) {
+        console.error('❌ [MediaService] Erreur lors de la mise à jour de l\'entité:', error);
+        throw error;
+      }
+
+      console.log('✅ [MediaService] Entité du média mise à jour');
+
+      // Invalider le cache
+      await this.cache.invalidateMediaCache(mediaId);
+    } catch (error) {
+      console.error('❌ [MediaService] Erreur lors de la mise à jour de l\'entité du média:', error);
+      throw error;
+    }
   }
 
   /**

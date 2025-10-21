@@ -24,14 +24,24 @@ class VisitsService {
    */
   async getAgentVisits(
     agentId: string,
+    filters?: any,
     options: VisitServiceOptions = {}
   ): Promise<Visit[]> {
     const { useCache = true, cacheTTL, refreshCache = false } = options;
 
     console.log('📅 [VisitsService] Récupération des visites pour l\'agent:', agentId);
 
-    // Vérifier le cache si activé
-    if (useCache && !refreshCache) {
+    // Vérifier le cache si activé (uniquement quand pas de filtre spécifique)
+    // Si un filtre est appliqué (autre que 'all'), on contourne le cache interne pour respecter le filtre
+    let unifiedFilter: string | undefined;
+    try {
+      unifiedFilter = (filters?.period || filters?.status) as string | undefined;
+    } catch {
+      unifiedFilter = undefined;
+    }
+    const isFilterSpecific = unifiedFilter && unifiedFilter !== 'all';
+
+    if (useCache && !refreshCache && !isFilterSpecific) {
       const cachedVisits = await this.cache.getAgentVisits(agentId);
       if (cachedVisits) {
         console.log(`⚡ [VisitsService] Cache HIT: ${cachedVisits.length} visites pour l'agent ${agentId}`);
@@ -43,10 +53,20 @@ class VisitsService {
     try {
       const startTime = Date.now();
       
+      // IMPORTANT: La RPC attend l'auth user_id, pas profiles.id
+      const agentParam = agentId;
+
       // Utiliser la RPC comme dans collecte.ts
+      // La RPC n'accepte qu'un seul filtre textuel p_filter (today|week|month|past|future|all|completed|pending|in_progress)
+      const rpcArgs: Record<string, any> = { p_user_id: agentParam };
+      // Par défaut, utiliser 'all' pour récupérer toutes les visites si aucun filtre n'est spécifié
+      rpcArgs.p_filter = unifiedFilter || 'all';
+
+      console.log(`🔍 [VisitsService] RPC args:`, rpcArgs);
+
       const { data, error } = await AgriConnectApiClientInstance.rpc({
         function: 'get_agent_all_visits_with_filters',
-        args: { p_user_id: agentId },
+        args: rpcArgs,
         method: 'POST',
         cache: useCache ? cacheTTL : false
       });
@@ -57,12 +77,24 @@ class VisitsService {
       }
 
       const responseTime = Date.now() - startTime;
-      console.log(`✅ [VisitsService] ${Array.isArray(data) ? data.length : 0} visites récupérées en ${responseTime}ms`);
+      // Le client RPC peut retourner soit un tableau directement, soit un objet { data, error, status }
+      const rawPayload = (data as any)?.data ?? data;
+      const rows: any[] = Array.isArray(rawPayload) ? rawPayload : [];
+      console.log(`✅ [VisitsService] ${rows.length} visites récupérées en ${responseTime}ms`);
+      console.log(`🔍 [VisitsService] Raw RPC data:`, data);
 
-      const visits = Array.isArray(data) ? data.map((visit: any) => this.formatVisitData(visit)) : [];
+      const visits = rows.map((visit: any) => this.formatVisitData(visit));
+      console.log(`🔍 [VisitsService] Formatted visits:`, visits.map(v => ({
+        id: v.id,
+        type: v.visit_type,
+        status: v.status,
+        date: v.visit_date,
+        producer: v.producer_name,
+        plot: v.plot_name
+      })));
 
-      // Mettre en cache si activé
-      if (useCache && visits.length > 0) {
+      // Mettre en cache si activé et uniquement pour le jeu non filtré (all)
+      if (useCache && visits.length > 0 && !isFilterSpecific) {
         await this.cache.setAgentVisits(agentId, visits, cacheTTL);
       }
 
@@ -97,11 +129,13 @@ class VisitsService {
     try {
       const startTime = Date.now();
       
+      const profileId = await this.getProfileIdFromUserId(agentId);
+      const agentParam = profileId || agentId;
       // Utiliser la RPC comme dans collecte.ts avec filtre "today"
       const { data, error } = await AgriConnectApiClientInstance.rpc({
         function: 'get_agent_all_visits_with_filters',
         args: {
-          p_user_id: agentId,
+          p_user_id: agentParam,
           p_filter: 'today'
         },
         method: 'POST',
@@ -154,11 +188,13 @@ class VisitsService {
     try {
       const startTime = Date.now();
       
+      const profileId = await this.getProfileIdFromUserId(agentId);
+      const agentParam = profileId || agentId;
       // Utiliser la RPC comme dans collecte.ts avec filtre "upcoming"
       const { data, error } = await AgriConnectApiClientInstance.rpc({
         function: 'get_agent_all_visits_with_filters',
         args: {
-          p_user_id: agentId,
+          p_user_id: agentParam,
           p_filter: 'upcoming'
         },
         method: 'POST',
@@ -211,11 +247,13 @@ class VisitsService {
     try {
       const startTime = Date.now();
       
+      const profileId = await this.getProfileIdFromUserId(agentId);
+      const agentParam = profileId || agentId;
       // Utiliser la RPC comme dans collecte.ts avec filtre "past"
       const { data, error } = await AgriConnectApiClientInstance.rpc({
         function: 'get_agent_all_visits_with_filters',
         args: {
-          p_user_id: agentId,
+          p_user_id: agentParam,
           p_filter: 'past'
         },
         method: 'POST',
@@ -379,8 +417,12 @@ class VisitsService {
 
       // Invalider le cache
       await this.cache.invalidateVisitCache(visitId);
-      await this.cache.invalidateAgentCache(visit.agent_id);
-      await this.cache.invalidatePlotCache(visit.plot_id);
+      if (visit.agent_id) {
+        await this.cache.invalidateAgentCache(visit.agent_id);
+      }
+      if (visit.plot_id) {
+        await this.cache.invalidatePlotCache(visit.plot_id);
+      }
 
       return visit;
     } catch (error) {
@@ -539,6 +581,22 @@ class VisitsService {
   }
 
   /**
+   * Map a Supabase auth user_id (agents) to profiles.id when available
+   */
+  private async getProfileIdFromUserId(userId: string): Promise<string | null> {
+    try {
+      const { data: profile } = await this.supabase
+        .from('profiles')
+        .select('id')
+        .eq('user_id', userId)
+        .single();
+      return profile?.id ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Formate les données d'une visite
    */
   private formatVisitData(data: any): Visit {
@@ -552,12 +610,19 @@ class VisitsService {
       status: data.status,
       created_at: data.created_at,
       updated_at: data.updated_at,
-      plot_name: data.plots?.name,
-      producer_name: data.plots?.producers?.name,
-      cooperative_name: data.plots?.producers?.cooperatives?.name,
-      agent_name: data.profiles?.display_name,
-      parcel_area: data.plots?.area_ha,
-      parcel_location: data.plots?.location
+      // Utiliser les champs retournés par la RPC get_agent_all_visits_with_filters
+      plot_name: data.plot_name || 'Parcelle inconnue',
+      producer_name: data.producer || 'Producteur inconnu',
+      cooperative_name: data.cooperative_name || 'Coopérative inconnue',
+      agent_name: data.agent_name || 'Agent inconnu',
+      parcel_area: data.plot_area,
+      parcel_location: data.location,
+      // Coordonnées GPS si disponibles
+      lat: data.lat,
+      lon: data.lon,
+      has_gps: data.has_gps || false,
+      duration_minutes: data.duration_minutes,
+      weather_conditions: data.weather_conditions
     };
   }
 
@@ -592,10 +657,14 @@ class VisitsService {
     console.log('🔍 [VisitsService] Récupération de la visite pour édition:', visitId);
 
     try {
+      console.log('🔄 [VisitsService] Appel RPC get_visit_for_edit avec visitId:', visitId);
+      
       const { data, error } = await this.supabase
         .rpc('get_visit_for_edit', {
           p_visit_id: visitId
         });
+
+      console.log('🔍 [VisitsService] Réponse RPC get_visit_for_edit:', { data, error });
 
       if (error) {
         console.error('❌ [VisitsService] Erreur RPC get_visit_for_edit:', error);
@@ -637,149 +706,6 @@ class VisitsService {
     }
   }
 
-  /**
-   * Récupère une visite par son ID (méthode manquante de CollecteService)
-   */
-  async getVisitById(visitId: string): Promise<any> {
-    try {
-      console.log(`🔍 [VisitsService] Récupération de la visite: ${visitId}`);
-      
-      const { data, error } = await this.supabase
-        .from('visits')
-        .select(`
-          *,
-          agent:profiles!agent_id (
-            id,
-            phone,
-            display_name
-          ),
-          producer:producers!producer_id (
-            id,
-            first_name,
-            last_name,
-            phone
-          ),
-          plot:plots!plot_id (
-            id,
-            name_season_snapshot,
-            area_hectares
-          )
-        `)
-        .eq('id', visitId)
-        .maybeSingle();
-
-      if (error) {
-        console.error("❌ [VisitsService] Erreur lors de la récupération de la visite:", error);
-        throw error;
-      }
-
-      if (!data) {
-        console.warn(`⚠️ [VisitsService] Aucune visite trouvée avec l'ID ${visitId} (RLS ou visite inexistante)`);
-        return null;
-      }
-
-      console.log('✅ [VisitsService] Visite récupérée:', data);
-      return data;
-    } catch (error) {
-      console.error('❌ [VisitsService] Erreur générale dans getVisitById:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Met à jour une visite complète via RPC (méthode manquante de CollecteService)
-   */
-  async updateVisit(visitId: string, visitData: any): Promise<any> {
-    try {
-      console.log(`📝 [VisitsService] Mise à jour de la visite via RPC: ${visitId}`);
-      
-      const { data, error } = await this.supabase
-        .rpc('update_visit', {
-          p_visit_id: visitId,
-          p_visit_data: visitData
-        });
-
-      if (error) {
-        console.error("❌ [VisitsService] Erreur lors de la mise à jour de la visite:", error);
-        throw error;
-      }
-      
-      if (!data || !data.success) {
-        throw new Error(data?.error || 'Échec de la mise à jour de la visite');
-      }
-      
-      console.log('✅ [VisitsService] Visite mise à jour via RPC');
-      return data.data;
-    } catch (error) {
-      console.error('❌ [VisitsService] Erreur générale dans updateVisit:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Crée une visite via RPC (méthode manquante de CollecteService)
-   */
-  async createVisit(agentId: string, visitData: any): Promise<any> {
-    try {
-      console.log(`📝 [VisitsService] Création de la visite via RPC pour l'agent: ${agentId}`);
-      
-      const { data, error } = await this.supabase
-        .rpc('create_visit', {
-          p_agent_id: agentId,
-          p_visit_data: visitData
-        });
-
-      if (error) {
-        console.error("❌ [VisitsService] Erreur lors de la création de la visite:", error);
-        throw error;
-      }
-      
-      if (!data || !data.success) {
-        throw new Error(data?.error || 'Échec de la création de la visite');
-      }
-      
-      console.log('✅ [VisitsService] Visite créée via RPC');
-      return data.data;
-    } catch (error) {
-      console.error('❌ [VisitsService] Erreur générale dans createVisit:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Récupère une visite avec producteur et parcelle pour modification via RPC (méthode manquante de CollecteService)
-   */
-  async getVisitForEdit(visitId: string): Promise<any | null> {
-    try {
-      console.log('🔍 [VisitsService] Récupération de la visite pour modification:', visitId);
-
-      const { data, error } = await this.supabase
-        .rpc('get_visit_for_edit', { p_visit_id: visitId });
-
-      if (error) {
-        console.error('❌ [VisitsService] Erreur lors de la récupération de la visite pour modification:', error);
-        console.error('   Code:', error.code);
-        console.error('   Message:', error.message);
-        console.error('   Détails:', error.details);
-        return null;
-      }
-
-      if (!data) {
-        console.log('⚠️ [VisitsService] Visite non trouvée ou accès refusé');
-        return null;
-      }
-
-      console.log('✅ [VisitsService] Visite récupérée avec succès pour modification');
-      console.log('   Producer:', data.producer?.first_name, data.producer?.last_name);
-      console.log('   Plot:', data.plot?.name);
-      console.log('   Agent:', data.agent?.display_name || 'Agent inconnu');
-      
-      return data;
-    } catch (error) {
-      console.error('❌ [VisitsService] Erreur générale dans getVisitForEdit:', error);
-      return null;
-    }
-  }
 }
 
 export const VisitsServiceInstance = new VisitsService();

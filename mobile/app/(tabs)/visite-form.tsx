@@ -1,17 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
-  Alert,
-  ActivityIndicator,
-  TouchableOpacity 
+  Alert
 } from 'react-native';
 import { Text, VStack, Spinner, Box, HStack, Icon } from 'native-base';
-import { FormInput, FormSelect, FormDatePicker, ScreenContainer, FormField } from '../../components/ui';
+import { FormInput, FormSelect, FormDatePicker, FormField } from '../../components/ui';
+import { FormContainer } from '../../components/ui/layout/Container';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
-import { VisitsService } from '../../lib/services/domain/visits';
-import { PlotsService } from '../../lib/services/domain/plots';
-import { useAgentProducers } from '../../lib/hooks/useProducers';
-import { ProducerDisplay, PlotDisplay } from '../../lib/types/core/collecte';
+import { useAgentAssignments } from '../../lib/hooks/useAgentAssignments';
+import { Keyboard, TouchableWithoutFeedback } from 'react-native';
+import { ProducersServiceInstance as ProducersService } from '../../lib/services/domain/producers';
+import { useVisitForEdit, useCreateVisit, useUpdateVisit } from '../../lib/hooks/useVisits';
+import { PlotsServiceInstance as PlotsService } from '../../lib/services/domain/plots';
+import type { PlotDisplay } from '../../lib/services/domain/plots/plots.types';
 import { Feather } from '@expo/vector-icons';
 
 // Types pour le formulaire de visite
@@ -26,6 +27,17 @@ interface VisiteFormData {
   weather_conditions: string;
 }
 
+// Local light types
+type ProducerDisplay = { id: string; name?: string; location?: string };
+type PlotOption = Pick<PlotDisplay, 'id' | 'name' | 'area_hectares' | 'soil_type' | 'water_source' | 'status' | 'producer_id'> & {
+  area?: number;
+  producerName?: string;
+  cropsCount?: number;
+  hasGps?: boolean;
+  lat?: number;
+  lon?: number;
+};
+
 export default function VisiteForm() {
   const router = useRouter();
   const { user } = useAuth();
@@ -39,17 +51,53 @@ export default function VisiteForm() {
     alertTitle?: string;
     alertDescription?: string;
   }>();
+
+  // Debug logs pour le mode édition
+  console.log('🔍 [VISITE_FORM] Paramètres reçus:', {
+    edit,
+    emergency,
+    alertId,
+    producerId,
+    plotId,
+    notes,
+    alertTitle,
+    alertDescription,
+    isEditMode: !!edit
+  });
   const [loading, setLoading] = useState(false);
-  const [plots, setPlots] = useState<PlotDisplay[]>([]);
+  const [plots, setPlots] = useState<PlotOption[]>([]);
   const [selectedProducer, setSelectedProducer] = useState<ProducerDisplay | null>(null);
-  const [selectedPlot, setSelectedPlot] = useState<PlotDisplay | null>(null);
+  const [selectedPlot, setSelectedPlot] = useState<PlotOption | null>(null);
   const [isEditMode, setIsEditMode] = useState(!!edit);
   const [visitId, setVisitId] = useState<string | null>(edit || null);
   
-  // Utiliser le hook pour les producteurs
-  const { producers, loading: producersLoading } = useAgentProducers(user?.id || '', undefined, {
-    enabled: !!user?.id
+  // Utiliser les assignations pour obtenir les producteurs affectés
+  const { assignments, loading: producersLoading, refetch: refetchAssignments } = useAgentAssignments({
+    agentId: user?.id,
+    enabled: !!user?.id,
+    refetchOnMount: true,
   });
+
+  // Build a producer list from domain service (assignments-aware via RPC)
+  const [producers, setProducers] = useState<any[]>([]);
+  const [producerSearch, setProducerSearch] = useState<string>('');
+  useEffect(() => {
+    const load = async () => {
+      if (!user?.id) return;
+      try {
+        const list = await ProducersService.getProducersByAgentId(user.id);
+        setProducers(list || []);
+      } catch (e) {
+        console.error('❌ [VisiteForm] Impossible de récupérer les producteurs assignés:', e);
+        setProducers([]);
+      }
+    };
+    load();
+  }, [user?.id]);
+
+  const { data: visitEditData, refetch: refetchVisitEdit } = useVisitForEdit(edit || '', { refetchOnMount: !!edit });
+  const { createVisit } = useCreateVisit();
+  const { updateVisit } = useUpdateVisit();
   
   const [formData, setFormData] = useState<VisiteFormData>({
     producer_id: '',
@@ -89,21 +137,68 @@ export default function VisiteForm() {
     } else {
       console.log('⚠️ Conditions non remplies pour la sélection de parcelle');
     }
-  }, [isEditMode, selectedPlot, plots, formData.plot_id]);
+  }, [isEditMode, selectedPlot, plots]); // formData.plot_id retiré pour éviter la boucle
 
-  // Fonction pour charger les données de visite
-  const loadVisitData = useCallback(async () => {
-    if (!edit) return;
-    
-    try {
+
+  // Charger les données de visite en mode édition
+  useEffect(() => {
+    if (edit && user?.id) {
+      console.log('🔄 Chargement des données de visite en mode édition');
+      
+      // Réinitialiser tous les états du formulaire
+      setFormData({
+        producer_id: '',
+        plot_id: '',
+        visit_date: '',
+        visit_type: 'routine',
+        status: 'planned',
+        duration_minutes: 30,
+        notes: '',
+        weather_conditions: ''
+      });
+      setSelectedProducer(null);
+      setSelectedPlot(null);
+      setPlots([]);
       setLoading(true);
       setIsEditMode(true);
       setVisitId(edit);
       
-      console.log('🔍 Chargement des données de visite pour édition via VisitsService:', edit);
+      // Déclencher le chargement des données
+      refetchVisitEdit();
+    }
+  }, [edit, user?.id, refetchVisitEdit]);
+
+  // Réinitialiser le formulaire quand on quitte le mode édition
+  useEffect(() => {
+    if (!edit && isEditMode) {
+      console.log('🔄 Sortie du mode édition - réinitialisation du formulaire');
       
-      // Utiliser le nouveau service VisitsService avec cache
-      const visitData = await VisitsService.getVisitForEdit(edit);
+      // Réinitialiser tous les états
+      setFormData({
+        producer_id: '',
+        plot_id: '',
+        visit_date: '',
+        visit_type: 'routine',
+        status: 'planned',
+        duration_minutes: 30,
+        notes: '',
+        weather_conditions: ''
+      });
+      setSelectedProducer(null);
+      setSelectedPlot(null);
+      setPlots([]);
+      setIsEditMode(false);
+      setVisitId('');
+      setLoading(false);
+    }
+  }, [edit, isEditMode]);
+
+  // Traiter les données de visite quand elles sont chargées
+  useEffect(() => {
+    if (isEditMode && visitEditData) {
+      console.log('🔄 Traitement des données de visite chargées');
+      
+      const visitData = visitEditData as any;
       
       if (!visitData) {
         console.error('❌ Visite non trouvée ou accès refusé:', edit);
@@ -130,7 +225,7 @@ export default function VisiteForm() {
         visit_date: visitData.visit.visit_date,
         visit_type: visitData.visit.visit_type,
         status: visitData.visit.status,
-        duration_minutes: visitData.visit.duration_minutes?.toString() || '',
+        duration_minutes: visitData.visit.duration_minutes || 30,
         notes: visitData.visit.notes || '',
         weather_conditions: visitData.visit.weather_conditions || ''
       });
@@ -139,20 +234,11 @@ export default function VisiteForm() {
       const producerFromRPC: ProducerDisplay = {
         id: visitData.producer.id,
         name: `${visitData.producer.first_name} ${visitData.producer.last_name}`,
-        phone: visitData.producer.phone,
-        village: visitData.producer.village,
-        commune: visitData.producer.commune,
-        region: visitData.producer.region,
-        cooperative_id: visitData.producer.cooperative_id,
-        is_active: true,
-        isActive: true,
         location: `${visitData.producer.village}, ${visitData.producer.commune}`,
-        cooperativeName: 'Coopérative',
-        plotsCount: 0
       };
       
       // Créer un objet parcelle à partir des données RPC
-      const plotFromRPC: PlotDisplay = {
+      const plotFromRPC: any = {
         id: visitData.plot.id,
         name: visitData.plot.name,
         area_hectares: visitData.plot.area_hectares,
@@ -164,7 +250,7 @@ export default function VisiteForm() {
         producerName: `${visitData.producer.first_name} ${visitData.producer.last_name}`,
         cropsCount: 0,
         hasGps: !!(visitData.plot.lat && visitData.plot.lon)
-      };
+      } as Partial<PlotDisplay> as PlotDisplay;
       
       console.log('✅ Producteur et parcelle créés à partir du RPC:', {
         producer: producerFromRPC.name,
@@ -173,15 +259,11 @@ export default function VisiteForm() {
         area: plotFromRPC.area_hectares
       });
       
-      console.log('🔍 Données complètes de la parcelle RPC:', visitData.plot);
-      
       // Sélectionner le producteur et la parcelle
       setSelectedProducer(producerFromRPC);
       setSelectedPlot(plotFromRPC);
       
       // Ajouter la parcelle aux listes si pas déjà présente
-      // Note: Les producteurs sont maintenant gérés par le hook useProducers
-      
       setPlots(prev => {
         const exists = prev.some(p => p.id === plotFromRPC.id);
         const newPlots = exists ? prev : [...prev, plotFromRPC];
@@ -190,23 +272,10 @@ export default function VisiteForm() {
         return newPlots;
       });
       
-      console.log('✅ Données de visite chargées avec succès via RPC');
-      
-    } catch (error) {
-      console.error('Erreur lors du chargement de la visite:', error);
-      Alert.alert('Erreur', 'Impossible de charger les données de la visite');
-    } finally {
       setLoading(false);
+      console.log('✅ Données de visite traitées avec succès');
     }
-  }, [edit, router]);
-
-  // Charger les données de visite en mode édition
-  useEffect(() => {
-    if (edit && user?.id) {
-      console.log('🔄 Chargement des données de visite en mode édition');
-      loadVisitData();
-    }
-  }, [edit, user?.id, loadVisitData]);
+  }, [isEditMode, visitEditData, edit, router]); // Retirer loading des dépendances
 
   // Forcer la mise à jour du dropdown parcelle en mode édition
   useEffect(() => {
@@ -222,7 +291,7 @@ export default function VisiteForm() {
         setFormData(prev => ({ ...prev, plot_id: selectedPlot.id }));
       }
     }
-  }, [isEditMode, selectedPlot, plots, formData.plot_id]);
+  }, [isEditMode, selectedPlot, plots]); // Retirer formData.plot_id des dépendances pour éviter la boucle
 
   // Forcer la sélection de la parcelle quand elle est ajoutée en mode édition
   useEffect(() => {
@@ -244,7 +313,7 @@ export default function VisiteForm() {
   // Fonction pour charger les parcelles d'un producteur
   const handleProducerSelect = useCallback(async (option: { value: string; label: string; subtitle?: string }) => {
     console.log('🔄 handleProducerSelect appelé avec:', option);
-    const producer = producers?.find(p => p.id === option.value);
+    const producer = (producers || []).find((p: any) => p.id === option.value);
     if (!producer) {
       console.error('❌ Producteur non trouvé:', option.value);
       console.log('📋 Producteurs disponibles:', producers?.map(p => ({ id: p.id, name: p.name })));
@@ -264,7 +333,7 @@ export default function VisiteForm() {
       console.log('✅ Parcelles récupérées via PlotsService:', plotsData.length);
 
       // Transformer les données pour le format attendu
-      const transformedPlots = plotsData.map(plot => ({
+      const transformedPlots: PlotOption[] = (plotsData || []).map((plot: any): PlotOption => ({
         id: plot.id,
         name: plot.name,
         area: plot.area_hectares,
@@ -272,10 +341,12 @@ export default function VisiteForm() {
         soil_type: plot.soil_type,
         water_source: plot.water_source,
         status: plot.status,
-        producerName: plot.producer_name,
+        producerName: selectedProducer?.name,
         producer_id: producer.id,
         cropsCount: 0,
-        hasGps: !!(plot.lat && plot.lon)
+        hasGps: !!(plot.lat && plot.lon),
+        lat: plot.lat,
+        lon: plot.lon,
       }));
 
       console.log('✅ Parcelles transformées:', transformedPlots.length);
@@ -286,7 +357,7 @@ export default function VisiteForm() {
     } catch (error) {
       console.error('❌ Erreur lors du chargement des parcelles:', error);
     }
-  }, [producers]);
+  }, [producers, selectedProducer?.name]);
 
   // Fonction pour gérer les visites d'urgence
   const handleEmergencyVisit = useCallback(async () => {
@@ -334,8 +405,8 @@ export default function VisiteForm() {
       // Sélectionner le producteur si fourni
       if (producerId && producers) {
         console.log('🔍 Recherche du producteur:', producerId);
-        const producer = producers.find(p => p.id === producerId);
-        console.log('📋 Producteurs disponibles:', producers.map(p => ({ id: p.id, name: p.name })));
+        console.log('📋 Producteurs disponibles:', producers.map((p: any) => ({ id: p.id, name: p.name })));
+        const producer = (producers as any[]).find((p: any) => p.id === producerId);
         
         if (producer) {
           console.log('✅ Producteur trouvé:', producer.name);
@@ -430,19 +501,21 @@ export default function VisiteForm() {
       };
 
       if (isEditMode && visitId) {
-        // Mode édition
-        console.log('Mise à jour de visite via VisitsService:', visitData);
-        await VisitsService.updateVisit(visitId, visitData);
+        // Mode édition via Supabase
+        console.log('Mise à jour de visite via Supabase:', visitData);
+        await updateVisit(visitId, visitData);
         Alert.alert('Succès', 'Visite mise à jour avec succès');
         // Redirection automatique après un court délai
         setTimeout(() => {
-          router.push('/(tabs)/agent-dashboard');
+          router.push({
+            pathname: '/(tabs)/agent-dashboard',
+            params: { refresh: 'true' } // Paramètre pour forcer le rafraîchissement
+          });
         }, 1000);
       } else {
-        // Mode création
-        console.log('Création de visite via VisitsService:', visitData);
-        const data = await VisitsService.createVisit(user?.id || '', visitData);
-
+        // Mode création via Supabase
+        console.log('Création de visite via Supabase:', visitData);
+        const data = await createVisit(user?.id || '', visitData);
         console.log('✅ Visite créée avec succès:', data);
         Alert.alert('Succès', 'Visite créée avec succès');
         // Redirection automatique après un court délai
@@ -474,11 +547,18 @@ export default function VisiteForm() {
   ];
 
   // Préparer les options pour les dropdowns
-  const producerOptions = producers?.map(producer => ({
-    value: producer.id,
-    label: producer.name || 'Producteur sans nom',
-    subtitle: producer.location
-  })) || [];
+  const producerOptions = (producers || []).map((p: any) => {
+    const label = p.name || `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'Producteur sans nom';
+    const phone = p.phone || '';
+    const place = p.location || [p.village, p.commune].filter(Boolean).join(', ');
+    const subtitle = [phone, place].filter(Boolean).join(' · ');
+    const searchable = `${label} ${phone} ${place}`.toLowerCase();
+    return { value: p.id, label, subtitle, searchable } as { value: string; label: string; subtitle?: string; searchable: string };
+  });
+
+  const filteredProducerOptions = producerOptions.filter(opt =>
+    producerSearch ? opt.searchable.includes(producerSearch.toLowerCase()) : true
+  );
 
   const plotOptions = [
     { value: '', label: 'Aucune parcelle spécifique' },
@@ -508,60 +588,62 @@ export default function VisiteForm() {
     plotOptions: plotOptions.map(o => ({ value: o.value, label: o.label, subtitle: 'subtitle' in o ? o.subtitle : undefined }))
   });
 
-  if (loading && (!producers || producers.length === 0)) {
-    return (
-      <ScreenContainer
-        title="Chargement..."
-        contentScrollable={true}
-        contentPadding={5}
-      >
-        <VStack space={4} alignItems="center" justifyContent="center" flex={1}>
-          <Spinner size="lg" color="primary.500" />
-          <Text color="gray.600">Chargement des données...</Text>
-        </VStack>
-      </ScreenContainer>
-    );
-  }
-
   return (
-    <ScreenContainer
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+    <FormContainer
       title={emergency === 'true' ? 'Visite d\'Urgence' : (isEditMode ? 'Modifier la Visite' : 'Nouvelle Visite')}
       showBackButton={true}
-      contentScrollable={true}
+      onBackPress={() => router.back()}
+      onCancel={() => router.back()}
+      onSave={handleSubmit}
+      loading={loading || producersLoading}
       contentPadding={5}
     >
       <VStack space={4}>
+        {(loading && (!producers || producers.length === 0)) && (
+          <VStack space={4} alignItems="center" justifyContent="center" flex={1}>
+            <Spinner size="lg" color="primary.500" />
+            <Text color="gray.600">Chargement des données...</Text>
+          </VStack>
+        )}
         {/* Sélection du producteur */}
         <FormField
           label="Producteur"
           required
         >
-          {producerOptions.length === 0 && !producersLoading ? (
+          {filteredProducerOptions.length === 0 && !producersLoading ? (
             <Box p={4} bg="gray.100" borderRadius="md" alignItems="center">
               <Text color="gray.600" textAlign="center">
                 Aucun producteur assigné à cet agent
               </Text>
             </Box>
           ) : (
-            <FormSelect
-              value={formData.producer_id}
-              onValueChange={(value) => {
-                const option = producerOptions.find(opt => opt.value === value);
-                if (option) {
-                  handleProducerSelect(option);
-                }
-              }}
-              options={producerOptions.map(opt => ({ value: opt.value, label: opt.label || 'Producteur sans nom' }))}
-              placeholder="Sélectionner un producteur"
-              disabled={producersLoading}
-            />
+            <VStack space={2}>
+              <FormInput
+                placeholder="Rechercher (nom, téléphone, localité)"
+                value={producerSearch}
+                onChangeText={setProducerSearch}
+              />
+              <FormSelect
+                value={formData.producer_id}
+                onValueChange={(value) => {
+                  const option = filteredProducerOptions.find(opt => opt.value === value);
+                  if (option) {
+                    handleProducerSelect(option);
+                  }
+                }}
+                options={filteredProducerOptions.map(opt => ({ value: opt.value, label: opt.label }))}
+                placeholder="Sélectionner un producteur"
+                disabled={producersLoading}
+              />
+            </VStack>
           )}
         </FormField>
 
         {/* Sélection de la parcelle (optionnelle) */}
         {selectedProducer && (
           <FormField
-            label="Parcelle"
+            label="Parcelle" required
           >
             {/* Debug dropdown parcelle */}
             {(() => {
@@ -615,6 +697,9 @@ export default function VisiteForm() {
           <FormDatePicker
             value={formData.visit_date}
             onChange={(value) => setFormData(prev => ({ ...prev, visit_date: value }))}
+            mode="datetime"
+            minuteInterval={5}
+            display="default"
             disabled={loading || producersLoading}
           />
         </FormField>
@@ -649,12 +734,23 @@ export default function VisiteForm() {
         <FormField
           label="Durée (minutes)"
         >
-          <HStack space={3} alignItems="center" p={3} bg="gray.50" borderRadius="md">
-            <Icon as={Feather} name="clock" size={5} color="primary.500" />
-            <Text color="gray.700" fontSize="md">
-              {formData.duration_minutes} minutes
-            </Text>
-          </HStack>
+          <FormSelect
+            value={String(formData.duration_minutes || '')}
+            onValueChange={(value) => {
+              const minutes = parseInt(String(value || '0'), 10) || 0;
+              setFormData(prev => ({ ...prev, duration_minutes: minutes }));
+            }}
+            options={[
+              { value: '15', label: '15 minutes' },
+              { value: '30', label: '30 minutes' },
+              { value: '45', label: '45 minutes' },
+              { value: '60', label: '1 heure' },
+              { value: '90', label: '1h 30' },
+              { value: '120', label: '2 heures' },
+            ]}
+            placeholder="Sélectionner une durée"
+            disabled={loading || producersLoading}
+          />
         </FormField>
 
         {/* Notes */}
@@ -784,56 +880,17 @@ export default function VisiteForm() {
               <HStack justifyContent="space-between" alignItems="center">
                 <Text color="gray.600" fontSize="sm" fontWeight="medium">Source d&apos;eau</Text>
                 <Text color="gray.900" fontSize="sm">
-                  {selectedPlot.waterSource || 'Non spécifiée'}
+                  {selectedPlot.water_source || 'Non spécifiée'}
                 </Text>
               </HStack>
             </VStack>
           </FormField>
         )}
 
-        {/* Boutons d'action */}
-        <HStack space={3} mt={6}>
-          <TouchableOpacity 
-            style={{ flex: 1 }}
-            onPress={() => router.back()}
-          >
-            <Box 
-              flex={1} 
-              p={4} 
-              bg="gray.200" 
-              borderRadius="md" 
-              alignItems="center"
-            >
-              <Text color="gray.700" fontSize="md" fontWeight="medium">
-                Annuler
-              </Text>
-            </Box>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={{ flex: 1 }}
-            onPress={handleSubmit}
-            disabled={loading || producersLoading}
-          >
-            <Box 
-              flex={1} 
-              p={4} 
-              bg={loading || producersLoading ? "gray.300" : "primary.500"} 
-              borderRadius="md" 
-              alignItems="center"
-            >
-              {loading ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text color="white" fontSize="md" fontWeight="medium">
-                  {isEditMode ? 'Mettre à jour' : 'Créer la visite'}
-                </Text>
-              )}
-            </Box>
-          </TouchableOpacity>
-        </HStack>
+        {/* Footer actions handled by FormContainer */}
       </VStack>
-    </ScreenContainer>
+    </FormContainer>
+    </TouchableWithoutFeedback>
   );
 }
 

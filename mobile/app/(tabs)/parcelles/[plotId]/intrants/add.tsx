@@ -12,6 +12,7 @@ import {
   FormDatePicker
 } from '../../../../../components/ui';
 import { Box } from 'native-base';
+import PhotoPicker from '../../../../../components/PhotoPicker';
 
 function AddInputScreen() {
   console.log('🔄 [AddInputScreen] Component mounting');
@@ -28,6 +29,7 @@ function AddInputScreen() {
   const [supplier, setSupplier] = useState('');
   const [cost, setCost] = useState('');
   const [description, setDescription] = useState('');
+  const [photos, setPhotos] = useState<any[]>([]);
 
   const handleSubmit = async () => {
     if (!plotId) {
@@ -40,6 +42,18 @@ function AddInputScreen() {
       return;
     }
 
+    // Validation des valeurs numériques
+    const quantityNum = parseFloat(quantity);
+    if (isNaN(quantityNum) || quantityNum <= 0) {
+      Alert.alert('Erreur', 'La quantité doit être un nombre positif');
+      return;
+    }
+
+    if (cost && (isNaN(parseFloat(cost)) || parseFloat(cost) < 0)) {
+      Alert.alert('Erreur', 'Le coût doit être un nombre positif');
+      return;
+    }
+
     try {
       setLoading(true);
       
@@ -47,11 +61,11 @@ function AddInputScreen() {
                plot_id: plotId,
                name: productName,
                type: category.toLowerCase() as "fertilizer" | "pesticide" | "herbicide" | "fungicide" | "seed" | "equipment" | "other",
-               category: category.toLowerCase(),
+               category: 'chemical' as const, // Default category
                input_type: category.toLowerCase(),
                product_name: productName,
-               quantity: parseFloat(quantity) || 0,
-               unit: unit,
+               quantity: quantityNum,
+               unit: unit as "kg" | "liters" | "bags" | "pieces" | "hectares" | "other",
                purchase_date: purchaseDate.toISOString().split('T')[0],
                supplier: supplier,
                cost: cost ? parseFloat(cost) : null,
@@ -62,6 +76,11 @@ function AddInputScreen() {
       console.log('📦 [AddInputScreen] Création intrant:', inputData);
       
       await InputsServiceInstance.create(inputData);
+      
+      // Les photos sont déjà gérées par le PhotoPicker avec l'entityId
+      if (photos.length > 0) {
+        console.log('📸 Photos prêtes pour l\'intrant:', photos.length);
+      }
       
       Alert.alert('Succès', 'Intrant ajouté avec succès', [
         { text: 'OK', onPress: () => router.back() }
@@ -169,6 +188,17 @@ function AddInputScreen() {
               onChangeText={setDescription}
               multiline
               numberOfLines={3}
+            />
+          </FormField>
+
+          <FormField label="Photos">
+            <PhotoPicker
+              entityType="plot"
+              entityId={plotId || 'temp'}
+              onPhotosChange={setPhotos}
+              existingPhotos={photos}
+              maxPhotos={5}
+              enableGPS={true}
             />
           </FormField>
         </Box>

@@ -4,6 +4,7 @@ import { AuthProvider } from '../context/AuthContext';
 // import HeaderGlobal from '../components/HeaderGlobal'; // Supprimé - remplacé par ScreenContainer
 // import SubHeader from '../components/SubHeader'; // Supprimé - remplacé par ScreenContainer
 import { NativeBaseProvider, Box } from 'native-base';
+import { BackHandler } from 'react-native';
 import { agriconnectTheme } from '../theme/agriconnect';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { FormActivityProvider } from '../context/FormActivityContext';
@@ -21,6 +22,16 @@ function RootLayout() {
 
   // Initialiser le cache au démarrage de l'application
   useEffect(() => {
+    // BackHandler removeEventListener shim for RN >= 0.72 compatibility
+    if (!(BackHandler as any).removeEventListener && (BackHandler as any).addEventListener) {
+      (BackHandler as any).removeEventListener = (_eventName: string, subscription: { remove: () => void } | (() => void)) => {
+        if (typeof subscription === 'function') {
+          try { subscription(); } catch {}
+          return;
+        }
+        try { subscription?.remove?.(); } catch {}
+      };
+    }
     const initializeCache = async () => {
       try {
         await agriConnectCache.initialize();

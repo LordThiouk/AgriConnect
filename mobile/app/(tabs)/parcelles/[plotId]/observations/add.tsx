@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCreateObservation } from '../../../../../lib/hooks/useObservations';
-import { Crop } from '../../../../../types/collecte';
+import { useCrops } from '../../../../../lib/hooks/useCrops';
 import { useAuth } from '../../../../../context/AuthContext';
 import PhotoPicker from '../../../../../components/PhotoPicker';
-import { MediaFile } from '../../../../../lib/services/media';
+import { MediaFile } from '../../../../../lib/services/domain/media/media.types';
+import { MediaServiceInstance } from '../../../../../lib/services/domain/media/media.service';
 import { 
   FormContainer, 
   FormFooter, 
@@ -15,7 +16,7 @@ import {
   FormDatePicker,
   ScreenContainer
 } from '../../../../../components/ui';
-import { Box } from 'native-base';
+import { Box, Text } from 'native-base';
 
 interface ObservationFormData {
   crop_id: string;
@@ -55,27 +56,25 @@ export default function AddObservationScreen() {
     recommendations: '',
   });
 
-  const [crops, setCrops] = useState<Crop[]>([]);
   const [photos, setPhotos] = useState<MediaFile[]>([]);
 
   // Utiliser le hook pour créer une observation
   const { createObservation, loading } = useCreateObservation();
 
-  const loadCrops = useCallback(async () => {
-    if (!plotId) return;
-    
-    try {
-      // TODO: Utiliser CropsService pour récupérer les cultures
-      const cropsData: Crop[] = []; // Placeholder
-      setCrops(cropsData);
-    } catch (error) {
-      console.error('Erreur lors du chargement des cultures:', error);
-    }
-  }, [plotId]);
-
-  useEffect(() => {
-    loadCrops();
-  }, [loadCrops]);
+  // Mémoriser la fonction onPhotosChange pour éviter les re-renders
+  const handlePhotosChange = useCallback((newPhotos: MediaFile[]) => {
+    setPhotos(newPhotos);
+  }, []);
+  
+  // Utiliser le hook pour récupérer les cultures de la parcelle
+  const { 
+    crops, 
+    loading: loadingCrops, 
+    error: errorCrops 
+  } = useCrops(plotId || '', user?.id, { 
+    enabled: !!plotId && !!user?.id,
+    refetchOnMount: true 
+  });
 
   const handleInputChange = (field: keyof ObservationFormData, value: string | number | null) => {
     setFormData(prev => ({
@@ -85,6 +84,7 @@ export default function AddObservationScreen() {
   };
 
   const handleSave = async () => {
+    // Validation des champs obligatoires
     if (!formData.crop_id) {
       Alert.alert('Erreur', 'Veuillez sélectionner une culture');
       return;
@@ -95,8 +95,24 @@ export default function AddObservationScreen() {
       return;
     }
 
+    if (!formData.observation_date) {
+      Alert.alert('Erreur', 'Veuillez sélectionner une date d\'observation');
+      return;
+    }
+
     if (!user) {
       Alert.alert('Erreur', 'Utilisateur non connecté');
+      return;
+    }
+
+    // Validation des pourcentages
+    if (formData.emergence_percent && (parseFloat(formData.emergence_percent) < 0 || parseFloat(formData.emergence_percent) > 100)) {
+      Alert.alert('Erreur', 'Le pourcentage de levée doit être entre 0 et 100');
+      return;
+    }
+
+    if (formData.affected_area_percent && (parseFloat(formData.affected_area_percent) < 0 || parseFloat(formData.affected_area_percent) > 100)) {
+      Alert.alert('Erreur', 'Le pourcentage de zone affectée doit être entre 0 et 100');
       return;
     }
 
@@ -117,18 +133,18 @@ export default function AddObservationScreen() {
       const newObservation = await createObservation(observationData);
       console.log('✅ Observation ajoutée:', newObservation);
 
-      // Associer les photos à l'observation créée
-      if (photos.length > 0 && newObservation) {
+      // Associer les photos à l'observation maintenant qu'on a l'ID
+      if (photos.length > 0 && newObservation?.id) {
         console.log('📸 Association des photos à l\'observation:', newObservation.id);
         
+        // Mettre à jour les photos pour les associer à l'observation
         for (const photo of photos) {
           try {
-            // TODO: Utiliser MediaService pour associer les photos
-            console.log('📸 Association photo:', photo.id, 'à observation:', newObservation.id);
-
-            console.log('✅ Photo associée à l\'observation:', photo.file_name);
-          } catch (photoError) {
-            console.error('❌ Erreur association photo:', photoError);
+            // Mettre à jour l'entité associée à la photo
+            await MediaServiceInstance.updateMediaEntity(photo.id, 'observation', newObservation.id);
+            console.log('✅ Photo associée à l\'observation:', photo.id);
+          } catch (error) {
+            console.error('❌ Erreur association photo:', error);
           }
         }
       }
@@ -172,9 +188,23 @@ export default function AddObservationScreen() {
             <FormSelect
               value={formData.crop_id}
               onValueChange={(value) => handleInputChange('crop_id', value)}
-              options={crops.map(crop => ({ value: crop.id, label: `${crop.crop_type} - ${crop.variety} (${crop.status})` }))}
-              placeholder="Sélectionner une culture"
+              options={crops.map(crop => ({ 
+                value: crop.id, 
+                label: `${crop.crop_type} - ${crop.variety} (${crop.status})` 
+              }))}
+              placeholder={loadingCrops ? "Chargement des cultures..." : "Sélectionner une culture"}
+              disabled={loadingCrops || crops.length === 0}
             />
+            {errorCrops && (
+              <Text fontSize="xs" color="error.500" mt={1}>
+                Erreur lors du chargement des cultures: {errorCrops.message}
+              </Text>
+            )}
+            {!loadingCrops && crops.length === 0 && (
+              <Text fontSize="xs" color="warning.500" mt={1}>
+                Aucune culture trouvée pour cette parcelle
+              </Text>
+            )}
           </FormField>
 
           <FormField label="Type d'observation" required>
@@ -250,9 +280,9 @@ export default function AddObservationScreen() {
 
           <FormField label="Photos">
             <PhotoPicker
-              entityType="observation"
-              entityId={plotId || ''}
-              onPhotosChange={setPhotos}
+              entityType="plot"
+              entityId={plotId!} // Utiliser le plotId pour éviter l'erreur UUID
+              onPhotosChange={handlePhotosChange}
               existingPhotos={photos}
               maxPhotos={5}
               enableGPS={true}

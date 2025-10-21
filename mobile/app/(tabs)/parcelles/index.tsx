@@ -52,7 +52,7 @@ const PlotCard = ({ item, agentId, isTablet, isSmallScreen }: {
     } catch (error) {
       console.error('❌ [PLOT_CARD] Erreur lors du chargement des cultures:', error);
       console.error('🔍 [PLOT_CARD] Détails de l\'erreur:', {
-        errorMessage: error?.message,
+        errorMessage: error instanceof Error ? error.message : String(error),
         errorType: typeof error,
         plotId: item.id,
         agentId
@@ -235,6 +235,7 @@ export default function ParcellesListScreen() {
     centerLat?: string;
     centerLng?: string;
     zoom?: string;
+    showMap?: string;
   }>();
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -487,9 +488,9 @@ export default function ParcellesListScreen() {
         setFilteredPlots(data);
         
         // Si on a des paramètres de navigation, activer la carte automatiquement
-        if (params.focusPlotId || params.centerLat) {
+        if (params.showMap === 'true' || params.centerLat) {
           setShowMap(true);
-          console.log('🗺️ Mode carte activé automatiquement pour focusPlotId:', params.focusPlotId);
+          console.log('🗺️ Mode carte activé automatiquement pour showMap:', params.showMap, 'centerLat:', params.centerLat);
         }
 
         // Extraire les options de filtres
@@ -503,9 +504,9 @@ export default function ParcellesListScreen() {
       } catch (error) {
         console.error('❌ [PARCELS] Erreur lors du chargement des parcelles:', error);
         console.error('🔍 [PARCELS] Détails de l\'erreur:', {
-          errorMessage: error?.message,
+          errorMessage: error instanceof Error ? error.message : String(error),
           errorType: typeof error,
-          errorStack: error?.stack,
+          errorStack: error instanceof Error ? error.stack : undefined,
           PlotsServiceInstance: !!PlotsServiceInstance,
           user: user?.id
         });
@@ -516,7 +517,7 @@ export default function ParcellesListScreen() {
     };
     
     loadPlots();
-  }, [authLoading, userRole, user?.id, params.centerLat, params.focusPlotId]); // Dépendances correctes
+  }, [authLoading, userRole, user?.id, params.centerLat, params.focusPlotId, params.showMap]); // Dépendances correctes
 
   // Filtrage des parcelles
   useEffect(() => {
@@ -528,7 +529,8 @@ export default function ParcellesListScreen() {
     });
 
     // Filtre par ID de parcelle spécifique (pour la navigation depuis les visites)
-    if (params.focusPlotId) {
+    // Vérifier que focusPlotId est un UUID valide avant de filtrer
+    if (params.focusPlotId && params.focusPlotId !== 'index' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(params.focusPlotId)) {
       filtered = filtered.filter(p => p.id === params.focusPlotId);
       console.log('🎯 [FILTER] Filtrage par focusPlotId:', {
         focusPlotId: params.focusPlotId,
@@ -585,7 +587,7 @@ export default function ParcellesListScreen() {
   return (
     <ScreenContainer title="Parcelles">
       {/* Indicateur de focus sur une parcelle spécifique */}
-      {params.focusPlotId && (
+      {params.focusPlotId && params.focusPlotId !== 'index' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(params.focusPlotId) && (
         <HStack
           alignItems="center"
           bg="green.50"
@@ -898,7 +900,7 @@ export default function ParcellesListScreen() {
           <MapComponent
             plots={filteredPlots}
             onPlotSelect={(plot) => router.push({ pathname: '/(tabs)/parcelles/[plotId]', params: { plotId: plot.id } })}
-            selectedPlotId={params.focusPlotId}
+            selectedPlotId={params.focusPlotId && params.focusPlotId !== 'index' ? params.focusPlotId : undefined}
             centerLat={params.centerLat ? parseFloat(params.centerLat) : undefined}
             centerLng={params.centerLng ? parseFloat(params.centerLng) : undefined}
             zoom={params.zoom ? parseInt(params.zoom) : undefined}

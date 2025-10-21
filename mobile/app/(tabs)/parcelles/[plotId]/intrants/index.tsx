@@ -11,7 +11,8 @@ export default function IntrantsListScreen() {
   const { 
     data: intrants, 
     loading: loadingIntrants, 
-    error: errorIntrants
+    error: errorIntrants,
+    refetch: refetchIntrants
   } = useInputsByPlot(plotId!);
   
   const { deleteInput } = useDeleteInput();
@@ -23,7 +24,8 @@ export default function IntrantsListScreen() {
   const handleDelete = async (intrant: any) => {
     try {
       await deleteInput(intrant.id);
-      // Le hook gère automatiquement le rechargement
+      // Rafraîchir la liste après suppression
+      await refetchIntrants();
     } catch (error) {
       console.error('Erreur lors de la suppression:', error);
     }
@@ -80,6 +82,7 @@ export default function IntrantsListScreen() {
       onEdit={handleEdit}
       onDelete={handleDelete}
       onView={handleView}
+      onRefresh={refetchIntrants}
       addButtonRoute={`/(tabs)/parcelles/${plotId}/intrants/add`}
       getStatusColor={getStatusColor}
       getStatusText={getStatusText}
@@ -98,7 +101,7 @@ export default function IntrantsListScreen() {
         subtitle: "Impossible de charger les intrants",
         retryAction: {
           label: "Réessayer",
-          onPress: () => window.location.reload()
+          onPress: refetchIntrants
         }
       }}
     />

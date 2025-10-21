@@ -303,7 +303,7 @@ const CreateFicheScreen: React.FC = () => {
                 {Math.round(progress)}%
               </Text>
             </HStack>
-            <Progress value={progress} colorScheme="primary" size="sm" />
+            <Progress value={Math.round(progress)} colorScheme="primary" size="sm" />
           </VStack>
         </Box>
 

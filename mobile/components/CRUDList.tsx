@@ -26,6 +26,8 @@ interface CRUDItem {
   date?: string;
   status?: string;
   type?: string;
+  rightAccessory?: React.ReactNode;
+  leftAccessory?: React.ReactNode;
 }
 
 interface CRUDListProps {
@@ -111,17 +113,18 @@ export function CRUDList({
   const renderItem = ({ item }: { item: CRUDItem }) => (
     <Box
       bg="white"
-      borderRadius="lg"
+      borderRadius="xl"
       p={4}
       mb={3}
       shadow={1}
       borderWidth={1}
       borderColor="gray.100"
     >
-      <VStack space={2}>
-        <HStack justifyContent="space-between" alignItems="flex-start">
+      <VStack space={3}>
+        <HStack space={3} alignItems="center">
+          {item.leftAccessory}
           <VStack flex={1} space={1}>
-            <Text fontSize="md" fontWeight="medium" color="gray.800" numberOfLines={2}>
+            <Text fontSize="md" fontWeight="semibold" color="gray.900" numberOfLines={2}>
               {item.title}
             </Text>
             {item.status && getStatusColor && getStatusText && (
@@ -132,26 +135,25 @@ export function CRUDList({
                 py={1}
                 alignSelf="flex-start"
               >
-                <Text fontSize="xs" fontWeight="medium" color="white">
+                <Text fontSize="xs" fontWeight="bold" color="white">
                   {getStatusText(item.status)}
                 </Text>
               </Badge>
             )}
+            {item.subtitle && (
+              <Text 
+                fontSize="sm" 
+                color="gray.600" 
+                lineHeight={20}
+                numberOfLines={2}
+              >
+                {item.subtitle}
+              </Text>
+            )}
           </VStack>
+          {item.rightAccessory}
         </HStack>
 
-        {item.subtitle && (
-          <Text 
-            fontSize="sm" 
-            color="gray.600" 
-            mb={2} 
-            lineHeight={20}
-            numberOfLines={2}
-          >
-            {item.subtitle}
-          </Text>
-        )}
-        
         <HStack justifyContent="space-between" alignItems="center">
           {item.date && (
             <Text fontSize="xs" color="gray.500">

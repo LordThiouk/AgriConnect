@@ -48,7 +48,11 @@ export function useCache<T>(
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchData = useCallback(async (force = false) => {
-    if (!enabled) return;
+    console.log(`🔄 [useCache] fetchData called for key: ${key}, enabled: ${enabled}, force: ${force}`);
+    if (!enabled) {
+      console.log(`⏭️ [useCache] Skipping fetch - disabled for key: ${key}`);
+      return;
+    }
 
     try {
       setLoading(true);
@@ -58,14 +62,23 @@ export function useCache<T>(
       if (!force) {
         const cachedData = await agriConnectCache.get<T>(key);
         if (cachedData) {
-          setDataState(cachedData);
-          setLoading(false);
-          onSuccess?.(cachedData);
-          return;
+          // Éviter de figer des listes vides: forcer un refresh si tableau vide
+          if (Array.isArray(cachedData) && cachedData.length === 0) {
+            console.log(`⚠️ [useCache] Empty array in cache for key: ${key} → fetching fresh`);
+          } else {
+            console.log(`⚡ [useCache] Cache HIT for key: ${key}`, cachedData);
+            setDataState(cachedData);
+            setLoading(false);
+            onSuccess?.(cachedData);
+            return;
+          }
+        } else {
+          console.log(`❌ [useCache] Cache MISS for key: ${key}`);
         }
       }
 
       // Récupérer depuis l'API
+      console.log(`🚀 [useCache] Fetching fresh data for key: ${key}`);
       const freshData = await fetcher();
       
       // Mettre en cache
@@ -73,6 +86,7 @@ export function useCache<T>(
       
       setDataState(freshData);
       onSuccess?.(freshData);
+      console.log(`✅ [useCache] Fresh data fetched and cached for key: ${key}`);
 
     } catch (err) {
       const error = err as Error;
@@ -82,7 +96,7 @@ export function useCache<T>(
     } finally {
       setLoading(false);
     }
-  }, [key, ttl, enabled, onError, onSuccess]); // Supprimé fetcher des dépendances
+  }, [key, ttl, enabled, onError, onSuccess]); // Retiré fetcher des dépendances
 
   const refetch = useCallback(() => fetchData(true), [fetchData]);
   
@@ -98,17 +112,18 @@ export function useCache<T>(
 
   // Effet initial
   useEffect(() => {
+    console.log(`🔄 [useCache] Effect triggered for key: ${key}, enabled: ${enabled}`);
     if (enabled) {
       fetchData();
     }
-  }, [enabled]); // Supprimé fetchData des dépendances
+  }, [key, enabled]); // Retiré fetchData des dépendances
 
   // Refetch au montage si demandé
   useEffect(() => {
     if (refetchOnMount && enabled) {
       fetchData(true);
     }
-  }, [refetchOnMount, enabled]); // Supprimé fetchData des dépendances
+  }, [refetchOnMount, enabled]); // Retiré fetchData des dépendances
 
   // Refetch interval
   useEffect(() => {
@@ -123,7 +138,7 @@ export function useCache<T>(
         }
       };
     }
-  }, [refetchInterval, enabled]); // Supprimé fetchData des dépendances
+  }, [refetchInterval, enabled]); // Retiré fetchData des dépendances
 
   return {
     data,

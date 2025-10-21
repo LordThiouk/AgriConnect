@@ -1,4 +1,6 @@
-import { Database, CacheTTL } from '../../../../lib/types/core';
+import { CacheTTL } from '../../../../lib/types/core';
+import { Database } from '../../../../types/database';
+
 
 type Visits = Database['public']['Tables']['visits']['Row'];
 type VisitsInsert = Database['public']['Tables']['visits']['Insert'];
@@ -10,20 +12,26 @@ type VisitsUpdate = Database['public']['Tables']['visits']['Update'];
 
 export interface Visit {
   id: string;
-  agent_id: string;
+  agent_id?: string; // RPC peut ne pas retourner cet attribut
   plot_id: string;
   visit_type: string;
   visit_date: string;
   notes?: string;
   status: string;
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
   plot_name?: string;
   producer_name?: string;
   cooperative_name?: string;
   agent_name?: string;
   parcel_area?: number;
   parcel_location?: string;
+  // Coordonnées GPS
+  lat?: number;
+  lon?: number;
+  has_gps?: boolean;
+  duration_minutes?: number;
+  weather_conditions?: string;
 }
 
 export interface VisitDisplay extends Visit {
@@ -40,6 +48,7 @@ export interface VisitFilters {
   status?: string;
   date_from?: string;
   date_to?: string;
+  period?: string; // Filtre unifié pour la RPC (today|week|month|past|future|all|completed|pending|in_progress)
 }
 
 export interface VisitSort {

@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../../../context/AuthContext';
 import { ScreenContainer, SectionCard } from '../../../../components/ui';
 import PhotoGallery from '../../../../components/ui/interactive/PhotoGallery';
+import EntityThumbnail from '../../../../components/ui/interactive/EntityThumbnail';
 import { usePlotById, useActiveCrop, useParticipantsByPlot, useRecommendationsByPlot, useCrops, useInputsByPlot, useOperationsByPlot, useObservationsByPlot } from '../../../../lib/hooks';
 import { 
   Box, 
@@ -436,20 +437,23 @@ export default function PlotDetailScreen() {
             data={operations || []}
             loading={operationsLoading}
             error={operationsError?.message || null}
-            renderItem={(operation) => (
-              <VStack space={1}>
-                <Text fontSize="sm" fontWeight="semibold" color="gray.900">
-                  {operation.operation_type || 'Opération'}
-                </Text>
-                <Text fontSize="xs" color="gray.600" numberOfLines={2}>
-                  {operation.description || `${operation.area_hectares ? `${operation.area_hectares} ha` : ''}`}
-                </Text>
-                {operation.operation_date && (
-                  <Text fontSize="xs" color="gray.500" mt={1}>
-                    Effectué le {new Date(operation.operation_date).toLocaleDateString('fr-FR')}
+            renderItem={(operation: any) => (
+              <HStack space={3} alignItems="center">
+                <VStack flex={1} space={1}>
+                  <Text fontSize="sm" fontWeight="semibold" color="gray.900">
+                    {operation.operation_type || 'Opération'}
                   </Text>
-                )}
-              </VStack>
+                  <Text fontSize="xs" color="gray.600" numberOfLines={2}>
+                    {operation.description || `${operation.area_hectares ? `${operation.area_hectares} ha` : ''}`}
+                  </Text>
+                  {operation.operation_date && (
+                    <Text fontSize="xs" color="gray.500" mt={1}>
+                      Effectué le {new Date(operation.operation_date).toLocaleDateString('fr-FR')}
+                    </Text>
+                  )}
+                </VStack>
+                <EntityThumbnail entityType="operation" entityId={operation.id} size={24} borderRadius={10} />
+              </HStack>
             )}
           />
 
@@ -463,20 +467,30 @@ export default function PlotDetailScreen() {
             data={observations || []}
             loading={observationsLoading}
             error={observationsError?.message || null}
-            renderItem={(observation) => (
-              <VStack space={1}>
-                <Text fontSize="sm" fontWeight="semibold" color="gray.900">
-                  {observation.observation_type || 'Observation'}
-                </Text>
-                <Text fontSize="xs" color="gray.600" numberOfLines={2}>
-                  {observation.description || `${observation.emergence_percent ? `Levée: ${observation.emergence_percent}%` : ''}`}
-                </Text>
-                {observation.observation_date && (
-                  <Text fontSize="xs" color="gray.500" mt={1}>
-                    Observé le {new Date(observation.observation_date).toLocaleDateString('fr-FR')}
+            renderItem={(observation: any) => (
+              <HStack space={3} alignItems="center">
+                <EntityThumbnail entityType="observation" entityId={observation.id} size={24} borderRadius={10} />
+                <VStack flex={1} space={1} maxW="85%">
+                  <HStack space={2} alignItems="center">
+                    <Text fontSize="sm" fontWeight="semibold" color="gray.900">
+                      {observation.observation_type || 'Observation'}
+                    </Text>
+                    {typeof observation.emergence_percent === 'number' && (
+                      <Text fontSize="xs" color="green.600">
+                        {observation.emergence_percent}%
+                      </Text>
+                    )}
+                  </HStack>
+                  <Text fontSize="xs" color="gray.600" numberOfLines={2}>
+                    {observation.description || '—'}
                   </Text>
-                )}
-              </VStack>
+                  {observation.observation_date && (
+                    <Text fontSize="xs" color="gray.500" mt={1}>
+                      {new Date(observation.observation_date).toLocaleDateString('fr-FR')}
+                    </Text>
+                  )}
+                </VStack>
+              </HStack>
             )}
           />
 

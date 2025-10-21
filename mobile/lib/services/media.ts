@@ -277,6 +277,38 @@ export class MediaService {
   }
 
   /**
+   * Récupère un média par son ID
+   */
+  static async getMediaById(mediaId: string): Promise<MediaFile | null> {
+    try {
+      const { data, error } = await MediaService.supabase
+        .from('media')
+        .select('*')
+        .eq('id', mediaId)
+        .single();
+
+      if (error) {
+        return null;
+      }
+
+      const { data: urlData } = MediaService.supabase.storage
+        .from('media')
+        .getPublicUrl(data.file_path);
+
+      return {
+        ...data,
+        url: urlData.publicUrl,
+        gps_coordinates: data.gps_coordinates ? {
+          lat: (data.gps_coordinates as any).coordinates[1],
+          lon: (data.gps_coordinates as any).coordinates[0]
+        } : undefined
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Récupère les médias d'un agent (tous types confondus)
    */
   static async getAgentMedia(agentId: string, limit: number = 50): Promise<MediaFile[]> {

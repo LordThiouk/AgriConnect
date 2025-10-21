@@ -2,6 +2,7 @@ import React from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useOperationsByPlot, useDeleteOperation } from '../../../../../lib/hooks';
 import { CRUDList } from '../../../../../components/CRUDList';
+import EntityThumbnail from '../../../../../components/ui/interactive/EntityThumbnail';
 
 export default function OperationsListScreen() {
   const { plotId } = useLocalSearchParams<{ plotId: string }>();
@@ -11,7 +12,8 @@ export default function OperationsListScreen() {
   const { 
     data: operations, 
     loading: loadingOperations, 
-    error: errorOperations
+    error: errorOperations,
+    refetch: refetchOperations
   } = useOperationsByPlot(plotId!);
   
   const { deleteOperation } = useDeleteOperation();
@@ -23,7 +25,8 @@ export default function OperationsListScreen() {
   const handleDelete = async (operation: any) => {
     try {
       await deleteOperation(operation.id);
-      // Le hook gère automatiquement le rechargement
+      // Rafraîchir la liste après suppression
+      await refetchOperations();
     } catch (error) {
       console.error('Erreur lors de la suppression:', error);
     }
@@ -70,6 +73,9 @@ export default function OperationsListScreen() {
     date: op.operation_date ? new Date(op.operation_date).toLocaleDateString('fr-FR') : '',
     status: op.operation_type,
     type: op.operation_type,
+    leftAccessory: (
+      <EntityThumbnail entityType="operation" entityId={op.id} size={24} borderRadius={10} />
+    )
   })) || [];
 
   return (
@@ -82,6 +88,7 @@ export default function OperationsListScreen() {
       onEdit={handleEdit}
       onDelete={handleDelete}
       onView={handleView}
+      onRefresh={refetchOperations}
       addButtonText="Nouvelle opération"
       addButtonRoute={`/(tabs)/parcelles/${plotId}/operations/add`}
       getStatusColor={getStatusColor}
@@ -101,7 +108,7 @@ export default function OperationsListScreen() {
         subtitle: "Impossible de charger les opérations",
         retryAction: {
           label: "Réessayer",
-          onPress: () => window.location.reload()
+          onPress: refetchOperations
         }
       }}
     />

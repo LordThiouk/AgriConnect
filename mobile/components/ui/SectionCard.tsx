@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Box, Text, HStack, VStack, Pressable, Badge } from 'native-base';
 import { ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,7 +16,7 @@ interface SectionCardProps {
   addButtonText?: string;
 }
 
-export function SectionCard({ 
+export const SectionCard = React.memo(function SectionCard({ 
   title, 
   icon, 
   onSeeAll, 
@@ -28,7 +28,9 @@ export function SectionCard({
   onAdd,
   addButtonText
 }: SectionCardProps) {
-  
+  const displayData = useMemo(() => (data?.slice(0, maxItems) || []), [data, maxItems]);
+  const hasMore = data && data.length > maxItems;
+
   if (loading) {
     return (
       <Box bg="white" borderRadius="xl" p={4} mb={4} shadow={2}>
@@ -51,8 +53,6 @@ export function SectionCard({
     );
   }
 
-  const displayData = data?.slice(0, maxItems) || [];
-  const hasMore = data && data.length > maxItems;
 
   return (
     <Box bg="white" borderRadius="xl" p={4} mb={4} shadow={2}>
@@ -166,4 +166,4 @@ export function SectionCard({
       )}
     </Box>
   );
-}
+});

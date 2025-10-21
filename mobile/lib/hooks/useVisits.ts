@@ -61,7 +61,7 @@ export function useVisitById(
     } finally {
       setLoading(false);
     }
-  }, [visitId, serviceOptions, onError, onSuccess]);
+  }, [visitId, onError, onSuccess]); // Retirer serviceOptions des dépendances
 
   useEffect(() => {
     if (refetchOnMount && visitId) {
@@ -100,7 +100,10 @@ export function useVisitForEdit(
   } = options;
 
   const fetchVisitForEdit = useCallback(async () => {
-    if (!visitId) return;
+    if (!visitId) {
+      console.log('⚠️ [useVisitForEdit] Pas de visitId fourni');
+      return;
+    }
 
     try {
       setLoading(true);
@@ -109,6 +112,8 @@ export function useVisitForEdit(
       console.log('🔄 [useVisitForEdit] Récupération de la visite pour modification:', visitId);
 
       const visit = await VisitsServiceInstance.getVisitForEdit(visitId);
+
+      console.log('🔍 [useVisitForEdit] Données reçues du service:', visit);
 
       setData(visit);
       onSuccess?.(visit);
@@ -122,17 +127,25 @@ export function useVisitForEdit(
     } finally {
       setLoading(false);
     }
-  }, [visitId, serviceOptions, onError, onSuccess]);
+  }, [visitId, onError, onSuccess]); // Retirer serviceOptions des dépendances
 
   useEffect(() => {
     if (refetchOnMount && visitId) {
+      // Réinitialiser les données avant de charger la nouvelle visite
+      setData(null);
+      setError(null);
       fetchVisitForEdit();
+    } else if (!visitId) {
+      // Réinitialiser quand pas de visitId
+      setData(null);
+      setError(null);
+      setLoading(false);
     }
-  }, [fetchVisitForEdit, refetchOnMount, visitId]);
+  }, [refetchOnMount, visitId]); // Retirer fetchVisitForEdit des dépendances pour éviter la boucle
 
   const refetch = useCallback(async () => {
     await fetchVisitForEdit();
-  }, [fetchVisitForEdit]);
+  }, []); // Retirer fetchVisitForEdit des dépendances pour éviter la boucle
 
   return {
     data,

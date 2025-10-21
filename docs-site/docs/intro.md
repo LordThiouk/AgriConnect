@@ -1,66 +1,60 @@
-# 🚀 Bienvenue dans AgriConnect
+# Introduction
 
 Bienvenue dans la documentation d'AgriConnect, la plateforme numérique agricole pour le Sénégal.
 
 ## 🎯 À propos d'AgriConnect
 
-AgriConnect est une plateforme mobile et web qui connecte les producteurs agricoles, les agents de collecte et les superviseurs pour améliorer la productivité agricole au Sénégal.
+AgriConnect est une plateforme complète qui digitalise le suivi agricole au Sénégal, permettant aux agents de terrain de collecter des données, aux superviseurs de suivre les performances, et aux producteurs de recevoir des conseils personnalisés.
+
+## 🚀 Fonctionnalités Principales
+
+- **Collecte de données terrain** : Enregistrement des visites, observations et médias
+- **Gestion des parcelles** : Suivi des cultures, opérations et intrants
+- **Système d'alertes** : Notifications automatiques pour les situations critiques
+- **Tableaux de bord** : Visualisation des données pour les superviseurs
+- **Application mobile** : Interface optimisée pour les agents de terrain
+
+## 📱 Applications
+
+### Application Mobile
+- Interface pour les agents de terrain
+- Collecte de données offline
+- Géolocalisation des parcelles
+- Capture de photos avec métadonnées GPS
+
+### Application Web
+- Tableau de bord pour superviseurs
+- Gestion des utilisateurs et permissions
+- Rapports et analyses
+- Configuration du système
 
 ## 🏗️ Architecture
 
-- **Application Mobile** : React Native avec Expo pour les agents de terrain
-- **Application Web** : React pour les superviseurs et administrateurs
-- **Backend** : Supabase avec PostgreSQL et PostGIS
-- **Authentification** : OTP SMS via Twilio
-- **Notifications** : SMS et Push notifications
+- **Frontend** : React Native (mobile) + React (web)
+- **Backend** : Supabase (PostgreSQL + Edge Functions)
+- **Authentification** : Supabase Auth avec OTP SMS
+- **Stockage** : Supabase Storage pour les médias
+- **Notifications** : Twilio SMS + Push notifications
 
-## 📱 Fonctionnalités Principales
+## 📚 Navigation
 
-### Pour les Agents de Terrain
-- Collecte de données agricoles (parcelles, cultures, opérations)
-- Géolocalisation des parcelles avec PostGIS
-- Mode hors-ligne avec synchronisation automatique
-- Notifications et alertes en temps réel
+Utilisez la barre latérale pour naviguer dans la documentation :
 
-### Pour les Superviseurs
-- Tableau de bord avec statistiques consolidées
-- Suivi des agents et des producteurs
-- Génération de rapports et exports
-- Gestion des alertes et recommandations
+- **🚀 Démarrage** : Installation et configuration
+- **🏗️ Architecture** : Structure technique et base de données
+- **📱 Applications** : Guides pour mobile et web
+- **🔧 Développement** : Standards et bonnes pratiques
+- **🚀 Déploiement** : Guide de mise en production
+- **🛠️ Intégrations** : Services externes (Twilio, PostGIS)
+- **🔍 Dépannage** : Solutions aux problèmes courants
 
-### Pour les Producteurs
-- Accès aux données de leurs parcelles
-- Recommandations personnalisées
-- Notifications SMS pour les alertes importantes
+## 🆘 Support
 
-## 🚀 Démarrage Rapide
-
-1. **Installation** : Consultez le [guide d'installation](getting-started/installation.md)
-2. **Configuration Supabase** : Suivez le [guide de configuration](getting-started/supabase-setup.md)
-3. **Premiers pas** : Découvrez les [premiers pas](getting-started/first-steps.md)
-
-## 📚 Documentation
-
-Explorez notre documentation complète :
-
-- [🚀 Démarrage](getting-started/installation.md) - Installation et configuration
-- [🏗️ Architecture](architecture/overview.md) - Vue d'ensemble technique
-- [📱 Applications](mobile/agent-dashboard-mobile-implementation.md) - Guides d'utilisation
-- [🔧 Développement](development/guide.md) - Guide de développement
-- [🚀 Déploiement](deployment/DEPLOY_MIGRATION_GUIDE.md) - Guide de déploiement
-- [🛠️ Intégrations](integrations/APPLICATION_INTEGRATION_SUMMARY.md) - Intégrations tierces
-- [🔍 Dépannage](troubleshooting/DEBUG_VISITS_RLS.md) - Résolution de problèmes
-
-## 🤝 Contribution
-
-Nous accueillons les contributions ! Consultez notre [guide de contribution](development/contributing.md) pour commencer.
-
-## 📞 Support
-
-- **Email** : pirlothiouk@gmail.com
-- **GitHub** : [agriconnect/agriconnect](https://github.com/agriconnect/agriconnect)
-- **Documentation** : Cette documentation
+Pour toute question ou assistance :
+- Consultez la section [Dépannage](/troubleshooting/common-issues)
+- Contactez l'équipe de développement
+- Consultez les logs et diagnostics
 
 ---
 
-*Dernière mise à jour : Décembre 2024*
+**AgriConnect** - Moderniser l'agriculture au Sénégal 🌾

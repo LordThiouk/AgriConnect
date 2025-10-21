@@ -7,7 +7,36 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-// Removed lucide-react imports to fix rendering issues
+import { 
+  User, 
+  Lock, 
+  Eye, 
+  EyeOff, 
+  LogIn, 
+  Loader2, 
+  Wheat, 
+  BarChart3, 
+  Users, 
+  Settings,
+  ArrowRight,
+  Shield,
+  Mail
+} from 'lucide-react';
+
+// Type assertions pour résoudre le conflit de types
+const UserIcon = User as any;
+const LockIcon = Lock as any;
+const EyeIcon = Eye as any;
+const EyeOffIcon = EyeOff as any;
+const LogInIcon = LogIn as any;
+const Loader2Icon = Loader2 as any;
+const WheatIcon = Wheat as any;
+const BarChart3Icon = BarChart3 as any;
+const UsersIcon = Users as any;
+const SettingsIcon = Settings as any;
+const ArrowRightIcon = ArrowRight as any;
+const ShieldIcon = Shield as any;
+const MailIcon = Mail as any;
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -62,8 +91,13 @@ const LoginPage: React.FC = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Vérification de la session...</p>
+          <div className="flex justify-center mb-4">
+            <div className="flex items-center justify-center w-16 h-16 bg-green-600 rounded-full">
+              <WheatIcon className="w-8 h-8 text-white" />
+            </div>
+          </div>
+          <Loader2Icon className="animate-spin h-8 w-8 text-green-600 mx-auto mb-4" />
+          <p className="text-gray-600">Vérification de la session...</p>
         </div>
       </div>
     );
@@ -80,13 +114,14 @@ const LoginPage: React.FC = () => {
             <div className="text-center mb-8">
               <div className="flex justify-center mb-4">
                 <div className="flex items-center justify-center w-16 h-16 bg-green-600 rounded-full">
-                  <div className="w-8 h-8 text-white text-2xl">🌱</div>
+                  <WheatIcon className="w-8 h-8 text-white" />
                 </div>
               </div>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">
                 AgriConnect
               </h1>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 flex items-center justify-center gap-2">
+                <ShieldIcon className="w-4 h-4" />
                 Supervision & Administration
               </p>
             </div>
@@ -100,7 +135,7 @@ const LoginPage: React.FC = () => {
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <div className="h-5 w-5 text-gray-400 text-lg">👤</div>
+                    <MailIcon className="h-5 w-5 text-gray-400" />
                   </div>
                   <input
                     id="email"
@@ -124,7 +159,7 @@ const LoginPage: React.FC = () => {
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <div className="h-5 w-5 text-gray-400 text-lg">🔒</div>
+                    <LockIcon className="h-5 w-5 text-gray-400" />
                   </div>
                   <input
                     id="password"
@@ -144,9 +179,9 @@ const LoginPage: React.FC = () => {
                     className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
                   >
                     {showPassword ? (
-                      <div className="h-5 w-5 text-lg">🙈</div>
+                      <EyeOffIcon className="h-5 w-5" />
                     ) : (
-                      <div className="h-5 w-5 text-lg">👁️</div>
+                      <EyeIcon className="h-5 w-5" />
                     )}
                   </button>
                 </div>
@@ -190,14 +225,15 @@ const LoginPage: React.FC = () => {
               >
                 {isSigningIn ? (
                   <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    <Loader2Icon className="animate-spin h-4 w-4 mr-2" />
                     Connexion en cours...
                   </div>
                 ) : (
-                  <>
+                  <div className="flex items-center">
+                    <LogInIcon className="h-4 w-4 mr-2" />
                     Se connecter
-                    <div className="ml-2 h-4 w-4 text-lg">→</div>
-                  </>
+                    <ArrowRightIcon className="h-4 w-4 ml-2" />
+                  </div>
                 )}
               </button>
             </form>
@@ -206,12 +242,12 @@ const LoginPage: React.FC = () => {
             <div className="mt-8 pt-6 border-t border-gray-200">
               <div className="text-center">
                 <p className="text-xs text-gray-500 mb-2">
-                  Besoin d'aide? Contactez votre administrateur
+                   Besoin d'aide? Contactez votre administrateur
                 </p>
                 <div className="flex justify-center space-x-4 text-xs text-gray-500">
-                  <a href="/terms" className="hover:text-green-600">CGU</a>
+                  <a href="/terms" className="hover:text-green-600"> CGU</a>
                   <span>•</span>
-                  <a href="/privacy" className="hover:text-green-600">Confidentialité</a>
+                  <a href="/privacy" className="hover:text-green-600"> Confidentialité</a>
                 </div>
                 <p className="text-xs text-gray-400 mt-2">v2.1.0</p>
               </div>
@@ -225,15 +261,15 @@ const LoginPage: React.FC = () => {
         <div className="max-w-md mx-auto">
           <div className="flex justify-around">
             <button className="flex flex-col items-center space-y-1 text-green-600 hover:text-green-700 transition-colors">
-              <div className="h-6 w-6 text-xl">📊</div>
+              <BarChart3Icon className="h-6 w-6" />
               <span className="text-xs font-medium">Analytics</span>
             </button>
             <button className="flex flex-col items-center space-y-1 text-green-600 hover:text-green-700 transition-colors">
-              <div className="h-6 w-6 text-xl">👥</div>
+              <UsersIcon className="h-6 w-6" />
               <span className="text-xs font-medium">Supervision</span>
             </button>
             <button className="flex flex-col items-center space-y-1 text-green-600 hover:text-green-700 transition-colors">
-              <div className="h-6 w-6 text-xl">⚙️</div>
+              <SettingsIcon className="h-6 w-6" />
               <span className="text-xs font-medium">Administration</span>
             </button>
           </div>

@@ -2,6 +2,7 @@ import React from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useObservationsByPlot } from '../../../../../lib/hooks';
 import { CRUDList } from '../../../../../components/CRUDList';
+import EntityThumbnail from '../../../../../components/ui/interactive/EntityThumbnail';
 
 export default function ObservationsListScreen() {
   const { plotId } = useLocalSearchParams<{ plotId: string }>();
@@ -11,7 +12,8 @@ export default function ObservationsListScreen() {
   const { 
     data: observations, 
     loading: loadingObservations, 
-    error: errorObservations
+    error: errorObservations,
+    refetch: refetchObservations
   } = useObservationsByPlot(plotId!);
   
   // TODO: Implémenter useDeleteObservation
@@ -26,7 +28,8 @@ export default function ObservationsListScreen() {
   const handleDelete = async (observation: any) => {
     try {
       await deleteObservation(observation.id);
-      // Le hook gère automatiquement le rechargement
+      // Rafraîchir la liste après suppression
+      await refetchObservations();
     } catch (error) {
       console.error('Erreur lors de la suppression:', error);
     }
@@ -69,6 +72,9 @@ export default function ObservationsListScreen() {
     date: observation.observation_date ? new Date(observation.observation_date).toLocaleDateString('fr-FR') : '',
     status: observation.observation_type || 'autre',
     type: observation.observation_type || 'autre',
+    leftAccessory: (
+      <EntityThumbnail entityType="observation" entityId={observation.id} size={24} borderRadius={10} />
+    )
   }));
 
   return (
@@ -81,6 +87,7 @@ export default function ObservationsListScreen() {
       onEdit={handleEdit}
       onDelete={handleDelete}
       onView={handleView}
+      onRefresh={refetchObservations}
       addButtonRoute={`/(tabs)/parcelles/${plotId}/observations/add`}
       getStatusColor={getStatusColor}
       getStatusText={getStatusText}
@@ -99,7 +106,7 @@ export default function ObservationsListScreen() {
         subtitle: "Impossible de charger les observations",
         retryAction: {
           label: "Réessayer",
-          onPress: () => window.location.reload()
+          onPress: refetchObservations
         }
       }}
     />
